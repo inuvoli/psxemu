@@ -14,7 +14,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
 find_package(SDL2 REQUIRED)
-find_package(GLEW CONFIG REQUIRED)
+#find_package(GLEW CONFIG REQUIRED)
+find_package(GLEW REQUIRED)
 find_package(OpenGL REQUIRED)
 
 # Create a sources variable with a link to all cpp files to compile
