@@ -4,7 +4,7 @@
 Bios::Bios()
 {
 	//Load Bios
-	loadBios("scph1002_PAL.bin");
+	loadBios("scph1001.bin");
 }
 
 Bios::~Bios()
