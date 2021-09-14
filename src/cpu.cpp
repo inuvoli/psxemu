@@ -262,9 +262,11 @@ uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
 		switch (vAddr)
 		{
 		case 0x1f801070:
+			//printf("Interrupt Status:		0x%08x\n", intStatus);
 			return intStatus;
 			break;
 		case 0x1f801074:
+			//printf("Interrupt Mask Read:	0x%08x\n", intStatus);
 			return intMask;
 			break;
 		}
@@ -311,10 +313,12 @@ bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool checkalign)
 		{
 		case 0x1f801070:
 			intStatus = data;
+			//printf("Interrupt Acknowledge:	0x%08x\n", data);
 			return true;
 			break;
 		case 0x1f801074:
 			intMask = data;
+			//printf("Interrupt Mask Write:	0x%08x\n", data);
 			return true;
 			break;
 		}

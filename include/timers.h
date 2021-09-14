@@ -11,13 +11,7 @@ class Psx;
 
 constexpr auto TIMER_NUMBER = 3;
 
-enum class ClockSource { System, Dot, hBlank };
-
-//GPU Debug Status
-struct TimerDebugInfo
-{
-	
-};
+enum class ClockSource { System, System8, Dot, hBlank };
 
 union CounterMode
 {
@@ -38,11 +32,29 @@ union CounterMode
 
 struct TimerStatus
 {
+	//Raw Register Values
 	uint32_t	counterValue;	//Timer Counter Current Value (R/W)
 	uint32_t	counterTarget;	//Timer Counter Target Value (R/W)
-	CounterMode	counterMode;	//Timer Counter Mode (R/W) 
+	CounterMode	counterMode;	//Timer Counter Mode (R/W)
+	//Helper Variables
+	ClockSource	clockSource;
+
+	TimerStatus& operator=(TimerStatus& x)
+	{
+		this->counterValue = x.counterValue;
+		this->counterTarget = x.counterTarget;
+		this->counterMode = x.counterMode;
+		this->clockSource = x.clockSource;
+
+		return *this;
+	}
 };
 
+//GPU Debug Status
+struct TimerDebugInfo
+{
+	TimerStatus		timerStatus[TIMER_NUMBER];
+};
 
 class Timers
 {
@@ -60,11 +72,15 @@ public:
 	void link(Psx* instance) { psx = instance; }
 
 	//Debug Info
-	//void getDebugInfo(GpuDebugInfo& info);
+	void getDebugInfo(TimerDebugInfo& info);
 	
 private:
 	//Link to Bus Object
 	Psx* psx = nullptr;
+
+	void updateTimer0();
+	void updateTimer1();
+	void updateTimer2();
 
 	//Timers Internal Registers
 	std::array<TimerStatus, TIMER_NUMBER>	timerStatus;

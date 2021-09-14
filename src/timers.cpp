@@ -1,9 +1,11 @@
 #include "timers.h"
+#include "psx.h"
+#include "gpu.h"
 
 Timers::Timers()
 {
 	//Reset TIMERS Registers
-	for (auto e : timerStatus)
+	for (auto &e : timerStatus)
 	{
 		e.counterValue = 0x0;
 		e.counterTarget = 0x0;
@@ -18,7 +20,7 @@ Timers::~Timers()
 bool Timers::reset()
 {
 	//Reset TIMERS Registers
-	for (auto e : timerStatus)
+	for (auto &e : timerStatus)
 	{
 		e.counterValue = 0x0;
 		e.counterTarget = 0x0;
@@ -29,6 +31,40 @@ bool Timers::reset()
 }
 
 bool Timers::clock(ClockSource source)
+{
+	//Update Timers according to Clock Source
+
+	switch (source)
+	{
+	case ClockSource::System:
+		if (timerStatus[0].clockSource == ClockSource::System) updateTimer0();
+		if (timerStatus[1].clockSource == ClockSource::System) updateTimer1();
+		if (timerStatus[2].clockSource == ClockSource::System) updateTimer2();
+		break;
+
+	case ClockSource::System8:
+		if (timerStatus[2].clockSource == ClockSource::System8) updateTimer2();
+		break;
+
+	case ClockSource::Dot:
+		if (timerStatus[0].clockSource == ClockSource::Dot) updateTimer0();
+		break;
+
+	case ClockSource::hBlank:
+		if (timerStatus[1].clockSource == ClockSource::hBlank) updateTimer1();
+		break;
+		
+	default:
+		printf("TIMERS - Unknown Clock Source!\n");
+	}
+
+
+	timerStatus[1].counterMode.clkSource;
+
+	return true;
+}
+
+void Timers::updateTimer0()
 {
 	//UPDATE Counter 0
 	if ((bool)timerStatus[0].counterMode.syncEn)
@@ -44,7 +80,44 @@ bool Timers::clock(ClockSource source)
 		//			3 = Pause until hBlank(s) occurs once, then switch to Free Run
 		//  - Counter is reset to 0x0000 according to Reset Zero setting:
 		//			0 = after counter reach 0xfffff, 1 = after counter reach Counter Target
-		//  
+		//
+		switch (timerStatus[0].counterMode.syncMode)
+		{
+		case 0:
+			if (!psx->gpu.hBlank) timerStatus[0].counterValue++;
+			break;
+		case 1:
+			if (psx->gpu.hBlank) timerStatus[0].counterValue = 0x0000;
+			break;
+		case 2:
+			if (psx->gpu.hBlank) timerStatus[0].counterValue = 0x0000; //CHECK - hBlank shoult be active only at the end of visible area?
+			break;
+		case 3:
+			if (psx->gpu.hBlank) timerStatus[0].counterMode.syncEn = false;
+			break;
+
+		default:
+			printf("TIMER - Unknown Sync Mode!\n");
+		}
+
+		if (static_cast<bool>(timerStatus[0].counterMode.resetZero))
+		{
+			if (timerStatus[0].counterValue > timerStatus[0].counterTarget)
+			{
+				timerStatus[0].counterValue = 0x0000;
+				timerStatus[0].counterMode.isTarget = true;
+				//TODO - Interrupt Management
+			}
+		}
+		else
+		{
+			if (timerStatus[0].counterValue > 0xffff)
+			{
+				timerStatus[0].counterValue = 0x0000;
+				timerStatus[0].counterMode.isOverflow = true;
+				//TODO - Interrupt Management
+			}
+		}
 	}
 	else
 	{
@@ -53,21 +126,152 @@ bool Timers::clock(ClockSource source)
 		//			0 or 2 = System Clock
 		//			1 or 3 = Dot Clock
 		// - Counter if always reset when reach 0xffff
-		switch (source)
-		{
-			case ClockSource::System:
-				(timerStatus[0].counterMode.clkSource == 0 || timerStatus[0].counterMode.clkSource == 2) ? timerStatus[0].counterValue++ : 0;
-				break;
-
-			case ClockSource::Dot:
-				(timerStatus[0].counterMode.clkSource == 1 || timerStatus[0].counterMode.clkSource == 3) ? timerStatus[0].counterValue++ : 0;
-				break;
-		}
+		timerStatus[0].counterValue++;
 		if (timerStatus[0].counterValue > 0xffff)
+		{
 			timerStatus[0].counterValue = 0x0000;
+			//timerStatus[0].counterMode.isOverflow = true;
+			//TODO Interrupt Management
+		}
 	}
+}
 
-	return true;
+void Timers::updateTimer1()
+{
+	//UPDATE Counter 1
+	if ((bool)timerStatus[1].counterMode.syncEn)
+	{
+		//Sync Enable
+		// - Counter is update according to selected clock source
+		//			0 or 2 = System Clock
+		//			1 or 3 = hBlank
+		// - Counter is Synced according to Sync Mode value:
+		//			0 = Pause counter during vBlank(s)
+		//			1 = Reset counter to 0000h at vBlank(s)
+		//			2 = Reset counter to 0000h at vBlank(s) and pause outside of vBlank
+		//			3 = Pause until vBlank(s) occurs once, then switch to Free Run
+		//  - Counter is reset to 0x0000 according to Reset Zero setting:
+		//			0 = after counter reach 0xfffff, 1 = after counter reach Counter Target
+		//
+		switch (timerStatus[1].counterMode.syncMode)
+		{
+		case 0:
+			if (!psx->gpu.vBlank) timerStatus[1].counterValue++;
+			break;
+		case 1:
+			if (psx->gpu.vBlank) timerStatus[1].counterValue = 0x0000;
+			break;
+		case 2:
+			if (psx->gpu.vBlank) timerStatus[1].counterValue = 0x0000; //CHECK - hBlank shoult be active only at the end of visible area?
+			break;
+		case 3:
+			if (psx->gpu.vBlank) timerStatus[1].counterMode.syncEn = false;
+			break;
+
+		default:
+			printf("TIMER - Unknown Sync Mode!\n");
+		}
+
+		if (static_cast<bool>(timerStatus[1].counterMode.resetZero))
+		{
+			if (timerStatus[1].counterValue > timerStatus[1].counterTarget)
+			{
+				timerStatus[1].counterValue = 0x0000;
+				timerStatus[1].counterMode.isTarget = true;
+				//TODO - Interrupt Management
+			}
+		}
+		else
+		{
+			if (timerStatus[1].counterValue > 0xffff)
+			{
+				timerStatus[1].counterValue = 0x0000;
+				timerStatus[1].counterMode.isOverflow = true;
+				//TODO - Interrupt Management
+			}
+		}
+	}
+	else
+	{
+		//Sync Disabled (aka Free Run)
+		// - Counter is update according to selected clock source
+		//			0 or 2 = System Clock
+		//			1 or 3 = hBlank
+		// - Counter if always reset when reach 0xffff
+		timerStatus[1].counterValue++;
+		if (timerStatus[1].counterValue > 0xffff)
+		{
+			timerStatus[1].counterValue = 0x0000;
+			//timerStatus[1].counterMode.isOverflow = true;
+			//TODO Interrupt Management
+		}
+	}
+}
+
+void Timers::updateTimer2()
+{
+	//UPDATE Counter 2
+	if ((bool)timerStatus[2].counterMode.syncEn)
+	{
+		//Sync Enable
+		// - Counter is update according to selected clock source
+		//			0 or 1 = System Clock
+		//			2 or 3 = System Clock / 8
+		// - Counter is Synced according to Sync Mode value:
+		//			0 or 3 = Stop counter at current value (forever, no h/v-blank start)
+		//			1 or 2 = Free Run (same as when Synchronization Disabled)
+		//  - Counter is reset to 0x0000 according to Reset Zero setting:
+		//			0 = after counter reach 0xfffff, 1 = after counter reach Counter Target
+		//
+		switch (timerStatus[2].counterMode.syncMode)
+		{
+		case 0:
+		case 3:
+			break;
+
+		case 1:
+		case 2:
+			timerStatus[2].counterValue++;
+			break;
+		
+		default:
+			printf("TIMER - Unknown Sync Mode!\n");
+		}
+
+		if (static_cast<bool>(timerStatus[2].counterMode.resetZero))
+		{
+			if (timerStatus[2].counterValue > timerStatus[2].counterTarget)
+			{
+				timerStatus[2].counterValue = 0x0000;
+				timerStatus[2].counterMode.isTarget = true;
+				//TODO - Interrupt Management
+			}
+		}
+		else
+		{
+			if (timerStatus[2].counterValue > 0xffff)
+			{
+				timerStatus[2].counterValue = 0x0000;
+				timerStatus[2].counterMode.isOverflow = true;
+				//TODO - Interrupt Management
+			}
+		}
+	}
+	else
+	{
+		//Sync Disabled (aka Free Run)
+		// - Counter is update according to selected clock source
+		//			0 or 1 = System Clock
+		//			2 or 3 = System Clock / 8
+		// - Counter if always reset when reach 0xffff
+		timerStatus[2].counterValue++;
+		if (timerStatus[2].counterValue > 0xffff)
+		{
+			timerStatus[2].counterValue = 0x0000;
+			//timerStatus[2].counterMode.isOverflow = true;
+			//TODO Interrupt Management
+		}
+	}
 }
 
 bool Timers::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
@@ -108,7 +312,13 @@ bool Timers::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 	case 0x1f801104:	//----------------------------Counter Mode 0
 		timerStatus[0].counterMode.word = data & 0x0000ffff;
 		timerStatus[0].counterValue = 0x00000000;		//Counter Value is forcefully reset to 0x0000 on any write to Counter Mode 
-		timerStatus[0].counterMode.irqRequest = true;	//Interrupt Request is set at every Write (false = Yes, true = No)		
+		timerStatus[0].counterMode.irqRequest = true;	//Interrupt Request is set at every Write (false = Yes, true = No)
+
+		//Set Clock Source Helper Variable
+		if (timerStatus[0].counterMode.clkSource == 0 || timerStatus[0].counterMode.clkSource == 2)
+			timerStatus[0].clockSource = ClockSource::System;
+		else
+			timerStatus[0].clockSource = ClockSource::Dot;
 		break;
 
 	case 0x1f801108:	//----------------------------Counter Target 0
@@ -123,7 +333,13 @@ bool Timers::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 	case 0x1f801114:	//----------------------------Counter Mode 1
 		timerStatus[1].counterMode.word = data & 0x0000ffff;
 		timerStatus[1].counterValue = 0x00000000;		//Counter Value is forcefully reset to 0x0000 on any write to Counter Mode 
-		timerStatus[1].counterMode.irqRequest = true;	//Interrupt Request is set at every Write (false = Yes, true = No)		
+		timerStatus[1].counterMode.irqRequest = true;	//Interrupt Request is set at every Write (false = Yes, true = No)
+
+		//Set Clock Source Helper Variable
+		if (timerStatus[1].counterMode.clkSource == 0 || timerStatus[1].counterMode.clkSource == 2)
+			timerStatus[1].clockSource = ClockSource::System;
+		else
+			timerStatus[1].clockSource = ClockSource::hBlank;
 		break;
 
 	case 0x1f801118:	//----------------------------Counter Target 1
@@ -131,17 +347,24 @@ bool Timers::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 		break;
 
 		//-------------------------------Timer 2
-	case 0x1f801120:
+	case 0x1f801120:	//----------------------------Counter Value 2
 		timerStatus[2].counterValue = data & 0x0000ffff;
 		break;
 
-	case 0x1f801124:
+	case 0x1f801124:	//----------------------------Counter Mode 2
 		timerStatus[2].counterMode.word = data & 0x0000ffff;
 		timerStatus[2].counterValue = 0x00000000;		//Counter Value is forcefully reset to 0x0000 on any write to Counter Mode 
-		timerStatus[2].counterMode.irqRequest = true;	//Interrupt Request is set at every Write (false = Yes, true = No)		
+		timerStatus[2].counterMode.irqRequest = true;	//Interrupt Request is set at every Write (false = Yes, true = No)
+
+		//Set Clock Source Helper Variable
+		if (timerStatus[2].counterMode.clkSource == 0 || timerStatus[2].counterMode.clkSource == 1)
+			timerStatus[2].clockSource = ClockSource::System;
+		else
+			timerStatus[2].clockSource = ClockSource::System8;
+
 		break;
 
-	case 0x1f801128:
+	case 0x1f801128:	//----------------------------Counter Target 2
 		timerStatus[1].counterTarget = data & 0x0000ffff;
 		break;
 
@@ -210,3 +433,16 @@ uint32_t Timers::getParameter(uint32_t addr, uint8_t bytes)
 
 	return data;
 }
+
+//-----------------------------------------------------------------------------------------------------
+// 
+//                               DEBUG Status
+// 
+//-----------------------------------------------------------------------------------------------------
+void Timers::getDebugInfo(TimerDebugInfo& info)
+{
+	info.timerStatus[0] = timerStatus[0];
+	info.timerStatus[1] = timerStatus[1];
+	info.timerStatus[2] = timerStatus[2];
+}
+

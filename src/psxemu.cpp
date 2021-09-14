@@ -13,8 +13,8 @@ psxemu::psxemu()
     breakPoint = 0xffffffff;
 
 	isRunning = false;
-    isHalt = true;
-    isFast = false;
+    instructionStep = false;
+    frameStep = false;
 
 	pControllerA = nullptr;
 	pControllerB = nullptr;
@@ -128,11 +128,11 @@ bool psxemu::run()
         handleEvents();
 
         //Run Single Line
-        if (!isHalt)
+        if (instructionStep)
             update();
 
         //Update Full Frame
-        if (isFast)
+        if (frameStep)
             updateFrame();
 
         renderFrame();
@@ -192,12 +192,14 @@ bool psxemu::handleEvents()
                 pPsxSystem->reset();
                 break;
 
-            case SDLK_h:
-                (isHalt) ? isHalt = false : isHalt = true;
+            case SDLK_i:
+                (instructionStep) ? instructionStep = false : instructionStep = true;
+                frameStep = false;
                 break;
 
             case SDLK_f:
-                (isFast) ? isFast = false : isFast = true;
+                (frameStep) ? frameStep = false : frameStep = true;
+                instructionStep = false;
                 break;
 
             case SDLK_1:
@@ -359,18 +361,19 @@ bool psxemu::debugInfo()
 
     if (showTimers)
     {
-//        ImGui::Begin("TIMERS");
+        TimerDebugInfo timerinfo;
+        pPsxSystem->timers.getDebugInfo(timerinfo);
 
- //       for (int i = 0; i < TIMER_NUMBER; i++)
- //       {
- //           ImGui::Text("TIMER%d:Value  0x%08x  ", i, pPsxSystem->timers.timerCounterValue[i]);
- //           ImGui::SameLine();
- //           ImGui::Text("TIMER%d:Mode   0x%08x  ", i, pPsxSystem->timers.timerCounterMode[i].word);
- //           ImGui::SameLine();
- //           ImGui::Text("TIMER%d:Target 0x%08x  ", i, pPsxSystem->timers.timerCounterTarget[i]);
- //       }
-
-//        ImGui::End();
+        ImGui::Begin("TIMERS");
+        for (int i = 0; i < TIMER_NUMBER; i++)
+        {
+            ImGui::Text("Timer %d: Value  0x%08x  ", i, timerinfo.timerStatus[i].counterValue);
+            ImGui::SameLine();
+            ImGui::Text("Timer %d: Mode   0x%08x  ", i, timerinfo.timerStatus[i].counterMode);
+            ImGui::SameLine();
+            ImGui::Text("Timer %d: Target 0x%08x  ", i, timerinfo.timerStatus[i].counterTarget);
+        }
+        ImGui::End();
     }
 
     if (showGpu)
@@ -394,9 +397,7 @@ bool psxemu::debugInfo()
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_ABGR_EXT, GL_UNSIGNED_SHORT_1_5_5_5_REV_EXT, gpuinfo.vRam);
         //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, gpuinfo.vRam);
         ImGui::Image((void*)(intptr_t)vramTexture, ImVec2(1024, 512));
-        ImGui::End();
-
-        ImGui::End();
+        ImGui::End();      
     }
     
     ImGui::Render();
@@ -409,8 +410,8 @@ bool psxemu::update()
 {
     if (pPsxSystem->cpu.pc - 0x4 == breakPoint)
     {
-        isHalt = true;
-        isFast = false;
+        instructionStep = false;
+        frameStep = false;
     }
 
     pPsxSystem->clock();
@@ -425,8 +426,8 @@ bool psxemu::updateFrame()
     {
         if (pPsxSystem->cpu.pc - 0x4 == breakPoint)
         {
-            isHalt = true;
-            isFast = false;
+            instructionStep = false;
+            frameStep = false;
             break;
         }
 

@@ -1,4 +1,6 @@
 #include "gpu.h"
+#include "psx.h"
+#include "timers.h"
 
 GPU::GPU()
 {
@@ -18,10 +20,11 @@ GPU::GPU()
 	videoMode = VideoMode::NTSC;
 	horizontalResolution1 = 0x0000;
 	horizontalResolution2 = 0x0000;
+	dotClockRatio = 10;				//Assuming 256 pixel per line is standard configuration
 	verticalResolution = 0x0000;
 	verticalInterlace = false;
 	newScanline = false;
-	newFrame = false;
+	newFrameReady = false;
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
@@ -34,7 +37,7 @@ GPU::GPU()
 	dmaDirection = 0;
 
 	//Reset Internal Clock Counter
-	clockCounter = 0;
+	gpuClockTicks = 0;
 
 	//GPU Internal Status & Configurations
 	recvCommand = false;
@@ -414,7 +417,7 @@ bool GPU::reset()
 	verticalResolution = 0x0000;
 	verticalInterlace = false;
 	newScanline = false;
-	newFrame = false;
+	newFrameReady = false;
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
@@ -427,7 +430,7 @@ bool GPU::reset()
 	dmaDirection = 0;
 
 	//Reset Internal Clock Counter
-	clockCounter = 0;
+	gpuClockTicks = 0;
 
 	//GPU Internal Status & Configurations
 	recvCommand = false;
@@ -463,8 +466,8 @@ bool GPU::isFrameReady()
 {
 	bool status;
 
-	status = newFrame;
-	newFrame = false;
+	status = newFrameReady;
+	newFrameReady = false;
 
 	return status;
 }
@@ -534,14 +537,17 @@ bool GPU::clock()
 			vCount++;
 			newScanline = true;
 			hBlank = false;		//Reset hBlank immediately on a new line, is it really needed?
+			
+			//Generate hBlank Clock, not sure if it has to be triggered as soon as exit the visible area 
+			psx->timers.clock(ClockSource::hBlank);
 		}
 
 		if (vCount >= (visible_scanlines + vblank_scanlines))
 		{
 			vCount = 0;
-			newFrame = true;
+			newFrameReady = true;
 			vBlank = false;		//Reset vBlank immediately in order to update GPUSTAT.31 on a new frame correctly otherwise is always reset to zero.
-			printf("GPU -------------NEW FRAME!\n");
+			//printf("GPU -------------NEW FRAME!\n");
 		}
 
 		return 0;
@@ -557,14 +563,14 @@ bool GPU::clock()
 			opcode = gp0Command >> 24;
 			
 			(this->*gp0InstrSet[opcode].operate)();
-			printf("Command GP0(%02xh): %s\n", opcode, gp0InstrSet[opcode].mnemonic.c_str());
+			//printf("Command GP0(%02xh): %s\n", opcode, gp0InstrSet[opcode].mnemonic.c_str());
 		}
 		else
 		{
 			//Available GP0 Command not in the FIFO
 			opcode = gp0Command >> 24;
 			(this->*gp0InstrSet[opcode].operate)();
-			printf("Command GP0(%02xh): %s\n", opcode, gp0InstrSet[opcode].mnemonic.c_str());
+			//printf("Command GP0(%02xh): %s\n", opcode, gp0InstrSet[opcode].mnemonic.c_str());
 		}
 	
 		return 0;
@@ -574,12 +580,12 @@ bool GPU::clock()
 		uint8_t opcode;
 		opcode = (gp1Command >> 24) & 0x3f;			//Extract Command Opcode, masked since from 0x40 are all mirrored
 		(this->*gp1InstrSet[opcode].operate)();		//GP1 Command are always executed immediately
-		printf("Command GP1(%02xh): %s\n", opcode, gp1InstrSet[opcode].mnemonic.c_str());
+		//printf("Command GP1(%02xh): %s\n", opcode, gp1InstrSet[opcode].mnemonic.c_str());
 		return 0;
 	};
 
 	newScanline = false;
-	newFrame = false;
+	newFrameReady = false;
 
 	//Update Vertical and Horizontal Blank Flag according to Video Mode
 	switch (videoMode)
@@ -598,7 +604,7 @@ bool GPU::clock()
 	//  - Toggle at every new frame if GPUSTAT.19 = 1
 	//  - Always Zero during vBlank
 	if (newScanline & !static_cast<bool>((gpuStat & (1UL << 19)))) { gpuStat ^= (1UL << 31); };
-	if (newFrame & static_cast<bool>((gpuStat & (1UL << 19)))) { gpuStat ^= (1UL << 31); };
+	if (newFrameReady & static_cast<bool>((gpuStat & (1UL << 19)))) { gpuStat ^= (1UL << 31); };
 	if (vBlank) { gpuStat &= ~(1UL << 31); };
 
 	//Update GPUSTAT.28
@@ -651,7 +657,12 @@ bool GPU::clock()
 	if (gp0CommandAvailable) { gp0RunCommand(); };
 	if (gp1CommandAvailable) { gp1RunCommand(); };
 
-	clockCounter++;
+	//Generate Dot Clock Signal
+	if (!(gpuClockTicks % dotClockRatio))
+	{
+		psx->timers.clock(ClockSource::Dot);
+	}
+	gpuClockTicks++;
 
 	return true;
 }
@@ -757,7 +768,7 @@ uint32_t GPU::getParameter(uint32_t addr, uint8_t bytes)
 			//	- CPU, GPUSTAT.29-30 (DMA Direction) = 0  "DMA Off"
 			//	- DMA, GPUSTAT.29-30 (DMA Direction) = 3  "DMA RAM to VRAM"
 			data = readVRAM();
-		printf("GPU - GP0/1 Response: 0x%08x  (Clk: %ld) [%d, %d]\n", data, clockCounter, dmaDirection, dataReadActive);
+		printf("GPU - GP0/1 Response: 0x%08x  (Clk: %ld) [%d, %d]\n", data, gpuClockTicks, dmaDirection, dataReadActive);
 		break;
 	case 0x1f801814:
 		data = gpuStat;			//--------------------------------------GPU Status Register
@@ -1237,6 +1248,30 @@ bool GPU::gp1_DisplayMode()
 	//GPUSTAT.14 << GP1DATA.7									//Reverse Flag: 0 = normal, 1 = distorted
 	data = (gp1DataLatch & 0x00000080) >> 7;					//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 14)) | (data << 14);	//Set GPUSTAT.16 to data value
+
+	//Set DotClock Divider according to new Horizontal Resolution configuration
+	if (horizontalResolution2 == 1)
+	{
+		dotClockRatio = 7; //H Res = 368
+	}
+	else if (horizontalResolution2 == 0)
+	{
+		switch (horizontalResolution1)
+		{
+		case 0:
+			dotClockRatio = 10;	//H Res = 256
+			break;
+		case 1:
+			dotClockRatio = 8;	//H Res = 320
+			break;
+		case 2:
+			dotClockRatio = 5;	//H Res = 512
+			break;
+		case 3:
+			dotClockRatio = 4;	//H Res = 640
+			break;
+		}
+	}
 
 	//Reset GPUSTAT Flag to receive next GP1 command
 	gp1_ResetStatus();

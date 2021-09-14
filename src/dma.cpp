@@ -116,7 +116,7 @@ bool Dma::clock()
 			default:
 				break;
 			}
-			printf("DMA - Active Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d\n", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize);
+			//printf("DMA - Active Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d\n", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize);
 			//Stop CPU access to Address Bus
 			psx->cpu.dmaTakeOnBus = true;
 		}	

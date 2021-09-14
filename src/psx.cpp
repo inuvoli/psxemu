@@ -70,8 +70,9 @@ bool Psx::clock()
 	//
 	// CPU Clock is 7/11 of the GPU Clock. This is achieved starting from
 	// a Master Clock at 372.5535 Mhz then:
-	// CPU Clock = Master Clock / 11
-	// GPU Clock = Master Clock / 7
+	// CPU Clock		= Master Clock / 11
+	// GPU Clock		= Master Clock / 7
+	// System/8 Clock	= Master Clock / 88
 	//-------------------------------------------------------------------
 
 	if (!(masterClock % 7))
@@ -83,6 +84,12 @@ bool Psx::clock()
 	{
 		cpu.clock();
 		dma.clock();
+		timers.clock(ClockSource::System);
+	}
+
+	if (!(masterClock % 88))
+	{
+		timers.clock(ClockSource::System8);
 	}
 	
 	masterClock++;

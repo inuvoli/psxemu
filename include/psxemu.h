@@ -30,8 +30,8 @@ public:
 public:
 	//Emulator Status
 	bool	isRunning;
-	bool	isHalt;
-	bool	isFast;
+	bool	instructionStep;
+	bool	frameStep;
 
 	//Debug Windows
 	bool		showRegister;

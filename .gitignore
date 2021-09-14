@@ -34,3 +34,5 @@ bld/
 *.manifest
 *.pdb
 *.ini
+*.ilk
+*.json

@@ -126,6 +126,7 @@ private:
 	VideoMode			videoMode;
 	uint16_t			horizontalResolution1;
 	uint16_t			horizontalResolution2;
+	uint8_t				dotClockRatio;
 	uint16_t			verticalResolution;
 	bool				verticalInterlace;
 	Pair<uint16_t>		displayOffset;
@@ -145,10 +146,10 @@ private:
 	bool				gp1CommandAvailable;
 	uint32_t			gp1Command;
 
-	uint32_t			hCount;			//Count GPU Ticks per Scanline
-	uint32_t			vCount;			//Count the number of Scanlines
-	bool				newScanline;	//Set if a new Scanline has startes
-	bool				newFrame;		//Set if a new Frame has started
+	uint32_t			hCount;				//Count GPU Ticks per Scanline
+	uint32_t			vCount;				//Count the number of Scanlines
+	bool				newScanline;		//Set if a new Scanline has startes
+	bool				newFrameReady;		//Set if a new Frame has started
 		
 	//Memory Transfer Status
 	Pair<uint16_t>		dataDestination;	//Framebuffer destination start point: x is offset in halfwords, y is offset in rows
@@ -159,7 +160,7 @@ private:
 	bool				dataWriteActive;	//Set by GP0(A0h), enable data transfer from RAM to VRAM
 		
 	//Internal Clock Counter
-	uint64_t	clockCounter;
+	uint64_t	gpuClockTicks;
 
 	//Full set GPU Instruction Dictionaries
 	struct INSTRGP0
