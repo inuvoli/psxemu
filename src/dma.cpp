@@ -60,6 +60,9 @@ bool Dma::reset()
 
 bool Dma::clock()
 {
+	//Check for any pending Interrupr
+	interruptCheck();
+
 	//Check id DMA is already Running
 	if (isRunning)
 	{
@@ -153,8 +156,9 @@ bool Dma::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 		}
 		std::sort(dmaStatus.begin(), dmaStatus.end(), [](DmaStatusItem a, DmaStatusItem b) { return ((a.priority >= b.priority) && (a.channel > b.channel)); });
 		break;
+
 	case 0x1f8010f4:
-		dmaDicr.word = data;
+		updateDicr(data);
 		break;
 
 	default:
@@ -322,6 +326,20 @@ bool Dma::syncmode2()
 	return true;
 }
 
+inline bool Dma::updateDicr(uint32_t data)
+{
+	dicrFields tmp;
+
+	tmp.word = data;
+	dmaDicr.forceIrq = tmp.forceIrq;
+	dmaDicr.enableIrq = tmp.enableIrq;
+	dmaDicr.masterEnableIrq = tmp.masterEnableIrq;
+	dmaDicr.flagsIrq = dmaDicr.flagsIrq & ~tmp.flagsIrq;
+	dmaDicr.masterFlagIrq = ((bool)dmaDicr.forceIrq || ((bool)dmaDicr.masterEnableIrq && (dmaDicr.enableIrq && dmaDicr.flagsIrq))) ? 1 : 0;
+
+	return true;
+}
+
 bool Dma::dmaStop()
 {
 	dmaChannel[runningChannel].chanChcr.dmaStart = 0;
@@ -333,7 +351,20 @@ bool Dma::dmaStop()
 
 	psx->cpu.dmaTakeOnBus = false;
 
-	//TODO: Add Interrupt Management
+	//Set DMA Channel Completion Interrupt Flag and update DICR
+	if (dmaDicr.enableIrq & (1UL << runningChannel))
+	{
+		dmaDicr.flagsIrq = dmaDicr.flagsIrq | (1UL << runningChannel);
+		dmaDicr.masterFlagIrq = ((bool)dmaDicr.forceIrq || ((bool)dmaDicr.masterEnableIrq && (dmaDicr.enableIrq && dmaDicr.flagsIrq))) ? 1 : 0;
+	}
+
+	return true;
+}
+
+bool Dma::interruptCheck()
+{
+	if (dmaDicr.masterFlagIrq)
+		psx->cpu.interrupt(static_cast<uint32_t>(interruptCause::dma));
 
 	return true;
 }

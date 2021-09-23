@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <cstdio>
 
-#include "cpu.h"
+#include "cpu_short_pipe.h"
 #include "gpu.h"
 #include "spu.h"
 #include "memory.h"
@@ -37,8 +37,6 @@ public:
 	Dma				dma;
 	Cdrom			cdrom;
 	Timers			timers;
-	
-	std::map<uint32_t, std::string> codeList;		//Disassembler
 
 public:
 	//Mater Clock: 372.5535MHz

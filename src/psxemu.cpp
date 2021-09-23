@@ -202,6 +202,12 @@ bool psxemu::handleEvents()
                 instructionStep = false;
                 break;
 
+            case SDLK_a:
+                pPsxSystem->cpu.interrupt(static_cast<uint32_t>(interruptCause::dma));
+                //frameStep = false;
+                //instructionStep = false;          
+                break;
+
             case SDLK_1:
                 (showRom) ? showRom = false : showRom = true;
                 break;
@@ -288,11 +294,11 @@ bool psxemu::debugInfo()
                 break;
             case 5:
                 ImGui::SameLine();
-                ImGui::Text("Int. Status = 0x%08x", pPsxSystem->cpu.intStatus);
+                ImGui::Text("Int. Status = 0x%08x", pPsxSystem->cpu.interruptStatus);
                 break;
             case 6:
                 ImGui::SameLine();
-                ImGui::Text("Int. Mask   = 0x%08x", pPsxSystem->cpu.intMask);
+                ImGui::Text("Int. Mask   = 0x%08x", pPsxSystem->cpu.interruptMask);
                 break;
             case 8:
                 ImGui::SameLine();
@@ -306,35 +312,41 @@ bool psxemu::debugInfo()
     if (showAssembler)
     {
         ImGui::Begin("Assembler");
-        uint32_t addr = pPsxSystem->cpu.memwbReg.pc;
+        uint32_t addr = pPsxSystem->cpu.pc;
 
         //Debug on the fly software in RAM
-        if (pPsxSystem->codeList.find(addr) == pPsxSystem->codeList.end() || pPsxSystem->codeList[addr] == "")
+        //Check if code is already disassembled, if not disassemble starting from current Program Counter.
+        if (asmCode.find(addr) == asmCode.end() || std::get<2>(asmCode[addr]) == "")
         {
-            std::map<uint32_t, std::string> newListing = pPsxSystem->cpu.disassemble(addr, addr+0x40);
-            for (auto& e : newListing)
-                pPsxSystem->codeList.insert_or_assign(e.first, e.second);
+            asmcode newDisassembledCode = mipsDisassembler.disassemble(pPsxSystem->bios.rom, pPsxSystem->mem.ram, addr);
+            for (auto& e : newDisassembledCode)
+                asmCode.insert_or_assign(e.first, e.second);
         }
-
-        addr -= 0x40;
+        
+        addr -= (15 * 4);
         for (int line = 0; line < 32; line++)
         {
             if (addr == pPsxSystem->cpu.pc)
             {
-                ImGui::TextColored(grey_color, "%s", pPsxSystem->codeList[addr].c_str());
-            }
-            else if (addr == pPsxSystem->cpu.idexReg.pc)
-            {
-                ImGui::TextColored(grey_color, "%s", pPsxSystem->codeList[addr].c_str());
-            }
-            else if (addr == pPsxSystem->cpu.memwbReg.pc)
-            {
-                ImGui::TextColored(red_color, "%s", pPsxSystem->codeList[addr].c_str());
+                ImGui::TextColored(red_color, "0x%08x", addr);
+                ImGui::SameLine();
+                ImGui::TextColored(red_color, "0x%08x", std::get<0>(asmCode[addr]));
+                ImGui::SameLine();
+                ImGui::TextColored(red_color, "%s", std::get<1>(asmCode[addr]).c_str());
+                ImGui::SameLine();
+                ImGui::TextColored(red_color, "%s", std::get<2>(asmCode[addr]).c_str());
             }
             else
             {
-                ImGui::TextColored(grey_color, "%s", pPsxSystem->codeList[addr].c_str());
+                ImGui::TextColored(yellow_color, "0x%08x", addr);
+                ImGui::SameLine();
+                ImGui::TextColored(green_color, "0x%08x", std::get<0>(asmCode[addr]));
+                ImGui::SameLine();
+                ImGui::TextColored(grey_color, "%s", std::get<1>(asmCode[addr]).c_str());
+                ImGui::SameLine();
+                ImGui::TextColored(grey_color, "%s", std::get<2>(asmCode[addr]).c_str());
             }
+            
             addr += 4;
         }
         ImGui::End();

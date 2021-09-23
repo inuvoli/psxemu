@@ -24,7 +24,7 @@ find_package(OpenGL REQUIRED)
 set(PSXEMU_SOURCES
     src/bios.cpp
     src/cdrom.cpp
-	src/cpu.cpp
+	src/cpu_short_pipe.cpp
 	src/dma.cpp
 	src/dmachannel.cpp
 	src/gpu.cpp
@@ -34,6 +34,7 @@ set(PSXEMU_SOURCES
 	src/psxemu.cpp
 	src/spu.cpp
 	src/timers.cpp
+	src/mipsdisassembler.cpp
 	3rdparty/imgui/imgui.cpp
 	3rdparty/imgui/imgui_draw.cpp
 	3rdparty/imgui/imgui_impl_opengl3.cpp

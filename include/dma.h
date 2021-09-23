@@ -58,7 +58,8 @@ private:
 	bool syncmode0();
 	bool syncmode1();
 	bool syncmode2();
-
+	bool updateDicr(uint32_t data);
+	bool interruptCheck();
 	bool dmaStop();
 
 private:

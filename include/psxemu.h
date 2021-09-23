@@ -5,6 +5,7 @@
 #include <string>
 
 #include "psx.h"
+#include "mipsdisassembler.h"
 
 //#define GLEW_STATIC
 #include <GL/glew.h>
@@ -72,6 +73,9 @@ private:
 	uint16_t	framePerSecond;
 
 	//Debug Helper
+	MipsDisassembler	mipsDisassembler;
+	asmcode asmCode;
+
 	ImVec4 clear_color = ImVec4(0.15f, 0.25f, 0.30f, 1.00f);
 	ImVec4 yellow_color = ImVec4(0.90f, 0.90f, 0.00f, 1.00f);
 	ImVec4 green_color = ImVec4(0.00f, 0.90f, 0.00f, 1.00f);

@@ -1,4 +1,4 @@
-#include "cpu.h"
+#include "cpu_full_pipe.h"
 #include "psx.h"
 #include "common.h"
 
@@ -14,8 +14,8 @@ CPU::CPU()
 	memset(cop2_reg, 0x00, sizeof(uint32_t) * 32);
 	memset(cop3_reg, 0x00, sizeof(uint32_t) * 32);
 	cacheReg = 0x00000000;
-	intStatus = 0x00000000;
-	intMask = 0x00000000;
+	interruptStatus = 0x00000000;
+	interruptMask = 0x00000000;
 
 	//Cop0 SR Initial Value: BEV is Set , TS is Set
 	cop0_reg[12] = 0x00600000;
@@ -31,7 +31,6 @@ CPU::CPU()
 	dmaTakeOnBus = false;
 
 	//Init Instruction & Function Dictionaries
-
 	instrSet =
 	{
 		{"special", &CPU::op_unknown},
@@ -48,24 +47,24 @@ CPU::CPU()
 		{"sltiu rt, rs, imm", &CPU::op_sltiu},
 		{"andi rt, rs, imm", &CPU::op_andi},
 		{"ori rt, rs, imm", &CPU::op_ori},
-		{"xori  rt, rs, imm", &CPU::op_xori},
+		{"xori rt, rs, imm", &CPU::op_xori},
 		{"lui rt, imm", &CPU::op_lui},
 		{"cop0 cofun", &CPU::op_cop0},
 		{"cop1 cofun", &CPU::op_cop1},
 		{"cop2 cofun", &CPU::op_cop2},
 		{"cop3 cofun", &CPU::op_cop3},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"lb rt, imm(rs)", &CPU::op_lb},
 		{"lh rt, imm(rs)", &CPU::op_lh},
 		{"lwl rt, imm(rs)", &CPU::op_lwl},
@@ -73,67 +72,67 @@ CPU::CPU()
 		{"lbu rt, imm(rs)", &CPU::op_lbu},
 		{"lhu rt, imm(rs)", &CPU::op_lhu},
 		{"lwr rt, imm(rs)", &CPU::op_lwr},
-		{"invalid op", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"sb rt, imm(rs)", &CPU::op_sb},
 		{"sh rt, imm(rs)", &CPU::op_sh},
 		{"swl rt, imm(rs)", &CPU::op_swl},
 		{"sw rt, imm(rs)", &CPU::op_sw},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"swr rt, imm(rs)", &CPU::op_swr},
-		{"invalid op", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"lwc0 rt, imm(rs)", &CPU::op_lwc0},
 		{"lwc1 rt, imm(rs)", &CPU::op_lwc1},
 		{"lwc2 rt, imm(rs)", &CPU::op_lwc2},
 		{"lwc3 rt, imm(rs)", &CPU::op_lwc3},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"swc0 rt, imm(rs)", &CPU::op_swc0},
 		{"swc1 rt, imm(rs)", &CPU::op_swc1},
 		{"swc2 rt, imm(rs)", &CPU::op_swc2},
 		{"swc3 rt, imm(rs)", &CPU::op_swc3},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown},
-		{"invalid op", &CPU::op_unknown}
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown}
 	};
 
 	functSet =
 	{
 		{"sll rd, rt, shamt", &CPU::op_sll},
-		{"invalid funct", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"srl rd, rt, shamt", &CPU::op_srl},
-		{"sra rd, rt, shamt", &CPU::op_sra},
+		{"sra rd,rt, shamt", &CPU::op_sra},
 		{"sllv rd, rt, rs", &CPU::op_sllv},
-		{"invalid funct", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"srlv rd, rt, rs", &CPU::op_srlv},
 		{"srav rd, rt, rs", &CPU::op_srav},
 		{"jr rs", &CPU::op_jr},
-		{"jalr rs", &CPU::op_jarl},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
+		{"jalr rd, rs", &CPU::op_jalr},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"syscall", &CPU::op_syscall},
 		{"break", &CPU::op_break},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"mfhi rd", &CPU::op_mfhi},
 		{"mthi rs", &CPU::op_mthi},
 		{"mflo rd", &CPU::op_mflo},
 		{"mtlo rs", &CPU::op_mtlo},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"mult rs, rt", &CPU::op_mult},
 		{"multu rs, rt", &CPU::op_multu},
 		{"div rs, rt", &CPU::op_div},
 		{"divu rs, rt", &CPU::op_divu},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"add rd, rs, rt", &CPU::op_add},
 		{"addu rd, rs, rt", &CPU::op_addu},
 		{"sub rd, rs, rt", &CPU::op_sub},
@@ -142,30 +141,30 @@ CPU::CPU()
 		{"or rd, rs, rt", &CPU::op_or},
 		{"xor rd, rs, rt", &CPU::op_xor},
 		{"nor rd, rs, rt", &CPU::op_nor},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
 		{"slt rd, rs, rt", &CPU::op_slt},
 		{"sltu rd, rs, rt", &CPU::op_sltu},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown},
-		{"invalid funct", &CPU::op_unknown}
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown},
+		{"invalid operation", &CPU::op_unknown}
 	};
 }
 
@@ -175,16 +174,18 @@ CPU::~CPU()
 
 bool CPU::reset()
 {
-	//Reset CPU Registers
+	//Init CPU Registers
 	pc = 0xbfc00000;
 	hi = 0x00000000;
 	lo = 0x00000000;
-	memset(gpr, 0x0, sizeof(uint32_t) * 32);
+	memset(gpr, 0x00, sizeof(uint32_t) * 32);
 	memset(cop0_reg, 0x00, sizeof(uint32_t) * 32);
 	memset(cop1_reg, 0x00, sizeof(uint32_t) * 32);
 	memset(cop2_reg, 0x00, sizeof(uint32_t) * 32);
 	memset(cop3_reg, 0x00, sizeof(uint32_t) * 32);
 	cacheReg = 0x00000000;
+	interruptStatus = 0x00000000;
+	interruptMask = 0x00000000;
 
 	//Cop0 SR Initial Value: BEV is Set , TS is Set
 	cop0_reg[12] = 0x00600000;
@@ -207,7 +208,7 @@ bool CPU::reset()
 // Helper Functions
 //
 //-----------------------------------------------------------------------------------------------------------------------------------
-bool CPU::isOverflow(int32_t a, int32_t b)
+inline bool CPU::isOverflow(int32_t a, int32_t b)
 {
 	int32_t result;
 	result = a + b;
@@ -262,12 +263,12 @@ uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
 		switch (vAddr)
 		{
 		case 0x1f801070:
-			//printf("Interrupt Status:		0x%08x\n", intStatus);
-			return intStatus;
+			//printf("Interrupt Status:		0x%08x\n", interruptStatus);
+			return interruptStatus;
 			break;
 		case 0x1f801074:
-			//printf("Interrupt Mask Read:	0x%08x\n", intStatus);
-			return intMask;
+			//printf("Interrupt Mask Read:	0x%08x\n", interruptMask);
+			return interruptMask;
 			break;
 		}
 	}
@@ -312,13 +313,13 @@ bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool checkalign)
 		switch (vAddr)
 		{
 		case 0x1f801070:
-			intStatus = data;
+			interruptStatus &= data;
 			//printf("Interrupt Acknowledge:	0x%08x\n", data);
 			return true;
 			break;
 		case 0x1f801074:
-			intMask = data;
-			//printf("Interrupt Mask Write:	0x%08x\n", data);
+			interruptMask = data;
+			//printf("Interrupt Mask Write:	    0x%08x\n", data);
 			return true;
 			break;
 		}
@@ -409,6 +410,9 @@ bool CPU::clock()
 
 	//Check for any needed Forwarding or Pipeline Stall to be applied on the next Clock Cycle.
 	forwardCheck();
+
+	//Check Interrupt Status
+	interruptCheck();
 			
 	return true;
 }
@@ -426,37 +430,6 @@ bool CPU::fetch()
 			
 	return true;
 }
-
-//bool CPU::decode()
-//{
-//	uint32_t word;
-//
-//	//If Pipeline is Stalled exit immediatly
-//	if (stallPipeline)
-//		return false;
-//
-//	//Pass Control Signals to next Pipeline Register
-//	idexReg.pc = ifidReg.pc;
-//	idexReg.branchDelaySlot = ifidReg.branchDelaySlot;
-//	ifidReg.branchDelaySlot = false;
-//
-//	word = ifidReg.instr;
-//	idexReg.op = (word >> 26) & 0x0000003f;
-//	idexReg.funct = (word >> 0) & 0x0000003f;
-//	idexReg.rd = (word >> 11) & 0x0000001f;
-//	idexReg.rt = (word >> 16) & 0x0000001f;
-//	idexReg.rs = (word >> 21) & 0x0000001f;
-//	idexReg.regA = gpr[idexReg.rs];
-//	idexReg.regB = gpr[idexReg.rt];
-//	idexReg.tgt = (word >> 0) & 0x03ffffff;
-//	idexReg.shamt = (word >> 6) & 0x0000001f;
-//	idexReg.cofun = (word >> 0) & 0x01ffffff;
-//	int16_t tmp = (word >> 0) & 0xffff;
-//	idexReg.imm = (uint32_t)(int16_t)tmp; //Sign Extended
-//	idexReg.cop = (word >> 25) & 0x00000001;
-//
-//	return true;
-//}
 
 bool CPU::decode()
 {
@@ -648,37 +621,6 @@ bool CPU::forwardCheck()
 	return true;
 }
 
-//bool CPU::exception(uint32_t cause)
-//{
-//	//printf("Exception!!! - Cause: %d\n", cause);
-//
-//	//Put in EPC the PC for the current (execute) instruction
-//	if (idexReg.branchDelaySlot)
-//		cop0_reg[14] = exmemReg.pc; //Set EPC to Jump Instruction if exception occurs in a Branch Delay Slot
-//	else
-//		cop0_reg[14] = idexReg.pc;  //Set EPC to Current Instruction if we are not in a Branch Delay Slot
-//
-//	//Set BD bit in cop0 CAUSE Register if exception occurs in a Branch Delay Slot
-//	cop0_reg[13] |= (idexReg.branchDelaySlot) ? CP0_CAUSE_BD_MASK : 0x00000000;
-//
-//	//Set Exception Code in cop0 CAUSE Register
-//	cop0_reg[13] = (cop0_reg[13] & ~CP0_CAUSE_EXCODE_MASK) + (cause << 2);
-//
-//	//Disable Interrupt (shift 2 position left bit [0, 5] for SR)
-//	cop0_reg[12] = (cop0_reg[12] & ~CP0_SR_INT_MASK) + ((cop0_reg[12] << 2) & CP0_SR_INT_MASK);
-//
-//	//Jump to exception handler
-//	if (cop0_reg[12] & CP0_SR_BEV_MASK)
-//		pc = 0xbfc00180;
-//	else
-//		pc = 0x80000080;
-//
-//	//Exceptions don't have a Delay Slot. Emulating this behaviour putting NOP on the IF/ID Register
-//	memset(&ifidReg, 0x00000000, sizeof(ifidBuffer));
-//
-//	return true;
-//}
-
 bool CPU::exception(uint32_t cause)
 {
 	StatusRegister	statusReg;
@@ -703,7 +645,7 @@ bool CPU::exception(uint32_t cause)
 	causeReg.excode = cause;
 	
 	//Disable Interrupt (shift 2 position left bit [0, 5] for SR)
-	statusReg.stkl = (statusReg.stkl << 2) & 0x3f;
+	statusReg.stk = (statusReg.stk << 2) & 0x3f;
 		
 	//Jump to exception handler
 	if (statusReg.bev)
@@ -720,8 +662,49 @@ bool CPU::exception(uint32_t cause)
 	return true;
 }
 
-bool CPU::interrupt(uint32_t cause)
+bool CPU::interrupt(uint32_t hwInterrupt)
 {
+	//Set I_STAT Interrupt Flag according to the Interrupt Cause
+	interruptStatus |= 1UL << cause;
+
+	return true;
+}
+
+bool CPU::interruptCheck()
+{
+	StatusRegister	statusReg;
+	CauseRegister	causeReg;
+
+	//Check for any active interrupt
+	if (interruptStatus & interruptMask & 0x000007ff)
+	{
+		//Set cop0r13.bit10
+		causeReg.word = cop0_reg[13];
+		causeReg.iphw = 0x01;
+		cop0_reg[13] = causeReg.word;
+	}
+	else
+	{
+		//Reset cop0r13.bit10
+		causeReg.word = cop0_reg[13];
+		causeReg.iphw = 0x00;
+		cop0_reg[13] = causeReg.word;
+		return false;
+	}
+
+	//Check COP0 Status Register for Interrupt Enable Current
+	statusReg.word = cop0_reg[12];
+	if (!(bool)statusReg.iec)
+		return false;
+
+	//Check COP0 for Pending Interrupt with active Interupt Mask
+	//Playstation only use Hardware Interrupt Int0.
+	if (statusReg.imhw & causeReg.iphw)
+	{
+		exception(static_cast<uint32_t>(exceptionCause::interrupt));
+		return true;
+	}
+
 	return false;
 }
 
@@ -1151,7 +1134,7 @@ bool CPU::op_cop0()
 			//Restore Interrupt Status (shift 2 position right bit [0, 5] for SR, bit 5 and 4 remain untouched)
 			StatusRegister statusReg;
 			statusReg.word = cop0_reg[12];
-			statusReg.stkr = (statusReg.stkr >> 2) & 0x0f;
+			statusReg.stk = ((statusReg.stk >> 2) & 0x0f) | (statusReg.stk & 0x30);
 			cop0_reg[12] = statusReg.word;
 			
 			break;
@@ -1676,7 +1659,7 @@ bool CPU::op_jr()
 	return true;
 }
 
-bool CPU::op_jarl()
+bool CPU::op_jalr()
 {
 	//Checked 05/07/2021
 	 
@@ -2150,226 +2133,3 @@ bool CPU::op_unknown()
 	return true;
 }
 
-//-----------------------------------------------------------------------------------------------------------------------------------
-//
-// MIPS CPU DISASSEMBLER
-//
-//-----------------------------------------------------------------------------------------------------------------------------------
-std::map<uint32_t, std::string> CPU::disassemble(uint32_t nStart, uint32_t nStop)
-{
-	std::map<uint32_t, std::string> codeList;
-	std::string codeLine;
-	uint32_t currentAddr = nStart;
-	uint32_t currentLine = 0;
-	Instruction opcode;
-	int	strPos;
-
-	auto cond = [](uint8_t flag)
-	{
-		std::string condition;
-
-		if (flag == 0x00)
-			condition = "ltz";
-
-		if (flag == 0x01)
-			condition = "gez";
-
-		if (flag == 0x10) 
-			condition = "ltzal";
-
-		if (flag == 0x11)
-			condition = "gezal";
-
-		return condition;
-	};
-
-	auto hex = [](uint32_t n, uint8_t d)
-	{
-		std::string s(d, '0');
-		for (int i = d - 1; i >= 0; i--, n >>= 4)
-			s[i] = "0123456789abcdef"[n & 0xF];
-		return s;
-	};
-
-	auto reg = [](uint8_t n)
-	{
-		std::string r = "$" + std::to_string(n);
-		return r;
-	};
-
-	// Prefix line with instruction address
-
-	while (currentAddr <= nStop)
-	{
-
-		//Read current instruction
-		opcode.word = psx->rdMem(currentAddr, 4);
-
-		//Insert Address and Memory Content
-		codeLine = "0x" + hex(currentAddr, 8) + ": 0x" + hex(opcode.word, 8) + ": ";
-
-		//Append Mnemonics
-		switch (opcode.op)
-		{
-		case 0x00:		//Special Function
-			codeLine += functSet[opcode.funct].mnemonic;
-			break;
-
-		case 0x10:		//Coprocessor0 Functions
-			if (opcode.cop)
-			{
-				switch (opcode.funct)
-				{
-				case 0x01:
-					codeLine += "tlbr";
-					break;
-				case 0x02:
-					codeLine += "tlbwi";
-					break;
-				case 0x06:
-					codeLine += "tlbwr";
-					break;
-				case 0x08:
-					codeLine += "tlbp";
-					break;
-				case 0x10:
-					codeLine += "rfe";
-					break;
-				}
-			}
-			else
-			{
-				switch (opcode.rs)
-				{
-				case 0x00:
-					codeLine += "mfc0 rt, rd";
-					break;
-				case 0x02:
-					codeLine += "cfc0 rt, rd";
-					break;
-				case 0x04:
-					codeLine += "mtc0 rt, rd";
-					break;
-				case 0x06:
-					codeLine += "ctc0 rt, rd";
-					break;
-				}
-			}
-			break;
-
-		case 0x11:		//Coprocessor1 Functions
-			if (opcode.cop)
-				codeLine += instrSet[opcode.op].mnemonic;
-			else
-			{
-				switch (opcode.rs)
-				{
-				case 0x00:
-					codeLine += "mfc1 rt, rd";
-					break;
-				case 0x02:
-					codeLine += "cfc1 rt, rd";
-					break;
-				case 0x04:
-					codeLine += "mtc1 rt, rd";
-					break;
-				case 0x06:
-					codeLine += "ctc1 rt, rd";
-					break;
-				}
-			}
-			break;
-
-		case 0x12:		//Coprocessor2 Functions
-			if (opcode.cop)
-				codeLine += instrSet[opcode.op].mnemonic;
-			else
-			{
-				switch (opcode.rs)
-				{
-				case 0x00:
-					codeLine += "mfc2 rt, rd";
-					break;
-				case 0x02:
-					codeLine += "cfc2 rt, rd";
-					break;
-				case 0x04:
-					codeLine += "mtc2 rt, rd";
-					break;
-				case 0x06:
-					codeLine += "ctc2 rt, rd";
-					break;
-				}
-			}
-			break;
-
-		case 0x13:		//Coprocessor3 Functions
-			if (opcode.cop)
-				codeLine += instrSet[opcode.op].mnemonic;
-			else
-			{
-				switch (opcode.rs)
-				{
-				case 0x00:
-					codeLine += "mfc3 rt, rd";
-					break;
-				case 0x02:
-					codeLine += "cfc3 rt, rd";
-					break;
-				case 0x04:
-					codeLine += "mtc3 rt, rd";
-					break;
-				case 0x06:
-					codeLine += "ctc3 rt, rd";
-					break;
-				}
-			}
-			break;
-
-		default:		//All Other Functions
-			codeLine += instrSet[opcode.op].mnemonic;
-			break;
-		}
-
-		//Replace Placeholders
-		strPos = codeLine.find("xx");
-		if (opcode.op == 0x1 && strPos != std::string::npos)
-			codeLine.replace(strPos, 2, cond(opcode.rt));
-
-		strPos = codeLine.find("rs");
-		if (strPos != std::string::npos)
-			codeLine.replace(strPos, 2, reg(opcode.rs));
-
-		strPos = codeLine.find("rt");
-		if (strPos != std::string::npos)
-			codeLine.replace(strPos, 2, reg(opcode.rt));
-
-		strPos = codeLine.find("rd");
-		if (strPos != std::string::npos)
-			codeLine.replace(strPos, 2, reg(opcode.rd));
-
-		strPos = codeLine.find("imm");
-		if (strPos != std::string::npos)
-			codeLine.replace(strPos, 3, "0x" + hex(opcode.imm, 4));
-
-		strPos = codeLine.find("shamt");
-		if (strPos != std::string::npos)
-			codeLine.replace(strPos, 5, "0x" + hex(opcode.shamt, 2));
-
-		strPos = codeLine.find("tgt");
-		if (strPos != std::string::npos)
-			codeLine.replace(strPos, 3, "0x" + hex(opcode.tgt, 7));
-
-		strPos = codeLine.find("cofun");
-		if (strPos != std::string::npos)
-			codeLine.replace(strPos, 5, "0x" + hex(opcode.cofun, 7));
-
-		//Add line to Disassemble Map
-		codeList[currentAddr] = codeLine;
-
-		//Step to next instruction, every instruction is 32bit (4 Byte) long
-		currentAddr += 4;
-	}
-
-	return codeList;
-}
