@@ -1,6 +1,7 @@
 #include "gpu.h"
 #include "psx.h"
 #include "timers.h"
+#include "common.h"
 
 GPU::GPU()
 {
@@ -25,6 +26,9 @@ GPU::GPU()
 	verticalInterlace = false;
 	newScanline = false;
 	newFrameReady = false;
+	textureAllowDisable = false;
+	textureDisable = false;
+	texturePageColor = 0x00;
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
@@ -34,6 +38,7 @@ GPU::GPU()
 	memset(&drawingOffset, 0, sizeof(Pair<uint16_t>));
 	memset(&textureMask, 0, sizeof(Pair<uint8_t>));
 	memset(&textureOffset, 0, sizeof(Pair<uint8_t>));
+	memset(&texturePage, 0, sizeof(Pair<uint16_t>));
 	dmaDirection = 0;
 
 	//Reset Internal Clock Counter
@@ -67,7 +72,7 @@ GPU::GPU()
 	{
 		{"NOP", &GPU::gp0_NoOperation, 0, false},
 		{"Clear Texture Cache", &GPU::gp0_ClearTextureCache, 0, false},
-		{"Fill Rectangle in VRAM", &GPU::gp0_ClearScreen, 2, true},
+		{"Fill Rectangle in VRAM", &GPU::gp0_FillVRam, 2, true},
 		{"Unknown (NOP?)", &GPU::gp0_NoOperation, 0, true},
 		{"NOP", &GPU::gp0_NoOperation, 0, false},
 		{"NOP", &GPU::gp0_NoOperation, 0, false},
@@ -193,102 +198,102 @@ GPU::GPU()
 		{"Textured Rectangle, 16x16, opaque, raw texture", &GPU::gp0_Rectangles, 2, true},
 		{"Textured Rectangle, 16x16, semi-transparent, texture blending", &GPU::gp0_Rectangles, 2, true},
 		{"Textured Rectangle, 16x16, semi-transparent, raw texture", &GPU::gp0_Rectangles, 2, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_Vram2Vram, 3, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_Ram2Vram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
-		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_Vram2Ram, 2, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
+		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true},
 		{"NOP", &GPU::gp0_NoOperation, 0, false},
 		{"Draw Mode Setting", &GPU::gp0_DrawMode, 0, false},
 		{"Texture Window Setting", &GPU::gp0_TextureSetting, 0, false},
@@ -418,6 +423,9 @@ bool GPU::reset()
 	verticalInterlace = false;
 	newScanline = false;
 	newFrameReady = false;
+	textureAllowDisable = false;
+	textureDisable = false;
+	texturePageColor = 0x00;
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
@@ -427,6 +435,7 @@ bool GPU::reset()
 	memset(&drawingOffset, 0, sizeof(Pair<uint16_t>));
 	memset(&textureMask, 0, sizeof(Pair<uint8_t>));
 	memset(&textureOffset, 0, sizeof(Pair<uint8_t>));
+	memset(&texturePage, 0, sizeof(Pair<uint16_t>));
 	dmaDirection = 0;
 
 	//Reset Internal Clock Counter
@@ -547,7 +556,9 @@ bool GPU::clock()
 			vCount = 0;
 			newFrameReady = true;
 			vBlank = false;		//Reset vBlank immediately in order to update GPUSTAT.31 on a new frame correctly otherwise is always reset to zero.
-			//printf("GPU -------------NEW FRAME!\n");
+			
+			//vBlank should be triggered right after the last visible scanline or not? 
+			psx->cpu.interrupt(static_cast<uint32_t>(interruptCause::vblank));
 		}
 
 		return 0;
@@ -563,14 +574,14 @@ bool GPU::clock()
 			opcode = gp0Command >> 24;
 			
 			(this->*gp0InstrSet[opcode].operate)();
-			//printf("Command GP0(%02xh): %s\n", opcode, gp0InstrSet[opcode].mnemonic.c_str());
+			printf("Command GP0(%02xh): %s\n", opcode, gp0InstrSet[opcode].mnemonic.c_str());
 		}
 		else
 		{
 			//Available GP0 Command not in the FIFO
 			opcode = gp0Command >> 24;
 			(this->*gp0InstrSet[opcode].operate)();
-			//printf("Command GP0(%02xh): %s\n", opcode, gp0InstrSet[opcode].mnemonic.c_str());
+			printf("Command GP0(%02xh): %s\n", opcode, gp0InstrSet[opcode].mnemonic.c_str());
 		}
 	
 		return 0;
@@ -580,7 +591,7 @@ bool GPU::clock()
 		uint8_t opcode;
 		opcode = (gp1Command >> 24) & 0x3f;			//Extract Command Opcode, masked since from 0x40 are all mirrored
 		(this->*gp1InstrSet[opcode].operate)();		//GP1 Command are always executed immediately
-		//printf("Command GP1(%02xh): %s\n", opcode, gp1InstrSet[opcode].mnemonic.c_str());
+		printf("Command GP1(%02xh): %s\n", opcode, gp1InstrSet[opcode].mnemonic.c_str());
 		return 0;
 	};
 
@@ -763,12 +774,12 @@ uint32_t GPU::getParameter(uint32_t addr, uint8_t bytes)
 	case 0x1f801810:
 		data = gpuReadLatch;	//--------------------------------------Response from GP0 and GP1 commands
 		if (dataReadActive && (dmaDirection == 3 || dmaDirection == 0))
-			//gpuDataTransferActive is set by GP0(A0h) and GP0(C0h)
+			//dataReadActive is set by GP0(C0h)
 			//Data Transfer could be either thru:
 			//	- CPU, GPUSTAT.29-30 (DMA Direction) = 0  "DMA Off"
 			//	- DMA, GPUSTAT.29-30 (DMA Direction) = 3  "DMA RAM to VRAM"
 			data = readVRAM();
-		printf("GPU - GP0/1 Response: 0x%08x  (Clk: %ld) [%d, %d]\n", data, gpuClockTicks, dmaDirection, dataReadActive);
+		//printf("GPU - GP0/1 Response: 0x%08x  (Clk: %ld) [%d, %d]\n", data, gpuClockTicks, dmaDirection, dataReadActive);
 		break;
 	case 0x1f801814:
 		data = gpuStat;			//--------------------------------------GPU Status Register
@@ -804,26 +815,37 @@ bool GPU::gp0_Rectangles()
 	return false;
 }
 
-bool GPU::gp0_Vram2Vram()
+bool GPU::gp0_Polygons()
+{
+	//Reset GPUSTAT Flag to receive next GP0 command
+	gp0_ResetStatus();
+
+	return false;
+}
+
+bool GPU::gp0_CopyVRam2VRam()
 {
 	//GP0(80h)
 	//Copy Rectangle VRAM to VRAM
 	uint32_t	param;
 
 	fifo.pop(param);		//Source Coord     (YyyyXxxxh); Xpos counted in halfwords, Ypos counted in rows
-	dataSource.x = static_cast<uint16_t>((param & 0x0000ffff));
-	dataSource.y = static_cast<uint16_t>((param & 0xffff0000) >> 16);
+	dataSource.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
+	dataSource.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
 
 	fifo.pop(param);		//Destination Coord(YyyyXxxxh); Xpos counted in halfwords, Ypos counted in rows
-	dataDestination.x = static_cast<uint16_t>((param & 0x0000ffff));
-	dataDestination.y = static_cast<uint16_t>((param & 0xffff0000) >> 16);
+	dataDestination.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
+	dataDestination.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
 
 	fifo.pop(param);		//Width+Height     (YsizXsizh); Xsiz counted in halfwords, Ysiz counted in rows
-	dataSize.x = static_cast<uint16_t>((param & 0x0000ffff));
-	dataSize.y = static_cast<uint16_t>((param & 0xffff0000) >> 16);
+	dataSize.x = ((static_cast<uint16_t>((param & 0x0000ffff)) - 1) & 0x3ff) + 1;
+	dataSize.y = ((static_cast<uint16_t>((param & 0xffff0000) >> 16) - 1) & 0x1ff) + 1;
 
-	//TODO
-	//Implement copy from area to area
+	//Copy from VRAM to VRAM
+	//This is done on a single clock cycle to ease the implementation
+	for (int y = 0; y < dataSize.y; y++)
+		for (int x = 0; x < dataSize.x; x++)
+			vRam[dataDestination.y + y][dataDestination.x + x] = vRam[dataSource.y + y][dataSource.x + x];
 
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
@@ -831,19 +853,19 @@ bool GPU::gp0_Vram2Vram()
 	return false;
 }
 
-bool GPU::gp0_Ram2Vram()
+bool GPU::gp0_CopyRam2VRam()
 {
 	//GP0(A0h)
 	//Copy Rectangle RAM to VRAM
 	uint32_t	param;
 	
 	fifo.pop(param);		//Destination Coord(YyyyXxxxh); Xpos counted in halfwords, Ypos counted in rows
-	dataDestination.x = static_cast<uint16_t>((param & 0x0000ffff));
-	dataDestination.y = static_cast<uint16_t>((param & 0xffff0000) >> 16);
+	dataDestination.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
+	dataDestination.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
 
 	fifo.pop(param);		//Width+Height     (YsizXsizh); Xsiz counted in halfwords, Ysiz counted in rows
-	dataSize.x = static_cast<uint16_t>((param & 0x0000ffff));
-	dataSize.y = static_cast<uint16_t>((param & 0xffff0000) >> 16);
+	dataSize.x = ((static_cast<uint16_t>((param & 0x0000ffff)) - 1) & 0x3ff) + 1;
+	dataSize.y = ((static_cast<uint16_t>((param & 0xffff0000) >> 16) - 1) & 0x1ff) + 1;
 
 	//Set Internal Transfer Status and Size
 	dataPointer.x = dataDestination.x;
@@ -856,19 +878,19 @@ bool GPU::gp0_Ram2Vram()
 	return false;
 }
 
-bool GPU::gp0_Vram2Ram()
+bool GPU::gp0_CopyVRam2Ram()
 {
 	//GP0(C0h)
 	//Copy Rectangle VRAM to RAM
 	uint32_t	param;
 
 	fifo.pop(param);		//Source Coord     (YyyyXxxxh); Xpos counted in halfwords, Ypos counted in rows
-	dataSource.x = static_cast<uint16_t>((param & 0x0000ffff));
-	dataSource.y = static_cast<uint16_t>((param & 0xffff0000) >> 16);
+	dataSource.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
+	dataSource.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
 
 	fifo.pop(param);		//Width+Height     (YsizXsizh); Xsiz counted in halfwords, Ysiz counted in rows	
-	dataSize.x = static_cast<uint16_t>((param & 0x0000ffff));
-	dataSize.y = static_cast<uint16_t>((param & 0xffff0000) >> 16);
+	dataSize.x = ((static_cast<uint16_t>((param & 0x0000ffff)) - 1) & 0x3ff) + 1;
+	dataSize.y = ((static_cast<uint16_t>((param & 0xffff0000) >> 16) - 1) & 0x1ff) + 1;
 
 	//Set Internal Transfer Status and Size
 	dataPointer.x = dataSource.x;
@@ -881,8 +903,35 @@ bool GPU::gp0_Vram2Ram()
 	return false;
 }
 
-bool GPU::gp0_NoOperation()
+bool GPU::gp0_FillVRam()
 {
+	//GP0(02h)
+	//Fill Rectangle in VRAM
+	uint32_t	param;
+	uint16_t	color;
+	Pair<uint16_t> position, size;
+	
+	
+	color = rgb24torgb15(gp0Command & 0x00ffffff);	//Color + Command(CcBbGgRrh); 24bit RGB value
+
+	fifo.pop(param);		//Top Left Corner(YyyyXxxxh); Xpos counted in halfwords, steps of 10h
+	position.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3f0;
+	position.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
+
+	fifo.pop(param);		//Width + Height(YsizXsizh); Xsiz counted in halfwords, steps of 10h
+	size.x = ((static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff) + 0x0f) & ~(0x0f);
+	size.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
+
+	//Fill is not executed if either Xsiz or Ysiz are zero.
+	if (size.x == 0 || size.y == 0)
+		return true;
+
+	//Fill VRAM with RGB value in color
+	//This is done on a single clock cycle to ease the implementation
+	for (int y = 0; y < size.y; y++)
+		for (int x = 0; x < size.x; x++)
+			vRam[position.y + y][position.x + x] = color;
+		
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
@@ -891,34 +940,27 @@ bool GPU::gp0_NoOperation()
 
 bool GPU::gp0_ClearTextureCache()
 {
+	//GP0(01h)
+	//Clear Texture Cache
+	
+	// TODO
+	
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
-	return false;
-}
-
-bool GPU::gp0_ClearScreen()
-{
-	//Reset GPUSTAT Flag to receive next GP0 command
-	gp0_ResetStatus();
-
-	return false;
+	return true;
 }
 
 bool GPU::gp0_InterruptRequest()
 {
+	//GP0(1Fh)
+	//Set GPUSTAT.24
+	gpuStat |= 1UL << 24;
+
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
-	return false;
-}
-
-bool GPU::gp0_Polygons()
-{
-	//Reset GPUSTAT Flag to receive next GP0 command
-	gp0_ResetStatus();
-
-	return false;
+	return true;
 }
 
 bool GPU::gp0_DrawMode()
@@ -931,10 +973,12 @@ bool GPU::gp0_DrawMode()
 	//GPUSTAT.0-3 << GP0DATA.0-3								Texture page X Base (N x 64) in halfwords
 	data = gp0DataLatch & 0x0000000f;							//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x0000000f)) | (data);				//Set GPUSTAT.0-3 to data value
+	texturePage.x = data * 64;
 
 	//GPUSTAT.4 << GP0DATA.4									Texture page Y Base (N x 256) in halfwords
 	data = (gp0DataLatch & 0x00000010) >> 4;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 4)) | (data << 4);		//Set GPUSTAT.4 to data value
+	texturePage.y = data * 256;
 
 	//GPUSTAT.5-6 << GP0DATA.5-6								Semi Transparency (0 = B/2+F/2, 1 = B+F, 2 = B-F, 3 = B+F/4)
 	data = (gp0DataLatch & 0x000000060) >> 5;					//Extract bit value from GP0 Command
@@ -943,6 +987,7 @@ bool GPU::gp0_DrawMode()
 	//GPUSTAT.7-8 << GP0DATA.7-8								Texture page colors (0 = 4bit, 1 = 8bit, 2 = 15bit, 3 = reserved)
 	data = (gp0DataLatch & 0x00000180) >> 7;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000003 << 7)) | (data << 7);		//Set GPUSTAT.7-8 to data value
+	texturePageColor = data;
 
 	//GPUSTAT.9 << GP0DATA.9									Dither 24bit to 15bit (0 = off, 1 = enabled)
 	data = (gp0DataLatch & 0x00000200) >> 9;					//Extract bit value from GP0 Command
@@ -955,6 +1000,7 @@ bool GPU::gp0_DrawMode()
 	//GPUSTAT.15 << GP0DATA.11									Texture Disable (0 = normal, 1 = disable)
 	data = (gp0DataLatch & 0x00000800) >> 11;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 15)) | (data << 15);	//Set GPUSTAT.15 to data value
+	textureDisable = (bool)data;
 
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
@@ -971,7 +1017,7 @@ bool GPU::gp0_TextureSetting()
 
 	//GP0DATA.0-4												Texture windows Mask X (in 8 pixel steps)
 	data = (gp0DataLatch & 0x0000001f);							//Extract bit value from GP0 Command
-	 textureMask.x = static_cast<uint8_t>(data);					
+	textureMask.x = static_cast<uint8_t>(data);					
 
 	//GP0DATA.5-9												Texture windows Mask Y (in 8 pixel steps)
 	data = (gp0DataLatch & 0x000003e0) >> 5;					//Extract bit value from GP0 Command
@@ -1075,6 +1121,14 @@ bool GPU::gp0_SetMaskBit()
 	return true;
 }
 
+bool GPU::gp0_NoOperation()
+{
+	//Reset GPUSTAT Flag to receive next GP0 command
+	gp0_ResetStatus();
+
+	return true;
+}
+
 void GPU::gp0_ResetStatus()
 {
 	recvCommand = false;
@@ -1097,9 +1151,9 @@ bool GPU::gp1_ResetGpu()
 	uint32_t data;
 
 	data = gpuStat & (0x00000001 << 15);					//Extract GPUSTAT.15 value;
-	gpuStat = (0x14802000 & ~(0x00000001 << 15)) | data;	//Reset GPUSTAT
+	gpuStat = (0x14802000 & ~(0x00000001 << 15)) | data;	//Reset GPUSTAT and rewrite old GPUSTAT.15 value
 
-	//Reset GPUSTAT Flag to receive next GP1 command
+	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
 
 	return true;
@@ -1109,10 +1163,9 @@ bool GPU::gp1_ResetFifo()
 {
 	//GP1(01h)
 	//Flush Command FIFO Buffer 
-	
 	fifo.flush();
 
-	//Reset GPUSTAT Flag to receive next GP1 command
+	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
 
 	return true;
@@ -1122,11 +1175,11 @@ bool GPU::gp1_AckInterrupt()
 {
 	//GP1(02h)
 	//Acnowledge GPU Interrupt, this flag in set by GP0(1Fh)
-
+	
 	//GPUSTAT.24 << 0
-	gpuStat &= ~(0x00000001 << 24);
+	gpuStat &= ~(1UL << 24);
 
-	//Reset GPUSTAT Flag to receive next GP1 command
+	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
 
 	return true;
@@ -1140,10 +1193,10 @@ bool GPU::gp1_DisplayEnable()
 	uint32_t data;
 
 	//GPUSTAT.23 << GP1DATA.0	
-	data = gp1DataLatch & 0x00000001;							//Extract bit value from GP1 Command
+	data = gp1Command & 0x00000001;								//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 23)) | (data << 23);	//Set GPUSTAT.23 to data value
 
-	//Reset GPUSTAT Flag to receive next GP1 command
+	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
 	
 	return true;
@@ -1157,12 +1210,12 @@ bool GPU::gp1_DmaDirection()
 	uint32_t data;
 
 	//GPUSTAT.29-30 << GP1DATA.0-1
-	data = gp1DataLatch & 0x00000003;							//Extract bit value from GP1 Command
+	data = gp1Command & 0x00000003;								//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000003 << 29)) | (data << 29);	//Set GPUSTAT.29-30 to data value
 
 	dmaDirection = data;
 
-	//Reset GPUSTAT Flag to receive next GP1 command
+	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
 
 	return true;
@@ -1173,10 +1226,10 @@ bool GPU::gp1_StartDisplayArea()
 	//GP1(05h)
 	//Start of Display Area in VRAM (gp1Data.0-9 = X, gp1Data.10-18 = Y)
 	 
-	displayOffset.x = gp1DataLatch & 0x000003ff;
-	displayOffset.y = (gp1DataLatch & 0x0007fc00) >> 10;
+	displayOffset.x = gp1Command & 0x000003ff;
+	displayOffset.y = (gp1Command & 0x0007fc00) >> 10;
 
-	//Reset GPUSTAT Flag to receive next GP1 command
+	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
 
 	return true;
@@ -1187,10 +1240,10 @@ bool GPU::gp1_HDisplayRange()
 	//GP1(06h)
 	//Horizontal Display Range on Screen (gp1Data.0-11 = X1, gp1Data.12-23 = X2)
 		
-	displayArea.x1 = gp1DataLatch & 0x00000fff;
-	displayArea.x2 = (gp1DataLatch & 0x00fff000) >> 12;
+	displayArea.x1 = gp1Command & 0x00000fff;
+	displayArea.x2 = (gp1Command & 0x00fff000) >> 12;
 
-	//Reset GPUSTAT Flag to receive next GP1 command
+	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
 
 	return true;
@@ -1201,10 +1254,10 @@ bool GPU::gp1_VDisplayRange()
 	//GP1(07h)
 	// Vertical Dysplay Range on Screen (gp1Data.0-9 = Y1, gp1Data.10-19 = Y2)
 	 
-	displayArea.y1 = gp1DataLatch & 0x000003ff;
-	displayArea.y2 = (gp1DataLatch & 0x000ffc00) >> 10;
+	displayArea.y1 = gp1Command & 0x000003ff;
+	displayArea.y2 = (gp1Command & 0x000ffc00) >> 10;
 
-	//Reset GPUSTAT Flag to receive next GP1 command
+	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
 
 	return true;
@@ -1218,35 +1271,35 @@ bool GPU::gp1_DisplayMode()
 	uint32_t data;
 
 	//GPUSTAT.17-18 << GP1DATA.0-1								Horizontal Resolution 1: 0 = 256, 1 = 320, 2 = 512, 3 = 640 					
-	data = gp1DataLatch & 0x00000003;							//Extract bit value from GP1 Command
+	data = gp1Command & 0x00000003;							//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000003 << 17)) | (data << 17);	//Set GPUSTAT.17-18 to data value
 	horizontalResolution1 = data;
 
 	//GPUSTAT.19 << GP1DATA.2									Vertical Resolution: 0 = 240, 1 = 480
-	data = (gp1DataLatch & 0x00000004) >> 2;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000004) >> 2;					//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 19)) | (data << 19);	//Set GPUSTAT.19 to data value
 	verticalResolution = data;
 
 	//GPUSTAT.20 << GP1DATA.3									Video Mode: 0 = NTSC, 1 = PAL
-	data = (gp1DataLatch & 0x00000008) >> 3;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000008) >> 3;					//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 20)) | (data << 20);	//Set GPUSTAT.20 to data value
 	videoMode = static_cast<VideoMode>(data);
 
 	//GPUSTAT.21 << GP1DATA.4									Display Area Color Depth: 0 = 15bit, 1 = 24bit
-	data = (gp1DataLatch & 0x00000010) >> 4;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000010) >> 4;					//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 21)) | (data << 21);	//Set GPUSTAT.21 to data value
 
 	//GPUSTAT.22 << GP1DATA.5									Vertical Interlace: 0 = off, 1 = on
-	data = (gp1DataLatch & 0x00000020) >> 5;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000020) >> 5;					//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 22)) | (data << 22);	//Set GPUSTAT.22 to data value
 	verticalInterlace = static_cast<bool>(data);
 
 	//GPUSTAT.16 << GP1DATA.6									Horizontal Resolution 2: 0 = 256/320/512/640, 1 = 368
-	data = (gp1DataLatch & 0x00000040) >> 6;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000040) >> 6;					//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 16)) | (data << 16);	//Set GPUSTAT.16 to data value
 	horizontalResolution2 = data;
 	//GPUSTAT.14 << GP1DATA.7									//Reverse Flag: 0 = normal, 1 = distorted
-	data = (gp1DataLatch & 0x00000080) >> 7;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000080) >> 7;					//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 14)) | (data << 14);	//Set GPUSTAT.16 to data value
 
 	//Set DotClock Divider according to new Horizontal Resolution configuration
@@ -1273,7 +1326,7 @@ bool GPU::gp1_DisplayMode()
 		}
 	}
 
-	//Reset GPUSTAT Flag to receive next GP1 command
+	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
 
 	return true;
@@ -1287,8 +1340,10 @@ bool GPU::gp1_TextureDisable()
 	uint32_t data;
 
 	//GPUSTAT.15 << GP1DATA.0
-	data = (gp1DataLatch & 0x00000001);							//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000001);							//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 15)) | (data << 15);	//Set GPUSTAT.15 to data value
+
+	textureAllowDisable = (bool)data;
 
 	//Reset GPUSTAT Flag to receive next GP1 command
 	gp1_ResetStatus();
@@ -1298,7 +1353,7 @@ bool GPU::gp1_TextureDisable()
 
 bool GPU::gp1_Unknown()
 {
-	//printf("Unknown GP1 Command!\n");
+	printf("Unknown GP1 Command!\n");
 	
 	//Reset GPUSTAT Flag to receive next GP1 command
 	gp1_ResetStatus();
@@ -1322,7 +1377,7 @@ bool GPU::gp1_GetGpuInfo()
 
 	uint32_t data;
 
-	data = gp1DataLatch & 0x00000007;
+	data = gp1Command & 0x00000007;
 	switch (data)
 	{
 	case 2:
@@ -1370,7 +1425,28 @@ void GPU::getDebugInfo(GpuDebugInfo& info)
 	info.displayOffset = displayOffset;
 	info.drawingArea = drawingArea;
 	info.drawingOffset = drawingOffset;
+	info.textureAllowDisable = (textureAllowDisable) ? "true" : "false";
+	info.textureDisable = (textureDisable) ? "true" : "false";
+	info.texturePage = texturePage;
+	info.textureMask = textureMask;
+	info.textureOffset = textureOffset;
 
+	switch (texturePageColor)
+	{
+	case 0:
+		info.texturePageColor = "4 bit CLUT";
+		break;
+	case 1:
+		info.texturePageColor = "8 bit CLUT";
+		break;
+	case 2:
+		info.texturePageColor = "15 Bit ABGR (1555)";
+		break;
+	case 3:
+		info.texturePageColor = "Reserved";
+		break;
+	}
+	
 	switch (videoMode)
 	{
 	case VideoMode::NTSC:

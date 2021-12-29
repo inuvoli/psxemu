@@ -461,7 +461,7 @@ bool CPU::exception(uint32_t cause)
 	StatusRegister	statusReg;
 	CauseRegister	causeReg;
 
-	printf("EXCEPTION (%d)\n", cause);
+	//printf("EXCEPTION (%d)\n", cause);
 
 	statusReg.word = cop0_reg[12];
 	causeReg.word = cop0_reg[13];

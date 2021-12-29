@@ -396,10 +396,22 @@ bool psxemu::debugInfo()
         ImGui::Begin("GPU");
         ImGui::Text("GPUSTAT: Value  0x%08x  ", gpuinfo.gpuStat);
         ImGui::Text("VideoMode     : %dx%d   (%s)", gpuinfo.videoResolution.x, gpuinfo.videoResolution.y, gpuinfo.videoStandard.c_str());
-        ImGui::Text("Display Offset: (%4d, %4d)", gpuinfo.displayOffset.x, gpuinfo.displayOffset.y);
-        ImGui::Text("Display Area  : (%4d, %4d) to (%4d, %4d)", gpuinfo.displayArea.x1, gpuinfo.displayArea.y1, gpuinfo.displayArea.x2, gpuinfo.displayArea.y2);
-        ImGui::Text("Drawing Offset: (%4d, %4d)", (int16_t)gpuinfo.drawingOffset.x, (int16_t)gpuinfo.drawingOffset.y);
-        ImGui::Text("Drawing Area  : (%4d, %4d) to (%4d, %4d)", gpuinfo.drawingArea.x1, gpuinfo.drawingArea.y1, gpuinfo.drawingArea.x2, gpuinfo.drawingArea.y2);
+        
+        ImGui::Text("Display Offset: (%4d, %4d)\t\t\t\t\t\t", gpuinfo.displayOffset.x, gpuinfo.displayOffset.y);
+        ImGui::SameLine();
+        ImGui::Text("Texture Page           : (%4d, %4d)", gpuinfo.texturePage.x, gpuinfo.texturePage.y);
+
+        ImGui::Text("Display Area  : (%4d, %4d) to (%4d, %4d)\t\t", gpuinfo.displayArea.x1, gpuinfo.displayArea.y1, gpuinfo.displayArea.x2, gpuinfo.displayArea.y2);
+        ImGui::SameLine();
+        ImGui::Text("Texture Page Color Mode: %s", gpuinfo.texturePageColor.c_str());
+
+        ImGui::Text("Drawing Offset: (%4d, %4d)\t\t\t\t\t\t", (int16_t)gpuinfo.drawingOffset.x, (int16_t)gpuinfo.drawingOffset.y);
+        ImGui::SameLine();
+        ImGui::Text("Texture Windows Mask   : (%4d, %4d)", gpuinfo.textureMask.x, gpuinfo.textureMask.y);
+
+        ImGui::Text("Drawing Area  : (%4d, %4d) to (%4d, %4d)\t\t", gpuinfo.drawingArea.x1, gpuinfo.drawingArea.y1, gpuinfo.drawingArea.x2, gpuinfo.drawingArea.y2);
+        ImGui::SameLine();
+        ImGui::Text("Texture Windows Offset : (%4d, %4d)", gpuinfo.textureOffset.x, gpuinfo.textureOffset.y);
                 
         GLuint vramTexture;
         glGenTextures(1, &vramTexture);
@@ -407,7 +419,6 @@ bool psxemu::debugInfo()
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_ABGR_EXT, GL_UNSIGNED_SHORT_1_5_5_5_REV_EXT, gpuinfo.vRam);
-        //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, gpuinfo.vRam);
         ImGui::Image((void*)(intptr_t)vramTexture, ImVec2(1024, 512));
         ImGui::End();      
     }

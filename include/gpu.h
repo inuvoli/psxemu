@@ -76,6 +76,12 @@ struct GpuDebugInfo
 	Quad<uint16_t>		drawingArea;
 	Pair<uint16_t>		videoResolution;
 	std::string			videoStandard;
+	std::string			textureAllowDisable;
+	std::string			textureDisable;
+	Pair<uint16_t>		texturePage;
+	std::string			texturePageColor;
+	Pair<uint8_t>		textureMask;
+	Pair<uint8_t>		textureOffset;
 };
 
 class GPU
@@ -135,6 +141,11 @@ private:
 	Quad<uint16_t>		drawingArea;
 	Pair<uint8_t>		textureMask;
 	Pair<uint8_t>		textureOffset;
+	Pair<uint16_t>		texturePage;
+	uint8_t				texturePageColor;
+
+	bool				textureAllowDisable;
+	bool				textureDisable;
 
 	uint8_t				dmaDirection;
 	bool				recvCommand;
@@ -183,14 +194,14 @@ private:
 	//GP0 Instructions
 	bool gp0_NoOperation();
 	bool gp0_ClearTextureCache();
-	bool gp0_ClearScreen();
+	bool gp0_FillVRam();
 	bool gp0_InterruptRequest();
 	bool gp0_Polygons();
 	bool gp0_Lines();
 	bool gp0_Rectangles();
-	bool gp0_Vram2Vram();
-	bool gp0_Ram2Vram();
-	bool gp0_Vram2Ram();
+	bool gp0_CopyVRam2VRam();
+	bool gp0_CopyRam2VRam();
+	bool gp0_CopyVRam2Ram();
 	bool gp0_DrawMode();
 	bool gp0_TextureSetting();
 	bool gp0_SetDrawAreaTop();
@@ -215,6 +226,5 @@ private:
 	bool gp1_GetGpuInfo();
 
 	void gp1_ResetStatus();
-
 };
 
