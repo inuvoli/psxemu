@@ -7,9 +7,11 @@
 #include "psx.h"
 #include "mipsdisassembler.h"
 
+//PSXEMU specific Includes, note PSXEMU is using GLEW OpenGL loader
 #include <GL/glew.h>
 #include <SDL.h>
 
+//ImGui specific Includes, note ImGui is using a stripped GL3W OpenGL loader
 #include "imgui.h"
 #include "imgui_impl_sdl.h"
 #include "imgui_impl_opengl3.h"
@@ -41,7 +43,7 @@ public:
 	bool		showGpu;
 	uint32_t	breakPoint;
 	
-	Psx			*pPsxSystem = nullptr;
+	Psx			*pPsx = nullptr;
 
 private:
 	bool handleEvents();
@@ -72,6 +74,7 @@ private:
 	//Debug Helper
 	MipsDisassembler	mipsDisassembler;
 	asmcode asmCode;
+	GLuint vramTexture;
 
 	ImVec4 clear_color = ImVec4(0.15f, 0.25f, 0.30f, 1.00f);
 	ImVec4 yellow_color = ImVec4(0.90f, 0.90f, 0.00f, 1.00f);
