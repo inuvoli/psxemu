@@ -35,12 +35,6 @@ set(PSXEMU_SOURCES
 	src/spu.cpp
 	src/timers.cpp
 	src/mipsdisassembler.cpp
-	3rdparty/imgui/imgui.cpp
-	3rdparty/imgui/imgui_draw.cpp
-	3rdparty/imgui/imgui_impl_opengl3.cpp
-	3rdparty/imgui/imgui_impl_sdl.cpp
-	3rdparty/imgui/imgui_tables.cpp
-	3rdparty/imgui/imgui_widgets.cpp
 )
 
 # IMGUI cpp files
@@ -69,4 +63,4 @@ target_include_directories(psxemu
 )
 
 # Set libraries to be included
-target_link_libraries(psxemu ${OPENGL_LIBRARIES} ${SDL2_LIBRARIES} ${GLEW_LIBRARIES})
+target_link_libraries(psxemu ${OPENGL_LIBRARIES} ${SDL2_LIBRARIES} ${GLEW_LIBRARIES} ${CMAKE_DL_LIBS})

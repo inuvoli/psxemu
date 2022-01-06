@@ -202,12 +202,6 @@ bool psxemu::handleEvents()
                 instructionStep = false;
                 break;
 
-            case SDLK_a:
-                pPsxSystem->cpu.interrupt(static_cast<uint32_t>(interruptCause::dma));
-                //frameStep = false;
-                //instructionStep = false;          
-                break;
-
             case SDLK_1:
                 (showRom) ? showRom = false : showRom = true;
                 break;
@@ -466,7 +460,7 @@ bool psxemu::renderFrame()
     debugInfo();
 
     //Clear ColorBuffer
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //Render PSP FrameBuffer
     //TODO
