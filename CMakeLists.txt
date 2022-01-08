@@ -35,6 +35,8 @@ set(PSXEMU_SOURCES
 	src/spu.cpp
 	src/timers.cpp
 	src/mipsdisassembler.cpp
+	src/renderer.cpp
+	src/shader.cpp
 )
 
 # IMGUI cpp files
@@ -54,8 +56,7 @@ add_executable(psxemu ${PSXEMU_SOURCES} ${IMGUI_SOURCES})
 # when running g++ these will be included as -I/directory/path/
 target_include_directories(psxemu
     PRIVATE 
-        ${PROJECT_SOURCE_DIR}/include
-		${PROJECT_SOURCE_DIR}/3rdparty/bitfield
+ 		${PROJECT_SOURCE_DIR}/3rdparty/bitfield
 		${PROJECT_SOURCE_DIR}/3rdparty/imgui
 		${SDL2_INCLUDE_DIRS}
 		${GLEW_INCLUDE_DIRS}

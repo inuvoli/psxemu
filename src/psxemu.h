@@ -4,9 +4,6 @@
 #include <cstdio>
 #include <string>
 
-#include "psx.h"
-#include "mipsdisassembler.h"
-
 //PSXEMU specific Includes, note PSXEMU is using GLEW OpenGL loader
 #include <GL/glew.h>
 #include <SDL.h>
@@ -16,6 +13,10 @@
 #include "imgui_impl_sdl.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_memory_editor.h"
+
+#include "psx.h"
+#include "mipsdisassembler.h"
+#include "renderer.h"
 
 class psxemu
 {
@@ -70,6 +71,9 @@ private:
 	uint64_t	timerStart;
 	uint64_t	timerStop;
 	uint16_t	framePerSecond;
+
+	//OpenGL Renderer
+	Renderer*	pRenderer;
 
 	//Debug Helper
 	MipsDisassembler	mipsDisassembler;

@@ -34,6 +34,8 @@ psxemu::psxemu()
 	pControllerB = nullptr;
 
     pWindow = nullptr;
+
+    pRenderer = nullptr;
 }
 
 psxemu::~psxemu()
@@ -46,6 +48,9 @@ psxemu::~psxemu()
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(pWindow);
     SDL_Quit();
+
+    //Delete OpenGL Renderer
+    delete pRenderer;
 
     //Delete PSX Emulator Object
     delete pPsx;
@@ -129,6 +134,9 @@ bool psxemu::init(int wndWidth, int wndHeight)
     //Init PSX Emulator Object
     pPsx = new Psx();
 
+    //Init OpenGL Renderer;
+    pRenderer = new Renderer();
+
     //Init OpenGL Variables
     glGenTextures(1, &vramTexture);
 
@@ -164,6 +172,61 @@ bool psxemu::run()
     }
     return true;
 }
+
+bool psxemu::update()
+{
+    if (pPsx->cpu.pc - 0x4 == breakPoint)
+    {
+        instructionStep = false;
+        frameStep = false;
+    }
+
+    pPsx->clock();
+    return true;
+}
+
+bool psxemu::updateFrame()
+{
+    int count = 0;
+    
+    while (!pPsx->gpu.isFrameReady())
+    {
+        if (pPsx->cpu.pc - 0x4 == breakPoint)
+        {
+            instructionStep = false;
+            frameStep = false;
+            break;
+        }
+
+        pPsx->clock();
+    }
+
+    //Update Data Structure (Vertices) to render via OpenGL
+    pRenderer->updateDrawData();
+        
+    return true;
+}
+
+bool psxemu::renderFrame()
+{
+    //Update Debug Frame
+    debugInfo();
+
+    //Clear ColorBuffer
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    //Render PSP FrameBuffer with OpenGL
+    pRenderer->renderFrame();
+    
+    //Render Debug Information
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    
+    //Swap OpenGL FrameBuffer
+    SDL_GL_SwapWindow(pWindow);
+
+    return true;
+}
+
 
 //----------------------------------------------------------------------------------------------------------------------
 //
@@ -439,57 +502,6 @@ bool psxemu::debugInfo()
     }
     
     ImGui::Render();
-
-    return true;
-}
-
-bool psxemu::update()
-{
-    if (pPsx->cpu.pc - 0x4 == breakPoint)
-    {
-        instructionStep = false;
-        frameStep = false;
-    }
-
-    pPsx->clock();
-    return true;
-}
-
-bool psxemu::updateFrame()
-{
-    int count = 0;
-    
-    while (!pPsx->gpu.isFrameReady())
-    {
-        if (pPsx->cpu.pc - 0x4 == breakPoint)
-        {
-            instructionStep = false;
-            frameStep = false;
-            break;
-        }
-
-        pPsx->clock();
-    }
-        
-    return true;
-}
-
-bool psxemu::renderFrame()
-{
-    //Update Debug Frame
-    debugInfo();
-
-    //Clear ColorBuffer
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    //Render PSP FrameBuffer
-    //TODO
-    
-    //Render Debug Information
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-    
-    //Swap OpenGL FrameBuffer
-    SDL_GL_SwapWindow(pWindow);
 
     return true;
 }
