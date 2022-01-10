@@ -1,7 +1,7 @@
 #include "psxemu.h"
 
 constexpr auto SCREEN_WIDTH = 1280;
-constexpr auto SCREEN_HEIGHT = 1024;
+constexpr auto SCREEN_HEIGHT = 800;
 
 int main(int argc, char* argv[])
 {

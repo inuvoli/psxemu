@@ -115,6 +115,9 @@ bool psxemu::init(int wndWidth, int wndHeight)
     }
     printf("OpenGL Loader Initialized...\n");
 
+    //Set VievPort
+    glViewport(0, 0, wndWidth, wndHeight);
+    
     //Set Clear Color
     glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 

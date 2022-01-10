@@ -7,6 +7,7 @@
 #include <string>
 
 #include "commandfifo.h"
+#include "common.h"
 
 class Psx;
 
@@ -27,61 +28,23 @@ constexpr auto VRAM_SIZE = 1024 * 512;
 
 enum class VideoMode { NTSC = 0x0, PAL = 0x1 };
 
-template <typename T>
-struct Pair
-{
-	T	x;
-	T	y;
-
-	/*Pair(const T x, const T y)
-	{
-		this->x = x;
-		this->y = y;
-	}*/
-
-	Pair& operator= (const Pair& t)
-	{
-		x = t.x;
-		y = t.y;
-		return *this;
-	}
-};
-
-template <typename T>
-struct Quad
-{
-	T	x1;
-	T	y1;
-	T	x2;
-	T	y2;
-
-	Quad& operator= (const Quad& t)
-	{
-		x1 = t.x1;
-		y1 = t.y1;
-		x2 = t.x2;
-		y2 = t.y2;
-		return *this;
-	}
-};
-
 //GPU Debug Status
 struct GpuDebugInfo
 {
 	uint32_t			gpuStat;
 	void*				vRam;
-	Pair<uint16_t>		displayOffset;
-	Quad<uint16_t>		displayArea;
-	Pair<uint16_t>		drawingOffset;
-	Quad<uint16_t>		drawingArea;
-	Pair<uint16_t>		videoResolution;
+	vec2t<uint16_t>		displayOffset;
+	vec4t<uint16_t>		displayArea;
+	vec2t<uint16_t>		drawingOffset;
+	vec4t<uint16_t>		drawingArea;
+	vec2t<uint16_t>		videoResolution;
 	std::string			videoStandard;
 	std::string			textureAllowDisable;
 	std::string			textureDisable;
-	Pair<uint16_t>		texturePage;
+	vec2t<uint16_t>		texturePage;
 	std::string			texturePageColor;
-	Pair<uint8_t>		textureMask;
-	Pair<uint8_t>		textureOffset;
+	vec2t<uint8_t>		textureMask;
+	vec2t<uint8_t>		textureOffset;
 };
 
 class GPU
@@ -135,27 +98,31 @@ private:
 	uint8_t				dotClockRatio;
 	uint16_t			verticalResolution;
 	bool				verticalInterlace;
-	Pair<uint16_t>		displayOffset;
-	Quad<uint16_t>		displayArea;
-	Pair<uint16_t>		drawingOffset;
-	Quad<uint16_t>		drawingArea;
-	Pair<uint8_t>		textureMask;
-	Pair<uint8_t>		textureOffset;
-	Pair<uint16_t>		texturePage;
+	vec2t<uint16_t>		displayOffset;
+	vec4t<uint16_t>		displayArea;
+	vec2t<uint16_t>		drawingOffset;
+	vec4t<uint16_t>		drawingArea;
+	vec2t<uint8_t>		textureMask;
+	vec2t<uint8_t>		textureOffset;
+	vec2t<uint16_t>		texturePage;
 	uint8_t				texturePageColor;
 
 	bool				textureAllowDisable;
 	bool				textureDisable;
-
-	uint8_t				dmaDirection;
-	bool				recvCommand;
-	bool				recvParameters;
-	bool				gp0CommandAvailable;
-	uint32_t			gp0Command;
-	uint8_t				gp0CommandParameters;
-	bool				gp0CommandFifo;
-	bool				gp1CommandAvailable;
-	uint32_t			gp1Command;
+	
+	uint8_t				dmaDirection;			//Set by GP1(04h), Contains actual value for GPUSTAT.29-30 (0 = off, 1 = FIFO, 2 =  RAM to VRAM, 3 = VRAM to RAM)
+	bool				recvCommand;			//True if a GP0/GP1 command has been received
+	bool				recvParameters;			//True if all GP0 Parameters has been received or if current OpCode has zero parameters 
+	bool				gp0CommandAvailable;	//A full GP0 command is available with all parameters
+	uint8_t				gp0Opcode;				//Current Available GP0 Opcode
+	uint32_t			gp0Command;				//Current Available GP0 Command
+	uint8_t				gp0CommandParameters;	//Number of parameters for the current GP0 Command (255 is a special value)
+	uint8_t				gp0ReadParameters;		//Used as a counter while receiving parameter for the current gp0Commnad
+	bool				gp0CommandFifo;			//True if current GP0 command is on the FIFO
+	bool				gp0RecvPolyLine;		//True if current GP0 command is for a Polygon or a Line 
+	bool				gp1CommandAvailable;	//A full GP1 command is available
+	uint8_t				gp1Opcode;				//Current available GP1 Opcode
+	uint32_t			gp1Command;				//Current Available GP1 Command
 
 	uint32_t			hCount;				//Count GPU Ticks per Scanline
 	uint32_t			vCount;				//Count the number of Scanlines
@@ -163,15 +130,16 @@ private:
 	bool				newFrameReady;		//Set if a new Frame has started
 		
 	//Memory Transfer Status
-	Pair<uint16_t>		dataDestination;	//Framebuffer destination start point: x is offset in halfwords, y is offset in rows
-	Pair<uint16_t>		dataSource;			//Framebuffer source start point: x is offset in halfwords, y is offset in rows
-	Pair<uint16_t>		dataSize;			//Data Rectangle size: x is in halfwords, y is in rows
-	Pair<uint16_t>		dataPointer;		//Pointer to current read or write address in VRAM
+	vec2t<uint16_t>		dataDestination;	//Framebuffer destination start point: x is offset in halfwords, y is offset in rows
+	vec2t<uint16_t>		dataSource;			//Framebuffer source start point: x is offset in halfwords, y is offset in rows
+	vec2t<uint16_t>		dataSize;			//Data Rectangle size: x is in halfwords, y is in rows
+	vec2t<uint16_t>		dataPointer;		//Pointer to current read or write address in VRAM
 	bool				dataReadActive;		//Set by GP0(C0h), enable data tranfer from VRAM to RAM 
 	bool				dataWriteActive;	//Set by GP0(A0h), enable data transfer from RAM to VRAM
 		
 	//Internal Clock Counter
 	uint64_t	gpuClockTicks;
+	uint64_t	gpuFrameCounter;
 
 	//Full set GPU Instruction Dictionaries
 	struct INSTRGP0
@@ -180,6 +148,7 @@ private:
 		bool(GPU::* operate)() = nullptr;
 		uint8_t parameters;
 		bool fifo;
+		bool polyline;
 	};
 
 	struct INSTRGP1

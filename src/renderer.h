@@ -16,8 +16,10 @@ class Renderer
     public:
         Shader* pShader;
 
-        GLfloat colors[256] = { 1.000f,  0.000f,  0.000f, 0.000f,  1.000f,  0.000f, 0.000f,  0.000f,  1.000f };
-        GLfloat vertices[256] = { 0.0f, 0.5f, 0.0f, -0.5f, -0.5f, 0.0f, 0.5f, -0.5f, 0.0f } ;
+        //GLfloat colors[256] = { 255.0f,  0.0f,  0.0f, 0.0f,  255.0f,  0.0f, 0.0f,  0.0f,  255.0f };
+        //GLfloat vertices[256] = { 0.0f, 480.0f, 640.0f, 480.0f, 320.0f, 0.0f } ;
+        GLuint colors[256] = { 255,  0,  0, 0,  255,  0, 0,  0,  255 };
+        GLint vertices[256] = { 0, 480, 640, 480, 320, 0 } ;
         GLuint VBO, CBO, VAO;
 
-};
+};  

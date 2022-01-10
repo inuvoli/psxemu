@@ -3,7 +3,7 @@ in vec3 vertexColor;
 
 out vec4 fragColor;
 
-uniform float ourColor;
+//uniform usampler2DRect vram;
 
 void main()
 {
