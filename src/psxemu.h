@@ -16,7 +16,6 @@
 
 #include "psx.h"
 #include "mipsdisassembler.h"
-#include "renderer.h"
 
 class psxemu
 {
@@ -72,15 +71,11 @@ private:
 	uint64_t	timerStop;
 	uint16_t	framePerSecond;
 
-	//OpenGL Renderer
-	Renderer*	pRenderer;
-
 	//Debug Helper
 	MipsDisassembler	mipsDisassembler;
-	asmcode asmCode;
+	AsmCode asmCode;
 	GLuint vramTexture;
-
-	ImVec4 clear_color = ImVec4(0.15f, 0.25f, 0.30f, 1.00f);
+	
 	ImVec4 yellow_color = ImVec4(0.90f, 0.90f, 0.00f, 1.00f);
 	ImVec4 green_color = ImVec4(0.00f, 0.90f, 0.00f, 1.00f);
 	ImVec4 grey_color = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
@@ -88,10 +83,12 @@ private:
 	ImVec4 red_color = ImVec4(0.90f, 0.00f, 0.00f, 1.00f);
 	ImVec4 black_color = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
 
+	//Registers names
 	std::string cpuRegisterName[32] = { "zr", "at", "v0", "v1", "a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
-										"t8", "t9", "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "k0", "k1", "gp", "sp", "fp", "ra"};
+ 										"t8", "t9", "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "k0", "k1", "gp", "sp", "fp", "ra"};
 
 	std::string cop0RegisterName[32] = { "", "", "", "BPC", "", "BDA", "JDEST", "DCIC", "BadVaddr", "BDAM", "", "BPCM", "SR",
-										"Cause", "EPC", "PDId", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" };
+ 										"Cause", "EPC", "PDId", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" };
+
 };
 

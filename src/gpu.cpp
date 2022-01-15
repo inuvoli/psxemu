@@ -18,10 +18,7 @@ GPU::GPU()
 	vCount = 0x00;
 
 	videoMode = VideoMode::NTSC;
-	horizontalResolution1 = 0x0000;
-	horizontalResolution2 = 0x0000;
 	dotClockRatio = 10;				//Assuming 256 pixel per line is standard configuration
-	verticalResolution = 0x0000;
 	verticalInterlace = false;
 	newScanline = false;
 	newFrameReady = false;
@@ -31,6 +28,7 @@ GPU::GPU()
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
+	memset(&videoResolution, 0, sizeof(vec2t<uint16_t>));
 	memset(&displayArea, 0, sizeof(vec4t<uint16_t>));
 	memset(&displayOffset, 0, sizeof(vec2t<uint16_t>));
 	memset(&drawingArea, 0, sizeof(vec4t<uint16_t>));
@@ -42,8 +40,7 @@ GPU::GPU()
 
 	//Reset Internal Clock Counter
 	gpuClockTicks = 0;
-	gpuFrameCounter = 0;
-
+	
 	//GPU Internal Status & Configurations
 	recvCommand = false;
 	recvParameters = false;
@@ -70,7 +67,6 @@ GPU::GPU()
 	memset(&dataPointer, 0, sizeof(vec2t<uint16_t>));
 
 	//Init GPU Instruction Dictionaries
-
 	gp0InstrSet =
 	{
 		{"NOP", &GPU::gp0_NoOperation, 0, false, false},
@@ -402,6 +398,7 @@ GPU::GPU()
 
 GPU::~GPU()
 {
+
 }
 
 bool GPU::reset()
@@ -420,10 +417,7 @@ bool GPU::reset()
 	vCount = 0x00;
 
 	videoMode = VideoMode::NTSC;
-	horizontalResolution1 = 0x0000;
-	horizontalResolution2 = 0x0000;
 	dotClockRatio = 10;				//Assuming 256 pixel per line is standard configuration
-	verticalResolution = 0x0000;
 	verticalInterlace = false;
 	newScanline = false;
 	newFrameReady = false;
@@ -433,6 +427,7 @@ bool GPU::reset()
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
+	memset(&videoResolution, 0, sizeof(vec2t<uint16_t>));
 	memset(&displayArea, 0, sizeof(vec4t<uint16_t>));
 	memset(&displayOffset, 0, sizeof(vec2t<uint16_t>));
 	memset(&drawingArea, 0, sizeof(vec4t<uint16_t>));
@@ -444,8 +439,7 @@ bool GPU::reset()
 
 	//Reset Internal Clock Counter
 	gpuClockTicks = 0;
-	gpuFrameCounter = 0;
-
+	
 	//GPU Internal Status & Configurations
 	recvCommand = false;
 	recvParameters = false;
@@ -485,12 +479,6 @@ bool GPU::isFrameReady()
 
 	status = newFrameReady;
 	newFrameReady = false;
-
-	if (status)
-	{
-		gpuFrameCounter++;
-		printf("GPU Frame %d Ready\n", gpuFrameCounter);
-	}
 
 	return status;
 }
@@ -581,7 +569,8 @@ bool GPU::clock()
 	{
 		if (gp0CommandFifo)
 		{
-			//Flush the Command from FIFO. Already have its value on gp0Command.	
+			//Is is a Command stored on the FIFO
+			//Flush the Command from FIFO first. Already have its value on gp0Command.	
 			uint32_t tmp;
 			fifo.pop(tmp);
 			
@@ -590,7 +579,8 @@ bool GPU::clock()
 		}
 		else
 		{
-			//Actual GP0 Command is not in the FIFO
+			//It isn't a command stored on the FIFO
+			//Actual GP0 Command its already on gp0Command 
 
 			printf("Command GP0(%02xh)(I): %s\n", gp0Opcode, gp0InstrSet[gp0Opcode].mnemonic.c_str());
 			(this->*gp0InstrSet[gp0Opcode].operate)();
@@ -810,23 +800,30 @@ uint32_t GPU::getParameter(uint32_t addr, uint8_t bytes)
 
 bool GPU::gp0_Lines()
 {
+	//TODO
+
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
+
+	fifo.flush();	//TEMPORARY!!!!!!!!!!!!!!!!!!!!!!!!
 
 	return false;
 }
 
 bool GPU::gp0_Rectangles()
 {
+	//TODO
+
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
+
+	fifo.flush();	//TEMPORARY!!!!!!!!!!!!!!!!!!!!!!!!
 
 	return false;
 }
 
 bool GPU::gp0_Polygons()
 {
-	printf("gp0_Polygons: Command: %08x (OpCode: %02x, Params:%d)\n", gp0Command, gp0Opcode, gp0CommandParameters);
 	// Bit Number   Value   Meaning
 	// 7-5          001     Polygon render
 	// 4            1/0     gouraud / flat shading
@@ -839,18 +836,17 @@ bool GPU::gp0_Polygons()
 	uint16_t clut;
 
 	uint8_t vertexNum = (gp0Opcode & 0x08) ? 4 : 3;
-
-	vec3t<uint8_t>	color[vertexNum] = {};
-	vec2t<int16_t>	vertex[vertexNum] = {};
-	vec2t<uint8_t>	texCoords[vertexNum] = {};
+			
+	vec2t<uint8_t>	texCoords[4] = {};
 	vec2t<uint16_t>	texClut = {};
 	uint16_t		texPageInfo = 0;
 
+	
 	//Extract First Vertex Info
-	decodeColor(gp0Command, color[0]);
+	decodeColor(gp0Command, colorBuf);
 	
 	fifo.pop(param);
-	decodePosition(param, vertex[0]);
+	decodePosition(param, vertexBuf);
 	
 	if (gp0Opcode & 0x04)	//Check if it's a Textured Polygon
 	{
@@ -867,16 +863,17 @@ bool GPU::gp0_Polygons()
 		if (gp0Opcode & 0x10)	//Flat shading or Gourad Shading
 		{
 			fifo.pop(param);
-			decodeColor(param, color[i]);
+			decodeColor(param, colorBuf, i);
 		}
 		else
 		{
-			color[i] = color[0];
+			//Hack!
+			decodeColor(gp0Command, colorBuf, i);
 		}
 
 		//Extract Vertex Position
 		fifo.pop(param);
-		decodePosition(param, vertex[i]);
+		decodePosition(param, vertexBuf, i);
 
 		//Extract Vertex Texture Informations
 		if (gp0Opcode & 0x04)	//Check if it's a Textured Polygon and if it's the Second Vertex
@@ -893,20 +890,11 @@ bool GPU::gp0_Polygons()
 		}
 	}
 
-	for (int i = 0; i < vertexNum ; i++)
-	{
-		printf("Vertex %d: Position: x=%d, y=%d \t Color: r=%d, g=%d, b=%d \t Texture: u=%d, v=%d\n", i, vertex[i].x, vertex[i].y,
-																												color[i].x, color[i].y, color[i].z,
-																												texCoords[i].x, texCoords[i].y);
-	}
-	printf("Clut Coordinates: x=%d, y=%d \t Texture Page Info: %04x\n", texClut.x, texClut.y, texPageInfo);
+	//Render Polygon
+	renderer.renderPolygon(vertexNum, vertexBuf, colorBuf);
 
-	recvCommand = false;
-	recvParameters = false;
-	gp0RecvPolyLine = false;
-	gp0CommandAvailable = false;
-
-	//gp0_ResetStatus();
+	//Reset GPUSTAT Flag to receive next GP0 command
+	gp0_ResetStatus();
 
 	return true;
 }
@@ -1211,6 +1199,8 @@ bool GPU::gp0_SetMaskBit()
 
 bool GPU::gp0_NoOperation()
 {
+	//Nothing to do
+
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
@@ -1223,8 +1213,6 @@ void GPU::gp0_ResetStatus()
 	recvParameters = false;
 	gp0RecvPolyLine = false;
 	gp0CommandAvailable = false;
-
-	fifo.flush();	//TEMPORARY!!!!!!!!!!!!!!!!!!!!!!!!
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -1360,60 +1348,43 @@ bool GPU::gp1_DisplayMode()
 	uint32_t data;
 
 	//GPUSTAT.17-18 << GP1DATA.0-1								Horizontal Resolution 1: 0 = 256, 1 = 320, 2 = 512, 3 = 640 					
-	data = gp1Command & 0x00000003;							//Extract bit value from GP1 Command
+	data = gp1Command & 0x00000003;								//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000003 << 17)) | (data << 17);	//Set GPUSTAT.17-18 to data value
-	horizontalResolution1 = data;
 
 	//GPUSTAT.19 << GP1DATA.2									Vertical Resolution: 0 = 240, 1 = 480
-	data = (gp1Command & 0x00000004) >> 2;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000004) >> 2;						//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 19)) | (data << 19);	//Set GPUSTAT.19 to data value
-	verticalResolution = data;
 
 	//GPUSTAT.20 << GP1DATA.3									Video Mode: 0 = NTSC, 1 = PAL
-	data = (gp1Command & 0x00000008) >> 3;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000008) >> 3;						//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 20)) | (data << 20);	//Set GPUSTAT.20 to data value
 	videoMode = static_cast<VideoMode>(data);
 
 	//GPUSTAT.21 << GP1DATA.4									Display Area Color Depth: 0 = 15bit, 1 = 24bit
-	data = (gp1Command & 0x00000010) >> 4;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000010) >> 4;						//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 21)) | (data << 21);	//Set GPUSTAT.21 to data value
 
 	//GPUSTAT.22 << GP1DATA.5									Vertical Interlace: 0 = off, 1 = on
-	data = (gp1Command & 0x00000020) >> 5;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000020) >> 5;						//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 22)) | (data << 22);	//Set GPUSTAT.22 to data value
 	verticalInterlace = static_cast<bool>(data);
 
 	//GPUSTAT.16 << GP1DATA.6									Horizontal Resolution 2: 0 = 256/320/512/640, 1 = 368
-	data = (gp1Command & 0x00000040) >> 6;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000040) >> 6;						//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 16)) | (data << 16);	//Set GPUSTAT.16 to data value
-	horizontalResolution2 = data;
+
 	//GPUSTAT.14 << GP1DATA.7									//Reverse Flag: 0 = normal, 1 = distorted
-	data = (gp1Command & 0x00000080) >> 7;					//Extract bit value from GP1 Command
+	data = (gp1Command & 0x00000080) >> 7;						//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 14)) | (data << 14);	//Set GPUSTAT.16 to data value
 
+	//Extract Current Video Resolution in readable form from gpuStat new value
+	videoResolution = decodeResolution(gpuStat);
+
 	//Set DotClock Divider according to new Horizontal Resolution configuration
-	if (horizontalResolution2 == 1)
-	{
-		dotClockRatio = 7; //H Res = 368
-	}
-	else if (horizontalResolution2 == 0)
-	{
-		switch (horizontalResolution1)
-		{
-		case 0:
-			dotClockRatio = 10;	//H Res = 256
-			break;
-		case 1:
-			dotClockRatio = 8;	//H Res = 320
-			break;
-		case 2:
-			dotClockRatio = 5;	//H Res = 512
-			break;
-		case 3:
-			dotClockRatio = 4;	//H Res = 640
-			break;
-		}
-	}
+	dotClockRatio = decodeClockRatio(videoResolution.x);
+
+	//Update Renderer Resolution
+	renderer.rendererSetResolution(videoResolution.x, videoResolution.y);
 
 	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
@@ -1510,6 +1481,7 @@ void GPU::getDebugInfo(GpuDebugInfo& info)
 {
 	info.gpuStat = gpuStat;
 	info.vRam = static_cast<void*>(vRam);
+	info.videoResolution = videoResolution;
 	info.displayArea = displayArea;
 	info.displayOffset = displayOffset;
 	info.drawingArea = drawingArea;
@@ -1540,44 +1512,9 @@ void GPU::getDebugInfo(GpuDebugInfo& info)
 	{
 	case VideoMode::NTSC:
 		info.videoStandard = "NTSC";
-
-		if (verticalResolution == 0)
-			info.videoResolution.y = 240;
-		else if (verticalResolution == 1)
-			info.videoResolution.y = 480;
-
 		break;
 	case VideoMode::PAL:
 		info.videoStandard = "PAL";
-
-		if (verticalResolution == 0)
-			info.videoResolution.y = 256;
-		else if (verticalResolution == 1)
-			info.videoResolution.y = 512;
-
 		break;
-	}
-
-	if (horizontalResolution2 == 1)
-	{
-		info.videoResolution.x = 368;
-	}
-	else if (horizontalResolution2 == 0)
-	{
-		switch (horizontalResolution1)
-		{
-		case 0:
-			info.videoResolution.x = 256;
-			break;
-		case 1:
-			info.videoResolution.x = 320;
-			break;
-		case 2:
-			info.videoResolution.x = 512;
-			break;
-		case 3:
-			info.videoResolution.x = 640;
-			break;
-		}
 	}
 }

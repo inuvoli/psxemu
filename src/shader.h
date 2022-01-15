@@ -4,7 +4,6 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
-using namespace std;
 
 #include "GL/glew.h"
 
@@ -20,8 +19,6 @@ class Shader
         void setUniformf(const std::string &name, float value) const;
 
     public:
-        GLuint programId;
-
-        
+        GLuint programId;      
 };
 

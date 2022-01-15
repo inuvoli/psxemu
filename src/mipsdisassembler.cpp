@@ -149,20 +149,20 @@ MipsDisassembler::~MipsDisassembler()
 // MIPS CPU DISASSEMBLER FUNCTIONS
 //
 //-----------------------------------------------------------------------------------------------------------------------------------
-asmcode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, uint32_t startAddr, uint32_t stopAddr)
+AsmCode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, uint32_t startAddr, uint32_t stopAddr)
 {
 	std::string	asmLine;
 	std::string asmLabel;
 	uint32_t currentAddr;
 	uint32_t opcode;
-	asmcode asmCode;
+	AsmCode asmCode;
 	bool isJump;
 
 	currentAddr = startAddr;
 	
 	while (currentAddr <= stopAddr)
 	{
-		auto res = decode_address(currentAddr);
+		auto res = decodeAddress(currentAddr);
 
 		if (res.second)
 		{
@@ -175,7 +175,7 @@ asmcode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, ui
 			opcode = ram[res.first] + (ram[res.first + 1] << 8) + (ram[res.first + 2] << 16) + (ram[res.first + 3] << 24);
 		}
 		
-		asmLine = decode(opcode, isJump);
+		asmLine = decodeOpcode(opcode, isJump);
 		asmLabel = ""; //TODO
 		asmCode.insert(std::make_pair(currentAddr, std::make_tuple(opcode, asmLabel, asmLine)));
 
@@ -185,14 +185,14 @@ asmcode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, ui
 	return asmCode;
 }
 
-asmcode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, uint32_t startAddr, uint16_t maxInstructions)
+AsmCode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, uint32_t startAddr, uint16_t maxInstructions)
 {
 	std::string	asmLine;
 	std::string asmLabel;
 	uint32_t currentAddr;
 	uint32_t decodedInstr;
 	uint32_t opcode;
-	asmcode asmCode;
+	AsmCode asmCode;
 	bool	isJump;
 	bool	lastOpcode;
 
@@ -202,7 +202,7 @@ asmcode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, ui
 
 	while (decodedInstr <= maxInstructions)
 	{
-		auto res = decode_address(currentAddr);
+		auto res = decodeAddress(currentAddr);
 
 		if (res.second)
 		{
@@ -215,7 +215,7 @@ asmcode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, ui
 			opcode = ram[res.first] + (ram[res.first + 1] << 8) + (ram[res.first + 2] << 16) + (ram[res.first + 3] << 24);
 		}
 
-		asmLine = decode(opcode, isJump);
+		asmLine = decodeOpcode(opcode, isJump);
 		asmLabel = ""; //TODO
 		asmCode.insert(std::make_pair(currentAddr, std::make_tuple(opcode, asmLabel, asmLine)));
 
@@ -231,7 +231,7 @@ asmcode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, ui
 	return asmCode;
 }
 
-std::pair<uint32_t, bool> MipsDisassembler::decode_address(uint32_t vAddr)
+std::pair<uint32_t, bool> MipsDisassembler::decodeAddress(uint32_t vAddr)
 {
 	uint32_t phAddr = vAddr & regionMask[vAddr >> 29];
 	bool isRom = (phAddr >= 0x1fc00000) && (phAddr <= 0x1fc70000);
@@ -240,7 +240,7 @@ std::pair<uint32_t, bool> MipsDisassembler::decode_address(uint32_t vAddr)
 	return res;
 }
 
-std::string MipsDisassembler::decode(uint32_t data, bool& isJump)
+std::string MipsDisassembler::decodeOpcode(uint32_t data, bool& isJump)
 {
 
 	auto cond = [](uint8_t flag)

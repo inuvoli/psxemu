@@ -1,25 +1,26 @@
 #pragma once
 
 #include "shader.h"
+#include "common.h"
 
 #include "GL/glew.h"
+
+constexpr auto DEFAULT_HRES = 256;
+constexpr auto DEFAULT_VRES = 240;
+
 
 class Renderer
 {
     public:
         Renderer();
         ~Renderer();
-
-        bool renderFrame();
-        bool updateDrawData();
+     
+        bool renderPolygon(uint8_t numVertex, const void* vertices, const void* colors);
+        bool renderLine();
+        bool renderRectangle();
+        bool rendererSetResolution(int16_t hRes, int16_t vRes);
 
     public:
         Shader* pShader;
-
-        //GLfloat colors[256] = { 255.0f,  0.0f,  0.0f, 0.0f,  255.0f,  0.0f, 0.0f,  0.0f,  255.0f };
-        //GLfloat vertices[256] = { 0.0f, 480.0f, 640.0f, 480.0f, 320.0f, 0.0f } ;
-        GLuint colors[256] = { 255,  0,  0, 0,  255,  0, 0,  0,  255 };
-        GLint vertices[256] = { 0, 480, 640, 480, 320, 0 } ;
-        GLuint VBO, CBO, VAO;
-
+        GLuint VBO, CBO, VAO, EBO;     
 };  

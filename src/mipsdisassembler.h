@@ -10,7 +10,7 @@
 #include "cpu_registers.h"
 
 // Opcode, Label, Mnemonic
-typedef std::map<uint32_t, std::tuple<uint32_t, std::string, std::string>> asmcode;
+typedef std::map<uint32_t, std::tuple<uint32_t, std::string, std::string>> AsmCode;
 
 class MipsDisassembler
 {
@@ -22,20 +22,20 @@ public:
 	//  - binaryData: Pointer to struct containing raw binary data (RAM/ROM)
 	//  - startAddr: starting disassenble address on the binary container
 	//  - maxInstruction: maximum number of instruction to be decoded
-	asmcode disassemble(const uint8_t* rom, const uint8_t* ram, uint32_t startAddr, uint16_t maxInstructions = 200);
+	AsmCode disassemble(const uint8_t* rom, const uint8_t* ram, uint32_t startAddr, uint16_t maxInstructions = 200);
 
-	// Produces the code disassembly starting from from the startAddr to the first unconditional JUMP instruction.
+	// Produces the code disassembly from the startAddr to stopAddr.
 	//  - binaryData: Pointer to struct containing raw binary data (RAM/ROM)
 	//  - startAddr: starting disassemble address on the binary container
 	//  - stopAddr: stopping disassemble address on the binary cointainer
-	asmcode disassemble(const uint8_t* rom, const uint8_t* ram, uint32_t startAddr, uint32_t stopAddr);
+	AsmCode disassemble(const uint8_t* rom, const uint8_t* ram, uint32_t startAddr, uint32_t stopAddr);
 
 private:
 	//Translate Virtual Address to Phisical Address and check if it is in ROM or RAM
-	std::pair<uint32_t, bool> decode_address(uint32_t vAddr);
+	std::pair<uint32_t, bool> decodeAddress(uint32_t vAddr);
 
 	//Decode single 32bit Opcode
-	std::string decode(uint32_t opcode, bool& isJump);
+	std::string decodeOpcode(uint32_t opcode, bool& isJump);
 
 	//Memory Conversion Helper
 	uint32_t	regionMask[8] = { 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0x7fffffff, 0x1fffffff, 0xffffffff, 0xffffffff };

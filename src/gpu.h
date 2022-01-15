@@ -8,6 +8,7 @@
 
 #include "commandfifo.h"
 #include "common.h"
+#include "renderer.h"
 
 class Psx;
 
@@ -71,6 +72,9 @@ public:
 	bool hBlank;
 	bool vBlank;
 
+	//OpenGL Renderer
+	Renderer	renderer;
+
 private:
 	void writeVRAM(uint32_t& data);
 	uint32_t readVRAM();
@@ -93,11 +97,12 @@ private:
 
 	//GPU Internal Status & Configurations
 	VideoMode			videoMode;
-	uint16_t			horizontalResolution1;
-	uint16_t			horizontalResolution2;
+	//uint16_t			horizontalResolution1;
+	//uint16_t			horizontalResolution2;
 	uint8_t				dotClockRatio;
-	uint16_t			verticalResolution;
+	//uint16_t			verticalResolution;
 	bool				verticalInterlace;
+	vec2t<uint16_t>		videoResolution;
 	vec2t<uint16_t>		displayOffset;
 	vec4t<uint16_t>		displayArea;
 	vec2t<uint16_t>		drawingOffset;
@@ -139,7 +144,10 @@ private:
 		
 	//Internal Clock Counter
 	uint64_t	gpuClockTicks;
-	uint64_t	gpuFrameCounter;
+	
+	//Vertex and Color Buffer
+	int colorBuf[12] = {};
+	int vertexBuf[8] = {};
 
 	//Full set GPU Instruction Dictionaries
 	struct INSTRGP0

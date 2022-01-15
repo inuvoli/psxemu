@@ -75,19 +75,19 @@ bool Psx::clock()
 	// System/8 Clock	= Master Clock / 88
 	//-------------------------------------------------------------------
 
-	if (!(masterClock % 7))
+	if (!(masterClock % 1))
 	{
 		gpu.clock();
 	}
 
-	if (!(masterClock % 11))
+	if (!(masterClock % 2))
 	{
 		cpu.clock();
 		dma.clock();
 		timers.clock(ClockSource::System);
 	}
 
-	if (!(masterClock % 88))
+	if (!(masterClock % 16))
 	{
 		timers.clock(ClockSource::System8);
 	}

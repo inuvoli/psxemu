@@ -35,7 +35,6 @@ psxemu::psxemu()
 
     pWindow = nullptr;
 
-    pRenderer = nullptr;
 }
 
 psxemu::~psxemu()
@@ -48,9 +47,6 @@ psxemu::~psxemu()
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(pWindow);
     SDL_Quit();
-
-    //Delete OpenGL Renderer
-    delete pRenderer;
 
     //Delete PSX Emulator Object
     delete pPsx;
@@ -79,7 +75,7 @@ bool psxemu::init(int wndWidth, int wndHeight)
 
     }
 
-    // OpenGL 3.3 + GLSL v. 330
+    // OpenGL 4.6 + GLSL v. 460
     const char* glsl_version = "#version 460 core";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -118,8 +114,8 @@ bool psxemu::init(int wndWidth, int wndHeight)
     //Set VievPort
     glViewport(0, 0, wndWidth, wndHeight);
     
-    //Set Clear Color
-    glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
+    //Set Default Clear Color
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -137,15 +133,12 @@ bool psxemu::init(int wndWidth, int wndHeight)
     //Init PSX Emulator Object
     pPsx = new Psx();
 
-    //Init OpenGL Renderer;
-    pRenderer = new Renderer();
-
     //Init OpenGL Variables
     glGenTextures(1, &vramTexture);
 
     //Init OpenGL Debug Callback
-    glEnable(GL_DEBUG_OUTPUT);
-    glDebugMessageCallback(MessageCallback, 0);
+    //glEnable(GL_DEBUG_OUTPUT);
+    //glDebugMessageCallback(MessageCallback, 0);
 
     return true;
 }
@@ -203,9 +196,6 @@ bool psxemu::updateFrame()
 
         pPsx->clock();
     }
-
-    //Update Data Structure (Vertices) to render via OpenGL
-    pRenderer->updateDrawData();
         
     return true;
 }
@@ -216,16 +206,17 @@ bool psxemu::renderFrame()
     debugInfo();
 
     //Clear ColorBuffer
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //Render PSP FrameBuffer with OpenGL
-    pRenderer->renderFrame();
+    //pPsx->renderFrame();
     
     //Render Debug Information
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     
     //Swap OpenGL FrameBuffer
     SDL_GL_SwapWindow(pWindow);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     return true;
 }
@@ -259,6 +250,8 @@ bool psxemu::handleEvents()
             case SDL_WINDOWEVENT_RESIZED:
                 wndWidth = sdlEvent.window.data1;
                 wndHeight = sdlEvent.window.data2;
+                wndWidth = wndHeight * 4 / 3;
+                SDL_SetWindowSize(pWindow, wndWidth, wndHeight);
                 glViewport(0, 0, wndWidth, wndHeight);
                 break;
             }
@@ -399,7 +392,7 @@ bool psxemu::debugInfo()
         //Check if code is already disassembled, if not disassemble starting from current Program Counter.
         if (asmCode.find(addr) == asmCode.end() || std::get<2>(asmCode[addr]) == "")
         {
-            asmcode newDisassembledCode = mipsDisassembler.disassemble(pPsx->bios.rom, pPsx->mem.ram, addr);
+            AsmCode newDisassembledCode = mipsDisassembler.disassemble(pPsx->bios.rom, pPsx->mem.ram, addr);
             for (auto& e : newDisassembledCode)
                 asmCode.insert_or_assign(e.first, e.second);
         }
