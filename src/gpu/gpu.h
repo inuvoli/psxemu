@@ -6,9 +6,11 @@
 #include <vector>
 #include <string>
 
-#include "commandfifo.h"
-#include "common.h"
+#include "fifo.h"
+#include "vectors.h"
 #include "renderer.h"
+#include "utils.h"
+#include "timers.h"
 
 class Psx;
 
@@ -26,6 +28,7 @@ constexpr auto NTSC_ACTIVE_GPU_TICK = 2827;
 
 //GPU Constants
 constexpr auto VRAM_SIZE = 1024 * 512;
+constexpr auto MAX_POLYGON_PARAMS = 3;
 
 enum class VideoMode { NTSC = 0x0, PAL = 0x1 };
 
@@ -34,8 +37,8 @@ struct GpuDebugInfo
 {
 	uint32_t			gpuStat;
 	void*				vRam;
-	vec2t<uint16_t>		displayOffset;
-	vec4t<uint16_t>		displayArea;
+	vec2t<uint16_t>		displayStart;
+	vec4t<uint16_t>		displayRange;
 	vec2t<uint16_t>		drawingOffset;
 	vec4t<uint16_t>		drawingArea;
 	vec2t<uint16_t>		videoResolution;
@@ -46,6 +49,40 @@ struct GpuDebugInfo
 	std::string			texturePageColor;
 	vec2t<uint8_t>		textureMask;
 	vec2t<uint8_t>		textureOffset;
+};
+
+union GPUSTAT
+{
+	uint32_t data;
+
+	struct
+	{
+		uint8_t texPageX : 4;			//GPUSTAT.0-3
+		uint8_t texPageY : 1;			//GPUSTAT.4
+		uint8_t semiTransparency : 2;	//GPUSTAT.5-6
+		uint8_t texPageColors : 2;		//GPUSTAT.7-8
+		uint8_t ditherMode : 1;			//GPUSTAT.9
+		uint8_t drawEnable : 1;			//GPUSTAT.10
+		uint8_t maskPixel : 1;			//GPUSTAT.11
+		uint8_t drawPixel : 1;			//GPUSTAT.12
+		uint8_t interlaceField : 1;		//GPUSTAT.13
+		uint8_t reverseFlag : 1;		//GPUSTAT.14
+		uint8_t texDisable : 1;			//GPUSTAT.15
+		uint8_t hRes2 : 1;				//GPUSTAT.16
+		uint8_t hRes1 : 2;				//GPUSTAT.17-18
+		uint8_t vRes : 1;				//GPUSTAT.19
+		uint8_t videoMode : 1;			//GPUSTAT.20
+		uint8_t displayColor : 1;		//GPUSTAT.21
+		uint8_t vInterlace : 1;			//GPUSTAT.22
+		uint8_t displayEnable : 1;		//GPUSTAT.23 
+		uint8_t interruptReq : 1;		//GPUSTAT.24
+		uint8_t dmaDataReq : 1;			//GPUSTAT.25
+		uint8_t readyRecvCmdWord : 1;	//GPUSTAT.26
+		uint8_t readySendVRAM2CPU : 1;	//GPUSTAT.27
+		uint8_t readyRecvDmaBlock : 1;	//GPUSTAT.28
+		uint8_t dmaDirection : 2;		//GPUSTAT.29-30
+		uint8_t drawingOddLine : 1;		//GPUSTAT.31
+	};
 };
 
 class GPU
@@ -73,7 +110,7 @@ public:
 	bool vBlank;
 
 	//OpenGL Renderer
-	Renderer	renderer;
+	Renderer	renderer{(uint16_t*)this->vRam};
 
 private:
 	void writeVRAM(uint32_t& data);
@@ -84,7 +121,7 @@ private:
 	Psx* psx = nullptr;
 
 	//VRAM 1MB
-	uint16_t			vRam[512][1024];	//vram[rows][pixels]
+	uint16_t	vRam[512][1024];	//vram[rows][pixels]
 
 	//Internal Registers
 	uint32_t	gp0DataLatch;
@@ -97,14 +134,11 @@ private:
 
 	//GPU Internal Status & Configurations
 	VideoMode			videoMode;
-	//uint16_t			horizontalResolution1;
-	//uint16_t			horizontalResolution2;
 	uint8_t				dotClockRatio;
-	//uint16_t			verticalResolution;
 	bool				verticalInterlace;
 	vec2t<uint16_t>		videoResolution;
-	vec2t<uint16_t>		displayOffset;
-	vec4t<uint16_t>		displayArea;
+	vec2t<uint16_t>		displayStart;
+	vec4t<uint16_t>		displayRange;
 	vec2t<uint16_t>		drawingOffset;
 	vec4t<uint16_t>		drawingArea;
 	vec2t<uint8_t>		textureMask;
@@ -148,6 +182,7 @@ private:
 	//Vertex and Color Buffer
 	int colorBuf[12] = {};
 	int vertexBuf[8] = {};
+	int textureBuf[8] = {};
 
 	//Full set GPU Instruction Dictionaries
 	struct INSTRGP0

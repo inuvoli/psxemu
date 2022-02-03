@@ -1,6 +1,5 @@
 #include "dma.h"
 #include "psx.h"
-#include "common.h"
 
 Dma::Dma()
 {
@@ -132,7 +131,7 @@ bool Dma::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 	int chn = 0;
 
 	//Setting DMA Channel Registers
-	if (isInRange(addr, 0x1f801080, 0x1f8010f0))
+	if (memRangeChannelRegs.contains(addr))
 	{
 		chn = (addr - 0x1f801080) >> 4;
 		dmaChannel[chn].setParameter(addr, data);
@@ -174,7 +173,7 @@ uint32_t Dma::getParameter(uint32_t addr, uint8_t bytes)
 	uint32_t data = 0;
 
 	//Retrieve DMA Channel Registers
-	if (isInRange(addr, 0x1f801080, 0x1f8010f0))
+	if (memRangeChannelRegs.contains(addr))
 	{
 		int chn = (addr - 0x1f801080) >> 4;
 		data = dmaChannel[chn].getParameter(addr);

@@ -440,7 +440,7 @@ bool psxemu::debugInfo()
         }
         ImGui::TextColored(green_color, "DPCR 0x%08x       ", pPsx->dma.dmaDpcr);
         ImGui::SameLine();
-        ImGui::TextColored(green_color, "DICR 0x%08x  ", pPsx->dma.dmaDicr);
+        ImGui::TextColored(green_color, "DICR 0x%08x  ", pPsx->dma.dmaDicr.word);
 
         ImGui::End();
     }
@@ -455,7 +455,7 @@ bool psxemu::debugInfo()
         {
             ImGui::Text("Timer %d: Value  0x%08x  ", i, timerinfo.timerStatus[i].counterValue);
             ImGui::SameLine();
-            ImGui::Text("Timer %d: Mode   0x%08x  ", i, timerinfo.timerStatus[i].counterMode);
+            ImGui::Text("Timer %d: Mode   0x%08x  ", i, timerinfo.timerStatus[i].counterMode.word);
             ImGui::SameLine();
             ImGui::Text("Timer %d: Target 0x%08x  ", i, timerinfo.timerStatus[i].counterTarget);
         }
@@ -471,11 +471,11 @@ bool psxemu::debugInfo()
         ImGui::Text("GPUSTAT: Value  0x%08x  ", gpuinfo.gpuStat);
         ImGui::Text("VideoMode     : %dx%d   (%s)", gpuinfo.videoResolution.x, gpuinfo.videoResolution.y, gpuinfo.videoStandard.c_str());
         
-        ImGui::Text("Display Offset: (%4d, %4d)\t\t\t\t\t\t", gpuinfo.displayOffset.x, gpuinfo.displayOffset.y);
+        ImGui::Text("Display Start : (%4d, %4d)\t\t\t\t\t\t", gpuinfo.displayStart.x, gpuinfo.displayStart.y);
         ImGui::SameLine();
         ImGui::Text("Texture Page           : (%4d, %4d)", gpuinfo.texturePage.x, gpuinfo.texturePage.y);
 
-        ImGui::Text("Display Area  : (%4d, %4d) to (%4d, %4d)\t\t", gpuinfo.displayArea.x1, gpuinfo.displayArea.y1, gpuinfo.displayArea.x2, gpuinfo.displayArea.y2);
+        ImGui::Text("Display Range : (%4d, %4d) to (%4d, %4d)\t\t", gpuinfo.displayRange.x1, gpuinfo.displayRange.y1, gpuinfo.displayRange.x2, gpuinfo.displayRange.y2);
         ImGui::SameLine();
         ImGui::Text("Texture Page Color Mode: %s", gpuinfo.texturePageColor.c_str());
 

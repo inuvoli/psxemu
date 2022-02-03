@@ -1,5 +1,4 @@
 #include "psx.h"
-#include "common.h"
 
 Psx::Psx()
 {
@@ -15,9 +14,6 @@ Psx::Psx()
 	dma.link(this);
 	cdrom.link(this);
 	timers.link(this);
-
-	//Disassemble Bios
-	//codeList = cpu.disassemble(0xbfc00000, 0xbfc7ffff);
 
 	//Reset Internal Parameters
 	exp1BaseAddr = 0x0;
@@ -70,15 +66,10 @@ bool Psx::clock()
 	//
 	// CPU Clock is 7/11 of the GPU Clock. This is achieved starting from
 	// a Master Clock at 372.5535 Mhz then:
-	// CPU Clock		= Master Clock / 11
-	// GPU Clock		= Master Clock / 7
-	// System/8 Clock	= Master Clock / 88
+	// CPU Clock		= Master Clock / 11 (2)
+	// GPU Clock		= Master Clock / 7  (1)
+	// System/8 Clock	= Master Clock / 88 (16)
 	//-------------------------------------------------------------------
-
-	if (!(masterClock % 1))
-	{
-		gpu.clock();
-	}
 
 	if (!(masterClock % 2))
 	{
@@ -87,157 +78,72 @@ bool Psx::clock()
 		timers.clock(ClockSource::System);
 	}
 
+	if (!(masterClock % 1))
+	{
+		gpu.clock();
+	}
+
 	if (!(masterClock % 16))
 	{
 		timers.clock(ClockSource::System8);
 	}
-	
+
 	masterClock++;
 
 	return true;
 }
 
-uint32_t Psx::rdMem(uint32_t vAddr, uint8_t bytes)
+bool Psx::convertVirtualAddr(uint32_t vAddr, uint32_t& phAddr)
 {
 	uint32_t maskIndex;
+
+	//Mask Region MSBs and Check if Region is Cached
+	maskIndex = vAddr >> 29;
+	phAddr = vAddr & regionMask[maskIndex];
+	return cacheMask[maskIndex];
+}
+
+uint32_t Psx::rdMem(uint32_t vAddr, uint8_t bytes)
+{
 	uint32_t phAddr;
 	uint32_t data = 0;
 	bool cache;
 
-	//Mask Region MSBs and Check if Region is Cached
-	maskIndex = vAddr >> 29;
-	phAddr = vAddr & regionMask[maskIndex];
-	cache = cacheMask[maskIndex];
-	
-	//RAM (2MB)
-	if (isInRange(phAddr, 0x00000000, 0x00200000))			//RAM (2MB) ----------------------------------------------------------------------------
-	{
-		return mem.read(phAddr, bytes);
-	}
-	else if (isInRange(phAddr, 0x1f000000, 0x1f800000))		//Expansion Region 1 (8MB) -------------------------------------------------------------
-	{
-		printf("Unhandled Read Expansion Region 1 - addr: 0x%08x (%d)\n", vAddr, bytes);
-		return 0xffffffff;
-	}
-	else if (isInRange(phAddr, 0x1f801000, 0x1f802000))		//I/O Ports (4K) -----------------------------------------------------------------------
-	{
-		if (isInRange(phAddr, 0x1f801080, 0x1f801100))		//DMA Registers
-		{
-			return dma.getParameter(phAddr, bytes);
-		}
-		if (isInRange(phAddr, 0x1f801100, 0x1f801130))		//Timers Registers
-		{
-			return timers.getParameter(phAddr, bytes);
-		}
-		if (isInRange(phAddr, 0x1f801800, 0x1f801804))		//CDROM Registers
-		{
-			return cdrom.getParameter(phAddr, bytes);
-		}
-		if (isInRange(phAddr, 0x1f801810, 0x1f801818))		//GPU Control Registers
-		{
-			return gpu.getParameter(phAddr, bytes);
-		}
-		if (isInRange(phAddr, 0x1f801c00, 0x1f802000))		//SPU Control/Voice/Reverb/Internal Registers
-		{
-			return spu.getParameter(phAddr, bytes);
-		}
-		
-		printf("Unhandled Read I/O Ports - addr: 0x%08x (%d)\n", vAddr, bytes);
-	}
-	else if (isInRange(phAddr, 0x1f802000, 0x1f803000))		//Expansion Region 2 (4K) ----------------------------------------------------------------
-	{
-		printf("Unhandled Read Expansion Region 2 - addr: 0x%08x (%d)\n", vAddr, bytes);
-		return 0;
-	}
-	else if (isInRange(phAddr, 0x1fa00000, 0x1fc00000))		//Expansion Region 3 (2MB) ---------------------------------------------------------------
-	{
-		printf("Unhandled Read Expansion Region 3 - addr: 0x%08x (%d)\n", vAddr, bytes);
-		return 0;
-	}
-	//Bios (512K)
-	else if (isInRange(phAddr, 0x1fc00000, 0x1fc80000))		//BIOS (512K) --------------------------------------------------------------------------
-	{
-		return bios.rdMem(phAddr, 4);
-	}
-	else
-	{
-		printf("Unhandled Read - addr: 0x%08x (%d)\n", vAddr, bytes);
-		return 0;
-	}
+	cache = convertVirtualAddr(vAddr, phAddr);
 
-	return 0;
+	if (memRangeRAM.contains(phAddr))  return mem.read(phAddr, bytes);
+	if (memRangeDMA.contains(phAddr))  return dma.getParameter(phAddr, bytes);
+	if (memRangeTMR.contains(phAddr))  return timers.getParameter(phAddr, bytes);
+	if (memRangeCDR.contains(phAddr))  return cdrom.getParameter(phAddr, bytes);
+	if (memRangeGPU.contains(phAddr))  return gpu.getParameter(phAddr, bytes);
+	if (memRangeSPU.contains(phAddr))  return spu.getParameter(phAddr, bytes);
+	if (memRangeBIOS.contains(phAddr)) return bios.rdMem(phAddr, 4);
+	
+	printf("Unhandled Memory Read  - addr: 0x%08x (%d)\n", vAddr, bytes);
+
+	return 0;	
 }
 
 bool Psx::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 {
-	uint32_t maskIndex;
 	uint32_t phAddr;
 	bool cache;
 
-	//Mask Region MSBs and Check if Region is Cached
-	maskIndex = vAddr >> 29;
-	phAddr = vAddr & regionMask[maskIndex];
-	cache = cacheMask[maskIndex];
+	cache = convertVirtualAddr(vAddr, phAddr);	
 	
-	if (isInRange(phAddr, 0x00000000, 0x00200000))			//RAM (2MB) ----------------------------------------------------------------------------
-	{
-		mem.write(phAddr, data, bytes);
-	}
-	else if (isInRange(phAddr, 0x1f000000, 0x1f800000))		//Expansion Region 1 (8MB) -------------------------------------------------------------
-	{
-		printf("Unhandled Write Expansion Region 1 - addr: 0x%08x (%d), data :0x%08x\n", vAddr, bytes, data);
-	}
-	else if (isInRange(phAddr, 0x1f801000, 0x1f802000))		//I/O Ports (4K) -----------------------------------------------------------------------
-	{
-		if (isInRange(phAddr, 0x1f801000, 0x1f801024))		//Memory Control 1
-		{
-			return setParameter(phAddr, data, bytes);
-		}
-		if (isInRange(phAddr, 0x1f801060, 0x1f801064))		//Memory Control 2
-		{
-			return mem.setParameter(phAddr, data, bytes);
-		}
-		if (isInRange(phAddr, 0x1f801080, 0x1f801100))		//DMA Registers
-		{
-			return dma.setParameter(phAddr, data, bytes);
-		}
-		if (isInRange(phAddr, 0x1f801100, 0x1f801130))		//Timers Registers
-		{
-			return timers.setParameter(phAddr, data, bytes);
-		}
-		if (isInRange(phAddr, 0x1f801800, 0x1f801804))		//CDROM Registers
-		{
-			return cdrom.setParameter(phAddr, data, bytes);
-		}
-		if (isInRange(phAddr, 0x1f801810, 0x1f801818))		//GPU Control Registers
-		{
-			return gpu.setParameter(phAddr, data, bytes);
-		}
-		if (isInRange(phAddr, 0x1f801c00, 0x1f802000))		//SPU Control Registers
-		{
-			return spu.setParameter(phAddr, data, bytes);
-		}
+	if (memRangeRAM.contains(phAddr))  return mem.write(phAddr, data, bytes);
+	if (memRangeMEM1.contains(phAddr)) return setParameter(phAddr, data, bytes);
+	if (memRangeMEM2.contains(phAddr)) return mem.setParameter(phAddr, data, bytes);
+	if (memRangeDMA.contains(phAddr))  return dma.setParameter(phAddr, data, bytes);
+	if (memRangeTMR.contains(phAddr))  return timers.setParameter(phAddr, data, bytes);
+	if (memRangeCDR.contains(phAddr))  return cdrom.setParameter(phAddr, data, bytes);
+	if (memRangeGPU.contains(phAddr))  return gpu.setParameter(phAddr, data, bytes);
+	if (memRangeSPU.contains(phAddr))  return spu.setParameter(phAddr, data, bytes);
+	if (memRangeIDP.contains(phAddr))  return setParameter(phAddr, data, bytes);
 
-		printf("Unhandled Write I/O Ports - addr: 0x%08x (%d), data: 0x%08x\n", vAddr, bytes, data);
-	}
-	else if (isInRange(phAddr, 0x1f802000, 0x1f803000))		//Expansion Region 2 (4K) ----------------------------------------------------------------
-	{
-		if (isInRange(phAddr, 0x1f802000, 0x1f802080))		//INT/DIP/POST Status
-		{
-			return setParameter(phAddr, data, bytes);
-		}
-		printf("Unhandled Write Expansion Region 2 - addr: 0x%08x (%d), data: 0x%08x\n", vAddr, bytes, data);
-	}
-	else if (isInRange(phAddr, 0x1fa00000, 0x1fc00000))		//Expansion Region 3 (2MB) ---------------------------------------------------------------
-	{
-		printf("Unhandled Write Expansion Region 3 - addr: 0x%08x (%d), data: 0x%08x\n", vAddr, bytes, data);
-	}
-	else
-	{
-		printf("Unhandled Write - addr: 0x%08x (%d), data: 0x%08x\n", vAddr, bytes, data);
-	}
+	printf("Unhandled Memory Write - addr: 0x%08x, data: 0x%08x (%d)\n", vAddr, data, bytes);
 
-	return true;
+	return false;
 }
 bool Psx::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 {

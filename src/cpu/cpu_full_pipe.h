@@ -8,6 +8,8 @@
 
 #include "bitfield.h"
 #include "cpu_registers.h"
+#include "range.h" 
+
 
 class Psx;
 
@@ -154,17 +156,22 @@ private:
 	bool op_unknown();
 
 private:
-		//Link to Bus Object
-		Psx* psx = nullptr;
+	//Link to Bus Object
+	Psx* psx = nullptr;
 
-		//Full set of CPU Instruction Dictionaries
-		struct INSTR
-		{
-			std::string mnemonic;
-			bool(CPU::* operate)() = nullptr;
-		};
+	//Full set of CPU Instruction Dictionaries
+	struct INSTR
+	{
+		std::string mnemonic;
+		bool(CPU::* operate)() = nullptr;
+	};
 
-		std::vector<INSTR> instrSet;		//Full Instruction Set
-		std::vector<INSTR> functSet;		//Full Function Set
+	std::vector<INSTR> instrSet;		//Full Instruction Set
+	std::vector<INSTR> functSet;		//Full Function Set
+	
+	//Memory Mapping
+	Range memRangeScratchpad =  Range(0x1f800000, 0x400);
+	Range memRangeIntRegs = Range(0x1f801070, 0x8);
+	Range memRangeCacheRegs = Range(0xfffe0130, 0x4);
 };
 

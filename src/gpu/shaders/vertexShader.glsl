@@ -2,11 +2,13 @@
 
 layout (location = 0) in ivec2 position;
 layout (location = 1) in uvec3 color;
+layout (location = 2) in uvec2 texture;
 
 out vec3 vertexColor;
+out vec2 textureCoord;
 
-uniform int hRes = 1024;
-uniform int vRes = 512;
+uniform int hRes;
+uniform int vRes;
 
 void main()
 {
@@ -18,4 +20,7 @@ void main()
 
     //Normalize Colors
     vertexColor = vec3(color) / 255.0f;
+
+    //Convert texture coordinates to float
+    textureCoord = vec2(texture);
 }

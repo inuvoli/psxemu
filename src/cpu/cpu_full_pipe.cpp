@@ -1,6 +1,6 @@
 #include "cpu_full_pipe.h"
 #include "psx.h"
-#include "common.h"
+
 
 CPU::CPU()
 {
@@ -252,13 +252,10 @@ uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
 	}
 
 	//Check if Reading from Data Cache, aka ScratchPad (0x1f800000 - 0x1f8003ff)
-	if (isInRange(vAddr, 0x1f800000, 0x1f800400))
-	{
-		return rdDataCache(vAddr, bytes);
-	}
+	if (memRangeScratchpad.contains(vAddr)) return rdDataCache(vAddr, bytes);
 
 	//Check if Reading from Interrupt Control Registers (0x1f801070 - 0x1f801074)
-	if (isInRange(vAddr, 0x1f801070, 0x1f801078))
+	if (memRangeIntRegs.contains(vAddr))
 	{
 		switch (vAddr)
 		{
@@ -274,10 +271,7 @@ uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
 	}
 
 	//Check if Reading from Cache Control Register (0xfffe0130)
-	if (isInRange(vAddr, 0xfffe0130, 0xfffe0134))
-	{
-		return cacheReg;
-	}
+	if (memRangeCacheRegs.contains(vAddr)) return cacheReg;
 
 	return psx->rdMem(vAddr, bytes);
 }
@@ -302,13 +296,10 @@ bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool checkalign)
 	}
 
 	//Check if Writing to Data Cache, aka ScratchPad
-	if (isInRange(vAddr, 0x1f800000, 0x1f800400))
-	{
-		return wrDataCache(vAddr, data, bytes);
-	}
+	if (memRangeScratchpad.contains(vAddr)) return wrDataCache(vAddr, data, bytes);
 
 	//Check if Writing to Interrupt Control Registers (0x1f801070 - 0x1f801074)
-	if (isInRange(vAddr, 0x1f801070, 0x1f801078))
+	if (memRangeIntRegs.contains(vAddr))
 	{
 		switch (vAddr)
 		{
@@ -326,12 +317,11 @@ bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool checkalign)
 	}
 
 	//Check if Writing to Cache Control Register (0xfffe0130)
-	if (isInRange(vAddr, 0xfffe0130, 0xfffe0134))
+	if (memRangeCacheRegs.contains(vAddr))
 	{
 		cacheReg = data;
 		iCacheEnabled = (bool)(cacheReg & ICACHE_EN_MASK);
 		dCacheEnabled = (bool)(cacheReg & DCACHE_EN1_MASK) && (bool)(cacheReg & DCACHE_EN2_MASK);
-		//printf("Cache Register: data: 0x%08x, iCache: %d, dCache: %d, IsC: %d, SwC: %d\n", data, iCacheEnabled, dCacheEnabled, (bool)(cop0_reg[12] & CP0_ISC_MASK), (bool)(cop0_reg[12] & CP0_SWC_MASK));
 		return true;
 	}
 
@@ -662,7 +652,7 @@ bool CPU::exception(uint32_t cause)
 	return true;
 }
 
-bool CPU::interrupt(uint32_t hwInterrupt)
+bool CPU::interrupt(uint32_t cause)
 {
 	//Set I_STAT Interrupt Flag according to the Interrupt Cause
 	interruptStatus |= 1UL << cause;

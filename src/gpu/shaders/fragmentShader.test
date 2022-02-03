@@ -23,8 +23,10 @@ vec4 split_colors(int data)
 
 vec4 sample_texel()
 {
-	if (textured == 1.0f) {
-		if (color_depth == 4) {
+	if (textured == 1.0f)
+	{
+		if (color_depth == 4)
+		{
 			vec2 coord = vec2(texpage.x + int(texcoord.x) / 4, texpage.y + texcoord.y);
 			int value = int(texture(vram, coord).r);
 			int index = value >> ((int(texcoord.x) % 4) * 4) & 0xf;
@@ -34,7 +36,8 @@ vec4 sample_texel()
 
 			return split_colors(texel);
 		}
-		else if (color_depth == 8) {
+		else if (color_depth == 8)
+		{
 			vec2 coord = vec2(texpage.x + int(texcoord.x) / 2, texpage.y + texcoord.y);
 			int value = int(texture(vram, coord).r);
 			int index = value >> ((int(texcoord.x) % 2) * 8) & 0xff;
@@ -44,13 +47,15 @@ vec4 sample_texel()
 
 			return split_colors(texel);
 		}
-		else {
+		else
+		{
 			vec2 coord = texpage + texcoord;
 			int texel = int(texture(vram, coord).r);
 			return split_colors(texel);
 		}
 	}
-	else {
+	else
+	{
 		return vec4(1.0f);
 	}
 }

@@ -1,6 +1,5 @@
 #include "gpu.h"
 #include "psx.h"
-#include "timers.h"
 
 GPU::GPU()
 {
@@ -29,8 +28,8 @@ GPU::GPU()
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
 	memset(&videoResolution, 0, sizeof(vec2t<uint16_t>));
-	memset(&displayArea, 0, sizeof(vec4t<uint16_t>));
-	memset(&displayOffset, 0, sizeof(vec2t<uint16_t>));
+	memset(&displayRange, 0, sizeof(vec4t<uint16_t>));
+	memset(&displayStart, 0, sizeof(vec2t<uint16_t>));
 	memset(&drawingArea, 0, sizeof(vec4t<uint16_t>));
 	memset(&drawingOffset, 0, sizeof(vec2t<uint16_t>));
 	memset(&textureMask, 0, sizeof(vec2t<uint8_t>));
@@ -428,8 +427,8 @@ bool GPU::reset()
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
 	memset(&videoResolution, 0, sizeof(vec2t<uint16_t>));
-	memset(&displayArea, 0, sizeof(vec4t<uint16_t>));
-	memset(&displayOffset, 0, sizeof(vec2t<uint16_t>));
+	memset(&displayRange, 0, sizeof(vec4t<uint16_t>));
+	memset(&displayStart, 0, sizeof(vec2t<uint16_t>));
 	memset(&drawingArea, 0, sizeof(vec4t<uint16_t>));
 	memset(&drawingOffset, 0, sizeof(vec2t<uint16_t>));
 	memset(&textureMask, 0, sizeof(vec2t<uint8_t>));
@@ -574,7 +573,7 @@ bool GPU::clock()
 			uint32_t tmp;
 			fifo.pop(tmp);
 			
-			printf("Command GP0(%02xh)(F): %s (params: %d)\n", gp0Opcode, gp0InstrSet[gp0Opcode].mnemonic.c_str(), gp0InstrSet[gp0Opcode].parameters);
+			//printf("Command GP0(%02xh)(F): %s (params: %d)\n", gp0Opcode, gp0InstrSet[gp0Opcode].mnemonic.c_str(), gp0InstrSet[gp0Opcode].parameters);
 			(this->*gp0InstrSet[gp0Opcode].operate)();
 		}
 		else
@@ -582,7 +581,7 @@ bool GPU::clock()
 			//It isn't a command stored on the FIFO
 			//Actual GP0 Command its already on gp0Command 
 
-			printf("Command GP0(%02xh)(I): %s\n", gp0Opcode, gp0InstrSet[gp0Opcode].mnemonic.c_str());
+			//printf("Command GP0(%02xh)(I): %s\n", gp0Opcode, gp0InstrSet[gp0Opcode].mnemonic.c_str());
 			(this->*gp0InstrSet[gp0Opcode].operate)();
 		}
 	
@@ -590,7 +589,7 @@ bool GPU::clock()
 	};
 	auto gp1RunCommand = [&]()
 	{
-		printf("Command GP1(%02xh)(I): %s\n", gp1Opcode, gp1InstrSet[gp1Opcode].mnemonic.c_str());
+		//printf("Command GP1(%02xh)(I): %s\n", gp1Opcode, gp1InstrSet[gp1Opcode].mnemonic.c_str());
 		(this->*gp1InstrSet[gp1Opcode].operate)();		//GP1 Command are always executed immediately
 		return 0;
 	};
@@ -831,67 +830,39 @@ bool GPU::gp0_Polygons()
 	// 2            1/0     textured / untextured
 	// 1            1/0     semi transparent / solid
 	// 0            1/0     texture blending
+	bool		gourad = (gp0Opcode & 0x10) ? true : false;
+	uint8_t		vertexNum = (gp0Opcode & 0x08) ? 4 : 3;
+	bool		textured  = (gp0Opcode & 0x04) ? true : false;
+	bool		transparent  = (gp0Opcode & 0x02) ? true : false;
+	bool		blending  = (gp0Opcode & 0x01) ? true : false;		
+	uint16_t	texPageInfo = 0;
+	uint16_t	clutInfo = 0;
+	uint32_t 	param;
 
-	uint32_t param;
-	uint16_t clut;
-
-	uint8_t vertexNum = (gp0Opcode & 0x08) ? 4 : 3;
-			
-	vec2t<uint8_t>	texCoords[4] = {};
-	vec2t<uint16_t>	texClut = {};
-	uint16_t		texPageInfo = 0;
-
-	
-	//Extract First Vertex Info
-	decodeColor(gp0Command, colorBuf);
-	
-	fifo.pop(param);
-	decodePosition(param, vertexBuf);
-	
-	if (gp0Opcode & 0x04)	//Check if it's a Textured Polygon
+	//Parse all Polygon Command Parameters from FIFO including initial command
+	param = gp0Command;
+	for(int i=0;i<vertexNum;i++)
 	{
-		fifo.pop(param);
-		uint16_t tmp;
-		tmp = decodeTextureUV(param, texCoords[0]);
-		decodeClut(tmp, texClut);
-	}
-
-	//Extract Other Vertex
-	for(int i = 1;i < vertexNum;i++)
-	{
-		//Extract Vertex Color
-		if (gp0Opcode & 0x10)	//Flat shading or Gourad Shading
+		for(int j=0;j<MAX_POLYGON_PARAMS;j++)
 		{
-			fifo.pop(param);
-			decodeColor(param, colorBuf, i);
-		}
-		else
-		{
-			//Hack!
-			decodeColor(gp0Command, colorBuf, i);
-		}
-
-		//Extract Vertex Position
-		fifo.pop(param);
-		decodePosition(param, vertexBuf, i);
-
-		//Extract Vertex Texture Informations
-		if (gp0Opcode & 0x04)	//Check if it's a Textured Polygon and if it's the Second Vertex
-		{
-			fifo.pop(param);
-			if (i == 1)
-				texPageInfo = decodeTextureUV(param, texCoords[i]);
-			else
-				decodeTextureUV(param, texCoords[i]);
-		}
-		else
-		{
-			texCoords[i] = texCoords[0];
+			switch(j)
+			{
+			case 0:	//COLOR
+				if (gourad || i==0) { decodeColor(param, colorBuf, i); fifo.pop(param); break; }
+				else { decodeColor(gp0Command, colorBuf, i); break;} //Solid Polygon use color stored on the command word for each vertex
+			case 1:	//POSITION
+				decodePosition(param, vertexBuf, i); fifo.pop(param); break;
+			case 2: //TEXTURE
+				if (textured && i==0) { clutInfo = decodeTexture(param, textureBuf, i); fifo.pop(param); break; }
+				if (textured && i==1) { texPageInfo = decodeTexture(param, textureBuf, i); fifo.pop(param); break; }
+				if (textured && i>1) { decodeTexture(param, textureBuf, i); fifo.pop(param); break; }
+				break;
+			}
 		}
 	}
 
 	//Render Polygon
-	renderer.renderPolygon(vertexNum, vertexBuf, colorBuf);
+	renderer.DrawPolygon(vertexNum, vertexBuf, colorBuf, textureBuf, textured, clutInfo, texPageInfo);
 
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
@@ -985,8 +956,7 @@ bool GPU::gp0_FillVRam()
 	//Fill Rectangle in VRAM
 	uint32_t	param;
 	uint16_t	color;
-	vec2t<uint16_t> position, size;
-	
+	vec2t<uint16_t> position, size;	
 	
 	color = rgb24torgb15(gp0Command & 0x00ffffff);	//Color + Command(CcBbGgRrh); 24bit RGB value
 
@@ -1077,7 +1047,7 @@ bool GPU::gp0_DrawMode()
 	data = (gp0DataLatch & 0x00000800) >> 11;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 15)) | (data << 15);	//Set GPUSTAT.15 to data value
 	textureDisable = (bool)data;
-
+	
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
@@ -1187,10 +1157,10 @@ bool GPU::gp0_SetMaskBit()
 	data = gp0DataLatch & 0x00000001;							//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 11)) | (data << 11);	//Set GPUSTAT.11 to data value
 
-	//GPUSTAT.12 << GP0DATA.1									Texture page Y Base (N x 256) in halfwords
+	//GPUSTAT.12 << GP0DATA.1									Check mask before draw (0=Draw Always, 1=Draw if Bit15=0)
 	data = (gp0DataLatch & 0x00000002) >> 1;					//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 12)) | (data << 12);	//Set GPUSTAT.12 to data value
-	
+
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
@@ -1303,8 +1273,8 @@ bool GPU::gp1_StartDisplayArea()
 	//GP1(05h)
 	//Start of Display Area in VRAM (gp1Data.0-9 = X, gp1Data.10-18 = Y)
 	 
-	displayOffset.x = gp1Command & 0x000003ff;
-	displayOffset.y = (gp1Command & 0x0007fc00) >> 10;
+	displayStart.x = gp1Command & 0x000003ff;
+	displayStart.y = (gp1Command & 0x0007fc00) >> 10;
 
 	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
@@ -1317,8 +1287,8 @@ bool GPU::gp1_HDisplayRange()
 	//GP1(06h)
 	//Horizontal Display Range on Screen (gp1Data.0-11 = X1, gp1Data.12-23 = X2)
 		
-	displayArea.x1 = gp1Command & 0x00000fff;
-	displayArea.x2 = (gp1Command & 0x00fff000) >> 12;
+	displayRange.x1 = gp1Command & 0x00000fff;
+	displayRange.x2 = (gp1Command & 0x00fff000) >> 12;
 
 	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
@@ -1329,10 +1299,10 @@ bool GPU::gp1_HDisplayRange()
 bool GPU::gp1_VDisplayRange()
 {
 	//GP1(07h)
-	// Vertical Dysplay Range on Screen (gp1Data.0-9 = Y1, gp1Data.10-19 = Y2)
+	// Vertical Display Range on Screen (gp1Data.0-9 = Y1, gp1Data.10-19 = Y2)
 	 
-	displayArea.y1 = gp1Command & 0x000003ff;
-	displayArea.y2 = (gp1Command & 0x000ffc00) >> 10;
+	displayRange.y1 = gp1Command & 0x000003ff;
+	displayRange.y2 = (gp1Command & 0x000ffc00) >> 10;
 
 	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
@@ -1384,7 +1354,7 @@ bool GPU::gp1_DisplayMode()
 	dotClockRatio = decodeClockRatio(videoResolution.x);
 
 	//Update Renderer Resolution
-	renderer.rendererSetResolution(videoResolution.x, videoResolution.y);
+	renderer.SetResolution(videoResolution.x, videoResolution.y);
 
 	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
@@ -1482,8 +1452,8 @@ void GPU::getDebugInfo(GpuDebugInfo& info)
 	info.gpuStat = gpuStat;
 	info.vRam = static_cast<void*>(vRam);
 	info.videoResolution = videoResolution;
-	info.displayArea = displayArea;
-	info.displayOffset = displayOffset;
+	info.displayRange = displayRange;
+	info.displayStart = displayStart;
 	info.drawingArea = drawingArea;
 	info.drawingOffset = drawingOffset;
 	info.textureAllowDisable = (textureAllowDisable) ? "true" : "false";

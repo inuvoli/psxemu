@@ -1,74 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include "vectors.h"
 
-template <typename T>
-struct vec2t
-{
-	T	x;
-	T	y;
-
-	vec2t& operator= (const vec2t& t)
-	{
-		x = t.x;
-		y = t.y;
-		return *this;
-	}
-};
-
-template <typename T>
-struct vec3t
-{
-	T	x;
-	T	y;
-	T	z;
-
-	vec3t& operator= (const vec3t& t)
-	{
-		x = t.x;
-		y = t.y;
-		z = t.z;
-		return *this;
-	}
-};
-
-template <typename T>
-struct vec4t
-{
-	T	x1;
-	T	y1;
-	T	x2;
-	T	y2;
-
-	vec4t& operator= (const vec4t& t)
-	{
-		x1 = t.x1;
-		y1 = t.y1;
-		x2 = t.x2;
-		y2 = t.y2;
-		return *this;
-	}
-};
-
-/// <summary>
-/// Check if an Address is within the range [lowValue, highValue)
-/// </summary>
-/// <param name="inputValue">: Address to be checked</param>
-/// <param name="lowValue">: Lower bound of the range</param>
-/// <param name="highValue">: Higher bound of the range</param>
-/// <returns>True if the address is in range, False id the address is not in range</returns>
-inline bool isInRange(uint32_t inputValue, uint32_t lowValue, uint32_t highValue)
-{
-	//Check if inputValue is included in [lowValue, HighValue)
-	return  ((inputValue - lowValue) < (highValue - lowValue));
-}
-
-//inline bool isInRange(uint32_t inputValue, uint32_t startValue, uint32_t lenghtByte)
-//{
-//	//Check if inputValue is included in [startValue, startValue + lenghtByte)
-//	return  ((inputValue - startValue) < lenghtByte);
-//}
-
+//-------------------------------------------------------------
+//
+//GPU Parameters Decode Helper Functions
+//
+//-------------------------------------------------------------
 inline uint16_t rgb24torgb15(uint32_t data, uint8_t alpha = 0x00)
 {
 	uint16_t rgb15Out = 0;
@@ -85,11 +24,6 @@ inline uint16_t rgb24torgb15(uint32_t data, uint8_t alpha = 0x00)
 	return rgb15Out;
 }
 
-//-------------------------------------------------------------
-//
-//GPU Parameters Decode Helper Functions
-//
-//-------------------------------------------------------------
 inline void decodeColor(const uint32_t param, vec3t<uint8_t> &color)
 {
 	color.x = param & 0x000000ff;			//RED
@@ -116,10 +50,18 @@ inline void decodePosition(const uint32_t param, int* position, uint8_t offset =
 	position[1 + offset * 2] = (param >> 16) & 0x0000ffff;
 }
 
-inline uint16_t decodeTextureUV(const uint32_t param, vec2t<uint8_t> &texCoords)
+inline uint16_t decodeTexture(const uint32_t param, vec2t<uint8_t> &texCoords)
 {
 	texCoords.x = (param >> 8) & 0x000000ff; 	//U Coordinate
 	texCoords.y = param & 0x000000ff;			//V Coordinates
+
+	return (uint16_t)(param >> 16);
+}
+
+inline uint16_t decodeTexture(const uint32_t param, int* texture, uint8_t offset = 0)
+{
+	texture[0 + offset * 2] = (param >> 8) & 0x000000ff;	//U Coordinate
+	texture[1 + offset * 2] = param & 0x000000ff;			//V Coordinate
 
 	return (uint16_t)(param >> 16);
 }

@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "dmachannel.h"
+#include "range.h"
 
 //DMA Constant Definitions
 constexpr auto DMA_CHANNEL_NUMBER	= 7;				//4 KB
@@ -75,5 +76,8 @@ private:
 	uint16_t	runningBlockAmount;
 	uint16_t	runningBlockSize;
 	uint8_t		runningSyncMode;
+
+	//Memory Mapping
+	Range memRangeChannelRegs =  Range(0x1f801080, 0x70);
 };
 

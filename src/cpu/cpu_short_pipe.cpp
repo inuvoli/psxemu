@@ -1,6 +1,5 @@
 #include "cpu_short_pipe.h"
 #include "psx.h"
-#include "common.h"
 
 CPU::CPU()
 {
@@ -250,13 +249,10 @@ inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
 	}
 
 	//Check if Reading from Data Cache, aka ScratchPad (0x1f800000 - 0x1f8003ff)
-	if (isInRange(vAddr, 0x1f800000, 0x1f800400))
-	{
-		return rdDataCache(vAddr, bytes);
-	}
+	if (memRangeScratchpad.contains(vAddr)) return rdDataCache(vAddr, bytes);
 
 	//Check if Reading from Interrupt Control Registers (0x1f801070 - 0x1f801074)
-	if (isInRange(vAddr, 0x1f801070, 0x1f801078))
+	if (memRangeIntRegs.contains(vAddr))
 	{
 		switch (vAddr)
 		{
@@ -272,11 +268,8 @@ inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
 	}
 
 	//Check if Reading from Cache Control Register (0xfffe0130)
-	if (isInRange(vAddr, 0xfffe0130, 0xfffe0134))
-	{
-		return cacheReg;
-	}
-
+	if (memRangeCacheRegs.contains(vAddr)) return cacheReg;
+	
 	return psx->rdMem(vAddr, bytes);
 }
 
@@ -300,13 +293,11 @@ inline bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool check
 	}
 
 	//Check if Writing to Data Cache, aka ScratchPad
-	if (isInRange(vAddr, 0x1f800000, 0x1f800400))
-	{
-		return wrDataCache(vAddr, data, bytes);
-	}
+	if (memRangeScratchpad.contains(vAddr)) return wrDataCache(vAddr, data, bytes);
+	
 
 	//Check if Writing to Interrupt Control Registers (0x1f801070 - 0x1f801074)
-	if (isInRange(vAddr, 0x1f801070, 0x1f801078))
+	if (memRangeIntRegs.contains(vAddr))
 	{
 		switch (vAddr)
 		{
@@ -324,7 +315,7 @@ inline bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool check
 	}
 
 	//Check if Writing to Cache Control Register (0xfffe0130)
-	if (isInRange(vAddr, 0xfffe0130, 0xfffe0134))
+	if (memRangeCacheRegs.contains(vAddr))
 	{
 		cacheReg = data;
 		iCacheEnabled = (bool)(cacheReg & ICACHE_EN_MASK);

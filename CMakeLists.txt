@@ -22,21 +22,21 @@ find_package(OpenGL REQUIRED)
 
 # Create a sources variable with a link to all cpp files to compile
 set(PSXEMU_SOURCES
-    src/bios.cpp
-    src/cdrom.cpp
-	src/cpu_short_pipe.cpp
-	src/dma.cpp
-	src/dmachannel.cpp
-	src/gpu.cpp
+    src/memory/bios.cpp
+	src/memory/dma.cpp
+	src/memory/dmachannel.cpp
+	src/memory/memory.cpp
+    src/peripherals/cdrom.cpp
+	src/cpu/cpu_short_pipe.cpp
+	src/gpu/gpu.cpp
+	src/gpu/renderer.cpp
+	src/gpu/shader.cpp
+	src/spu/spu.cpp
+	src/timers/timers.cpp
+	src/debugging/mipsdisassembler.cpp
 	src/main.cpp
-	src/memory.cpp
 	src/psx.cpp
 	src/psxemu.cpp
-	src/spu.cpp
-	src/timers.cpp
-	src/mipsdisassembler.cpp
-	src/renderer.cpp
-	src/shader.cpp
 )
 
 # IMGUI cpp files
@@ -58,6 +58,15 @@ target_include_directories(psxemu
     PRIVATE 
  		${PROJECT_SOURCE_DIR}/3rdparty/bitfield
 		${PROJECT_SOURCE_DIR}/3rdparty/imgui
+		${PROJECT_SOURCE_DIR}/src
+		${PROJECT_SOURCE_DIR}/src/common
+		${PROJECT_SOURCE_DIR}/src/cpu
+		${PROJECT_SOURCE_DIR}/src/debugging
+		${PROJECT_SOURCE_DIR}/src/gpu
+		${PROJECT_SOURCE_DIR}/src/memory
+		${PROJECT_SOURCE_DIR}/src/peripherals
+		${PROJECT_SOURCE_DIR}/src/spu
+		${PROJECT_SOURCE_DIR}/src/timers
 		${SDL2_INCLUDE_DIRS}
 		${GLEW_INCLUDE_DIRS}
 		${OPENGL_INCLUDE_DIRS}
