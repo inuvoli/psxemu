@@ -17,4 +17,4 @@ PSXemu is a small Playstation emulator ment to be an exercise in SDL2 and OpenGL
 - CDROM Support
 - Controllers Implementation
 - SPU Implementation
-- Emulator is really slow (15fps) improve clock timing routine
+- Emulator is really slow (30fps) improve clock timing routine
