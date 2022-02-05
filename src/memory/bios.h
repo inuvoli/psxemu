@@ -2,6 +2,7 @@
 
 #include <string>
 #include <fstream>
+#include <memory>
 
 constexpr auto BIOS_SIZE = 0x80000;	//512 KB
 
@@ -24,6 +25,6 @@ public:
 	
 private:
 	//Link to PSP Object
-	Psx* psx = nullptr;
+	Psx* psx;
 };
 

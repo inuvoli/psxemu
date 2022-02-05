@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <string>
 #include <array>
+#include <memory>
 
 #include "bitfield.h"
 
@@ -76,7 +77,7 @@ public:
 	
 private:
 	//Link to Bus Object
-	Psx* psx = nullptr;
+	Psx* psx;
 
 	void updateTimer0();
 	void updateTimer1();

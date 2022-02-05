@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <memory>
 
 #include "bitfield.h"
 #include "cpu_registers.h"
@@ -170,7 +171,7 @@ private:
 
 private:
 	//Link to Bus Object
-	Psx* psx = nullptr;
+	Psx* psx;
 
 	//Full set of CPU Instruction Dictionaries
 	struct INSTR

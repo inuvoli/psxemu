@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 
 constexpr auto RAM_SIZE = 0x200000;	//2 MB
 constexpr auto CACHE_SIZE = 0x400; //1KB
@@ -31,7 +32,7 @@ public:
 
 private:
 	//Link to Bus Object
-	Psx* psx = nullptr;
+	Psx* psx;
 
 	//Internal Registers
 	uint32_t	ramSize;

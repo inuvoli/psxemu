@@ -52,6 +52,14 @@ GPU::GPU()
 	gp0RecvPolyLine = false;
 	gp1CommandAvailable = false;
 	gp1Command = 0x00000000;
+
+	//Init Renderer
+	pRenderer = std::make_shared<Renderer>((uint16_t*)this->vRam);
+
+	//Alloc Memory for Vertex Info Buffer
+	vertexPolyInfo.reserve(6);
+	vertexRectInfo.reserve(4);
+	vertexLineInfo.reserve(255);
 	
 	//ReceiveCommand Status
 	recvCommand = false;
@@ -549,7 +557,7 @@ bool GPU::clock()
 			hBlank = false;		//Reset hBlank immediately on a new line, is it really needed?
 			
 			//Generate hBlank Clock, not sure if it has to be triggered as soon as exit the visible area 
-			psx->timers.clock(ClockSource::hBlank);
+			psx->timers->clock(ClockSource::hBlank);
 		}
 
 		if (vCount >= (visible_scanlines + vblank_scanlines))
@@ -559,7 +567,7 @@ bool GPU::clock()
 			vBlank = false;		//Reset vBlank immediately in order to update GPUSTAT.31 on a new frame correctly otherwise is always reset to zero.
 			
 			//vBlank should be triggered right after the last visible scanline or not? 
-			psx->cpu.interrupt(static_cast<uint32_t>(interruptCause::vblank));
+			psx->cpu->interrupt(static_cast<uint32_t>(interruptCause::vblank));
 		}
 
 		return 0;
@@ -670,7 +678,7 @@ bool GPU::clock()
 	//Generate Dot Clock Signal
 	if (!(gpuClockTicks % dotClockRatio))
 	{
-		psx->timers.clock(ClockSource::Dot);
+		psx->timers->clock(ClockSource::Dot);
 	}
 	gpuClockTicks++;
 
@@ -839,6 +847,8 @@ bool GPU::gp0_Polygons()
 	uint16_t	clutInfo = 0;
 	uint32_t 	param;
 
+	VertexInfo vInfo = {};
+	
 	//Parse all Polygon Command Parameters from FIFO including initial command
 	param = gp0Command;
 	for(int i=0;i<vertexNum;i++)
@@ -848,21 +858,35 @@ bool GPU::gp0_Polygons()
 			switch(j)
 			{
 			case 0:	//COLOR
-				if (gourad || i==0) { decodeColor(param, colorBuf, i); fifo.pop(param); break; }
-				else { decodeColor(gp0Command, colorBuf, i); break;} //Solid Polygon use color stored on the command word for each vertex
+				if (gourad || i==0) { decodeColor(param, vInfo.vertexColor); fifo.pop(param); break; }
+				else { decodeColor(gp0Command, vInfo.vertexColor); break;} //Solid Polygon use color stored on the command word for each vertex
 			case 1:	//POSITION
-				decodePosition(param, vertexBuf, i); fifo.pop(param); break;
+				decodePosition(param, vInfo.vertexPosition); fifo.pop(param); break;
 			case 2: //TEXTURE
-				if (textured && i==0) { clutInfo = decodeTexture(param, textureBuf, i); fifo.pop(param); break; }
-				if (textured && i==1) { texPageInfo = decodeTexture(param, textureBuf, i); fifo.pop(param); break; }
-				if (textured && i>1) { decodeTexture(param, textureBuf, i); fifo.pop(param); break; }
+				if (textured && i==0) { clutInfo = decodeTexture(param, vInfo.vertexTexCoords); fifo.pop(param); break; }
+				if (textured && i==1) { texPageInfo = decodeTexture(param, vInfo.vertexTexCoords); fifo.pop(param); break; }
+				if (textured && i>1) { decodeTexture(param, vInfo.vertexTexCoords); fifo.pop(param); break; }
 				break;
 			}
 		}
+
+		//Add Additional Info
+		vInfo.textured = (textured) ? 1.0f : 0.0f;
+		// vInfo.blending = (blending) ? 1.0f : 0.0f;
+		// vInfo.transparent = (transparent) ? 1.0f : 0.0f;
+		decodeClut(clutInfo, vInfo.clutTableCoords);
+		vInfo.texColorDepth = decodeTexPage(texPageInfo, vInfo.texPageCoords);
+
+		//Add Current Vertex Info to local Buffer
+		vertexPolyInfo.push_back(vInfo);
+
+		//If it is a 4 Vertex Polygon add Vertex 2 and 3 again 
+		if ((i == 2) && (vertexNum == 4))
+			vertexPolyInfo.insert(vertexPolyInfo.end(), { vertexPolyInfo[1], vertexPolyInfo[2] });
 	}
 
 	//Render Polygon
-	renderer.DrawPolygon(vertexNum, vertexBuf, colorBuf, textureBuf, textured, clutInfo, texPageInfo);
+	pRenderer->DrawPolygon(vertexPolyInfo);
 
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
@@ -1183,6 +1207,11 @@ void GPU::gp0_ResetStatus()
 	recvParameters = false;
 	gp0RecvPolyLine = false;
 	gp0CommandAvailable = false;
+
+	//Reset Vertex Buffers
+	vertexPolyInfo.clear();
+	vertexRectInfo.clear();
+	vertexLineInfo.clear();
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -1354,7 +1383,7 @@ bool GPU::gp1_DisplayMode()
 	dotClockRatio = decodeClockRatio(videoResolution.x);
 
 	//Update Renderer Resolution
-	renderer.SetResolution(videoResolution.x, videoResolution.y);
+	pRenderer->SetResolution(videoResolution.x, videoResolution.y);
 
 	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();

@@ -120,7 +120,7 @@ bool Dma::clock()
 			}
 			//printf("DMA - Active Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d\n", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize);
 			//Stop CPU access to Address Bus
-			psx->cpu.dmaTakeOnBus = true;
+			psx->cpu->dmaTakeOnBus = true;
 		}	
 	}
 	return true;
@@ -222,7 +222,7 @@ bool Dma::syncmode0()
 		}
 
 		//Write data to RAM
-		psx->mem.write(runningAddr, data);  //Write data directly to RAM
+		psx->mem->write(runningAddr, data);  //Write data directly to RAM
 		runningAddr = (runningAddr + runningIncrement) & 0x001ffffc;
 		runningSize--;
 
@@ -241,12 +241,12 @@ bool Dma::syncmode1()
 	if (runningFromRam)
 	{
 		//Read data from current Address
-		data = psx->mem.read(runningAddr);
+		data = psx->mem->read(runningAddr);
 
 		switch (runningChannel)
 		{
 		case 2:	//------------------------------------------GPU
-			psx->gpu.setParameter(0x1f801810, data); //Write to GP0
+			psx->gpu->setParameter(0x1f801810, data); //Write to GP0
 			break;
 
 		default:
@@ -292,7 +292,7 @@ bool Dma::syncmode2()
 		}
 
 		//Read Linked List Header content and prepare to send packets
-		data = psx->mem.read(dmaChannel[runningChannel].chanMadr);	//Read Header directly from memory
+		data = psx->mem->read(dmaChannel[runningChannel].chanMadr);	//Read Header directly from memory
 		runningSize = data >> 24;									//Contains the size of the packets expressed in words
 		runningAddr = dmaChannel[runningChannel].chanMadr + 4;		//Contains address of the first word of the packet
 		dmaChannel[runningChannel].chanMadr = data & 0x00ffffff;	//Update Channel Based Address to point the next Header
@@ -304,8 +304,8 @@ bool Dma::syncmode2()
 			switch (runningChannel)
 			{
 			case 2:	//------------------------------------------GPU
-				data = psx->mem.read(runningAddr);
-				psx->gpu.setParameter(0x1f801810, data); //Write to GP0
+				data = psx->mem->read(runningAddr);
+				psx->gpu->setParameter(0x1f801810, data); //Write to GP0
 				runningAddr += 4;
 				runningSize--;
 				break;
@@ -348,7 +348,7 @@ bool Dma::dmaStop()
 	runningSize = 0;
 	runningAddr = 0x00000000;
 
-	psx->cpu.dmaTakeOnBus = false;
+	psx->cpu->dmaTakeOnBus = false;
 
 	//Set DMA Channel Completion Interrupt Flag and update DICR
 	if (dmaDicr.enableIrq & (1UL << runningChannel))
@@ -363,7 +363,7 @@ bool Dma::dmaStop()
 bool Dma::interruptCheck()
 {
 	if (dmaDicr.masterFlagIrq)
-		psx->cpu.interrupt(static_cast<uint32_t>(interruptCause::dma));
+		psx->cpu->interrupt(static_cast<uint32_t>(interruptCause::dma));
 
 	return true;
 }

@@ -84,16 +84,16 @@ void Timers::updateTimer0()
 		switch (timerStatus[0].counterMode.syncMode)
 		{
 		case 0:
-			if (!psx->gpu.hBlank) timerStatus[0].counterValue++;
+			if (!psx->gpu->hBlank) timerStatus[0].counterValue++;
 			break;
 		case 1:
-			if (psx->gpu.hBlank) timerStatus[0].counterValue = 0x0000;
+			if (psx->gpu->hBlank) timerStatus[0].counterValue = 0x0000;
 			break;
 		case 2:
-			if (psx->gpu.hBlank) timerStatus[0].counterValue = 0x0000; //CHECK - hBlank shoult be active only at the end of visible area?
+			if (psx->gpu->hBlank) timerStatus[0].counterValue = 0x0000; //CHECK - hBlank shoult be active only at the end of visible area?
 			break;
 		case 3:
-			if (psx->gpu.hBlank) timerStatus[0].counterMode.syncEn = false;
+			if (psx->gpu->hBlank) timerStatus[0].counterMode.syncEn = false;
 			break;
 
 		default:
@@ -156,16 +156,16 @@ void Timers::updateTimer1()
 		switch (timerStatus[1].counterMode.syncMode)
 		{
 		case 0:
-			if (!psx->gpu.vBlank) timerStatus[1].counterValue++;
+			if (!psx->gpu->vBlank) timerStatus[1].counterValue++;
 			break;
 		case 1:
-			if (psx->gpu.vBlank) timerStatus[1].counterValue = 0x0000;
+			if (psx->gpu->vBlank) timerStatus[1].counterValue = 0x0000;
 			break;
 		case 2:
-			if (psx->gpu.vBlank) timerStatus[1].counterValue = 0x0000; //CHECK - hBlank shoult be active only at the end of visible area?
+			if (psx->gpu->vBlank) timerStatus[1].counterValue = 0x0000; //CHECK - hBlank shoult be active only at the end of visible area?
 			break;
 		case 3:
-			if (psx->gpu.vBlank) timerStatus[1].counterMode.syncEn = false;
+			if (psx->gpu->vBlank) timerStatus[1].counterMode.syncEn = false;
 			break;
 
 		default:

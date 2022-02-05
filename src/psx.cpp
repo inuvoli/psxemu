@@ -5,15 +5,24 @@ Psx::Psx()
 	//Reset Master Clock
 	masterClock = 0;
 
+	cpu = std::make_shared<CPU>();
+	gpu = std::make_shared<GPU>();
+	spu = std::make_shared<SPU>();
+	mem = std::make_shared<Memory>();
+	bios = std::make_shared<Bios>();
+	dma = std::make_shared<Dma>();
+	cdrom = std::make_shared<Cdrom>();
+	timers = std::make_shared<Timers>();
+
 	//Link Hardware Devices
-	cpu.link(this);
-	gpu.link(this);
-	spu.link(this);
-	mem.link(this);
-	bios.link(this);
-	dma.link(this);
-	cdrom.link(this);
-	timers.link(this);
+	cpu->link(this);
+	gpu->link(this);
+	spu->link(this);
+	mem->link(this);
+	bios->link(this);
+	dma->link(this);
+	cdrom->link(this);
+	timers->link(this);
 
 	//Reset Internal Parameters
 	exp1BaseAddr = 0x0;
@@ -49,11 +58,11 @@ bool Psx::reset()
 	comDelay = 0x0;
 	postStatus = 0x0;
 
-	cpu.reset();
-	gpu.reset();
-	dma.reset();
-	mem.reset();
-	timers.reset();
+	cpu->reset();
+	gpu->reset();
+	dma->reset();
+	mem->reset();
+	timers->reset();
 
 	return true;
 }
@@ -73,19 +82,19 @@ bool Psx::clock()
 
 	if (!(masterClock % 2))
 	{
-		cpu.clock();
-		dma.clock();
-		timers.clock(ClockSource::System);
+		cpu->clock();
+		dma->clock();
+		timers->clock(ClockSource::System);
 	}
 
 	if (!(masterClock % 1))
 	{
-		gpu.clock();
+		gpu->clock();
 	}
 
 	if (!(masterClock % 16))
 	{
-		timers.clock(ClockSource::System8);
+		timers->clock(ClockSource::System8);
 	}
 
 	masterClock++;
@@ -111,13 +120,13 @@ uint32_t Psx::rdMem(uint32_t vAddr, uint8_t bytes)
 
 	cache = convertVirtualAddr(vAddr, phAddr);
 
-	if (memRangeRAM.contains(phAddr))  return mem.read(phAddr, bytes);
-	if (memRangeDMA.contains(phAddr))  return dma.getParameter(phAddr, bytes);
-	if (memRangeTMR.contains(phAddr))  return timers.getParameter(phAddr, bytes);
-	if (memRangeCDR.contains(phAddr))  return cdrom.getParameter(phAddr, bytes);
-	if (memRangeGPU.contains(phAddr))  return gpu.getParameter(phAddr, bytes);
-	if (memRangeSPU.contains(phAddr))  return spu.getParameter(phAddr, bytes);
-	if (memRangeBIOS.contains(phAddr)) return bios.rdMem(phAddr, 4);
+	if (memRangeRAM.contains(phAddr))  return mem->read(phAddr, bytes);
+	if (memRangeDMA.contains(phAddr))  return dma->getParameter(phAddr, bytes);
+	if (memRangeTMR.contains(phAddr))  return timers->getParameter(phAddr, bytes);
+	if (memRangeCDR.contains(phAddr))  return cdrom->getParameter(phAddr, bytes);
+	if (memRangeGPU.contains(phAddr))  return gpu->getParameter(phAddr, bytes);
+	if (memRangeSPU.contains(phAddr))  return spu->getParameter(phAddr, bytes);
+	if (memRangeBIOS.contains(phAddr)) return bios->rdMem(phAddr, 4);
 	
 	printf("Unhandled Memory Read  - addr: 0x%08x (%d)\n", vAddr, bytes);
 
@@ -131,14 +140,14 @@ bool Psx::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 
 	cache = convertVirtualAddr(vAddr, phAddr);	
 	
-	if (memRangeRAM.contains(phAddr))  return mem.write(phAddr, data, bytes);
+	if (memRangeRAM.contains(phAddr))  return mem->write(phAddr, data, bytes);
 	if (memRangeMEM1.contains(phAddr)) return setParameter(phAddr, data, bytes);
-	if (memRangeMEM2.contains(phAddr)) return mem.setParameter(phAddr, data, bytes);
-	if (memRangeDMA.contains(phAddr))  return dma.setParameter(phAddr, data, bytes);
-	if (memRangeTMR.contains(phAddr))  return timers.setParameter(phAddr, data, bytes);
-	if (memRangeCDR.contains(phAddr))  return cdrom.setParameter(phAddr, data, bytes);
-	if (memRangeGPU.contains(phAddr))  return gpu.setParameter(phAddr, data, bytes);
-	if (memRangeSPU.contains(phAddr))  return spu.setParameter(phAddr, data, bytes);
+	if (memRangeMEM2.contains(phAddr)) return mem->setParameter(phAddr, data, bytes);
+	if (memRangeDMA.contains(phAddr))  return dma->setParameter(phAddr, data, bytes);
+	if (memRangeTMR.contains(phAddr))  return timers->setParameter(phAddr, data, bytes);
+	if (memRangeCDR.contains(phAddr))  return cdrom->setParameter(phAddr, data, bytes);
+	if (memRangeGPU.contains(phAddr))  return gpu->setParameter(phAddr, data, bytes);
+	if (memRangeSPU.contains(phAddr))  return spu->setParameter(phAddr, data, bytes);
 	if (memRangeIDP.contains(phAddr))  return setParameter(phAddr, data, bytes);
 
 	printf("Unhandled Memory Write - addr: 0x%08x, data: 0x%08x (%d)\n", vAddr, data, bytes);

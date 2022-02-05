@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <memory>
 
 class Psx;
 
@@ -19,7 +20,7 @@ public:
 
 private:
 	//Link to Bus Object
-	Psx* psx = nullptr;
+	Psx* psx;
 
 	//Internal Registers
 	uint16_t mainVolumeL;			//0x1f801d80

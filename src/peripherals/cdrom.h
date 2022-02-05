@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <memory>
 
 class Psx;
 
@@ -23,6 +24,6 @@ public:
 
 private:
 	//Link to Bus Object
-	Psx* psx = nullptr;	
+	Psx* psx;
 };
 

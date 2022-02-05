@@ -5,6 +5,7 @@
 #include <cstring>
 #include <vector>
 #include <string>
+#include <memory>
 
 #include "fifo.h"
 #include "vectors.h"
@@ -110,7 +111,7 @@ public:
 	bool vBlank;
 
 	//OpenGL Renderer
-	Renderer	renderer{(uint16_t*)this->vRam};
+	std::shared_ptr<Renderer>	pRenderer;
 
 private:
 	void writeVRAM(uint32_t& data);
@@ -118,7 +119,7 @@ private:
 
 private:
 	//Link to Bus Object
-	Psx* psx = nullptr;
+	Psx* psx;
 
 	//VRAM 1MB
 	uint16_t	vRam[512][1024];	//vram[rows][pixels]
@@ -131,6 +132,11 @@ private:
 	
 	//Command FIFO
 	CommandFifo<uint32_t, 16>	fifo;
+
+	//Vertex Info
+	std::vector<VertexInfo> vertexPolyInfo;
+	std::vector<VertexInfo> vertexRectInfo;
+	std::vector<VertexInfo> vertexLineInfo;
 
 	//GPU Internal Status & Configurations
 	VideoMode			videoMode;

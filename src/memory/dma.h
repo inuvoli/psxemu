@@ -5,6 +5,7 @@
 #include <string>
 #include <array>
 #include <algorithm>
+#include <memory>
 
 #include "dmachannel.h"
 #include "range.h"
@@ -65,7 +66,7 @@ private:
 
 private:
 	//Link to PSP Object
-	Psx* psx = nullptr;
+	Psx* psx;
 
 	bool		isRunning;
 	uint8_t		runningChannel;

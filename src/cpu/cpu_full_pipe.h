@@ -72,7 +72,7 @@ public:
 	bool dCacheEnabled;
 	
 	//Connect to PSX Instance
-	void link(Psx* instance) { psx = instance; }
+	void link(std::shared_ptr<Psx> instance) { psx = instance; }
 
 private:
 	//Helper functions
@@ -157,7 +157,7 @@ private:
 
 private:
 	//Link to Bus Object
-	Psx* psx = nullptr;
+	std::shared_ptr<Psx> psx;
 
 	//Full set of CPU Instruction Dictionaries
 	struct INSTR

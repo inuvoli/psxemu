@@ -19,6 +19,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${PROJECT_SOURCE_DIR}/bin)
 find_package(SDL2 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(OpenGL REQUIRED)
+find_package(glm REQUIRED)
 
 # Create a sources variable with a link to all cpp files to compile
 set(PSXEMU_SOURCES
@@ -33,6 +34,7 @@ set(PSXEMU_SOURCES
 	src/gpu/shader.cpp
 	src/spu/spu.cpp
 	src/timers/timers.cpp
+	src/debugging/debugger.cpp
 	src/debugging/mipsdisassembler.cpp
 	src/main.cpp
 	src/psx.cpp
@@ -70,6 +72,7 @@ target_include_directories(psxemu
 		${SDL2_INCLUDE_DIRS}
 		${GLEW_INCLUDE_DIRS}
 		${OPENGL_INCLUDE_DIRS}
+		${GLM_INCLUDE_DIRS}
 )
 
 # Set libraries to be included

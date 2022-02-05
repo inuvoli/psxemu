@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <memory>
 
 //PSXEMU specific Includes, note PSXEMU is using GLEW OpenGL loader
 #include <GL/glew.h>
@@ -15,6 +16,7 @@
 #include "imgui_memory_editor.h"
 
 #include "psx.h"
+#include "debugger.h"
 #include "mipsdisassembler.h"
 
 class psxemu
@@ -30,27 +32,14 @@ public:
 public:
 	//Emulator Status
 	bool	isRunning;
-	bool	instructionStep;
-	bool	frameStep;
-
-	//Debug Windows
-	bool		showRegister;
-	bool		showRom;
-	bool		showRam;
-	bool		showAssembler;
-	bool		showDma;
-	bool		showTimers;
-	bool		showGpu;
-	uint32_t	breakPoint;
-	
-	Psx			*pPsx = nullptr;
+	std::shared_ptr<Psx>	pPsx;
 
 private:
 	bool handleEvents();
 	bool debugInfo();
-	bool update();
-	bool updateFrame();
-	bool renderFrame();
+	bool update(StepMode stepMode);
+	bool render(StepMode stepMode);
+	bool renderWidgets();
 
 private:
 	SDL_Event			sdlEvent;
@@ -58,23 +47,37 @@ private:
 	SDL_GLContext		glContext;
 	SDL_AudioDeviceID	sdlAudioDevice;
 
-	MemoryEditor		dbgRom;
-	MemoryEditor		dbgRam;
-	MemoryEditor		dbgVRam;
-
 	//Controllers
 	SDL_GameController* pControllerA;
 	SDL_GameController* pControllerB;
-
+	
 	//Performance Timers
 	uint64_t	timerStart;
 	uint64_t	timerStop;
 	uint16_t	framePerSecond;
 
+	//Debugger
+	std::shared_ptr<Debugger>	pDebugger;
+
+	//Debugger Widgets Functions
+	bool renderFpsWidget();
+	bool renderBiosWidget();
+	bool renderRamWidget();
+	bool renderCpuWidget();
+	bool renderCodeWidget();
+	bool renderDmaWidget();
+	bool renderTimersWidget();
+	bool renderGpuWidget();
+	bool renderSpuWidget();
+	bool renderCdromWidget();
+	
 	//Debug Helper
 	MipsDisassembler	mipsDisassembler;
 	AsmCode asmCode;
 	GLuint vramTexture;
+	MemoryEditor		dbgRom;
+	MemoryEditor		dbgRam;
+	MemoryEditor		dbgVRam;
 	
 	ImVec4 yellow_color = ImVec4(0.90f, 0.90f, 0.00f, 1.00f);
 	ImVec4 green_color = ImVec4(0.00f, 0.90f, 0.00f, 1.00f);

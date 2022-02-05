@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <memory>
 
 //#include "cpu_full_pipe.h"
 #include "cpu_short_pipe.h"
@@ -33,14 +34,14 @@ public:
 	
 public:
 	//PSP Hardware Components
-	CPU				cpu;
-	GPU				gpu;
-	SPU				spu;
-	Memory			mem;
-	Bios			bios;
-	Dma				dma;
-	Cdrom			cdrom;
-	Timers			timers;
+	std::shared_ptr<CPU>	cpu;
+	std::shared_ptr<GPU>	gpu;
+	std::shared_ptr<SPU>	spu;
+	std::shared_ptr<Memory>	mem;
+	std::shared_ptr<Bios>	bios;
+	std::shared_ptr<Dma>	dma;
+	std::shared_ptr<Cdrom>	cdrom;
+	std::shared_ptr<Timers>	timers;
 
 	//Mater Clock: 372.5535MHz
 	uint64_t	masterClock;

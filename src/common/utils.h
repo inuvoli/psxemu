@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include "vectors.h"
+#include "glm/glm.hpp"
 
 //-------------------------------------------------------------
 //
@@ -24,52 +25,39 @@ inline uint16_t rgb24torgb15(uint32_t data, uint8_t alpha = 0x00)
 	return rgb15Out;
 }
 
-inline void decodeColor(const uint32_t param, vec3t<uint8_t> &color)
+inline void decodeColor(const uint32_t param, glm::vec3 &color)
 {
-	color.x = param & 0x000000ff;			//RED
-	color.y = (param >> 8) & 0x000000ff;	//GREEN
-	color.z = (param >> 16) & 0x000000ff;	//BLUE
+	color.x = (GLfloat)(param & 0x000000ff);			//RED
+	color.y = (GLfloat)((param >> 8) & 0x000000ff);		//GREEN
+	color.z = (GLfloat)((param >> 16) & 0x000000ff);	//BLUE
 }
 
-inline void decodeColor(const uint32_t param, int* color, uint8_t offset = 0)
+inline void decodePosition(const uint32_t param, glm::vec2 &position)
 {
-	color[0 + offset * 3] = param & 0x000000ff;			//RED
-	color[1 + offset * 3] = (param >> 8) & 0x000000ff;	//GREEN
-	color[2 + offset * 3] = (param >> 16) & 0x000000ff;	//BLUE
+	position.x = (GLfloat)(param & 0x0000ffff);
+	position.y = (GLfloat)((param >> 16) & 0x0000ffff);
 }
 
-inline void decodePosition(const uint32_t param, vec2t<int16_t> &position)
+inline uint16_t decodeTexture(const uint32_t param, glm::vec2 &texCoords)
 {
-	position.x = param & 0x0000ffff;
-	position.y = (param >> 16) & 0x0000ffff;
-}
-
-inline void decodePosition(const uint32_t param, int* position, uint8_t offset = 0)
-{
-	position[0 + offset * 2] = param & 0x0000ffff;
-	position[1 + offset * 2] = (param >> 16) & 0x0000ffff;
-}
-
-inline uint16_t decodeTexture(const uint32_t param, vec2t<uint8_t> &texCoords)
-{
-	texCoords.x = (param >> 8) & 0x000000ff; 	//U Coordinate
-	texCoords.y = param & 0x000000ff;			//V Coordinates
+	texCoords.x = (GLfloat)((param >> 8) & 0x000000ff); 	//U Coordinate
+	texCoords.y = (GLfloat)(param & 0x000000ff);			//V Coordinates
 
 	return (uint16_t)(param >> 16);
 }
 
-inline uint16_t decodeTexture(const uint32_t param, int* texture, uint8_t offset = 0)
+inline void decodeClut(const uint16_t param, glm::vec2 &clutCoords)
 {
-	texture[0 + offset * 2] = (param >> 8) & 0x000000ff;	//U Coordinate
-	texture[1 + offset * 2] = param & 0x000000ff;			//V Coordinate
-
-	return (uint16_t)(param >> 16);
+	clutCoords.x = (GLfloat)((param & 0x003f) * 16);			//X Coordinates for CLUT in halfwords (16 bits) on the framebuffer
+	clutCoords.y = (GLfloat)((param >> 6) & 0x01ff);			//y Coordinates for CLUT in Lines on the framebuffer
 }
 
-inline void decodeClut(const uint16_t param, vec2t<uint16_t> &clutCoords)
+inline GLfloat decodeTexPage(const uint16_t param, glm::vec2 &clutCoords)
 {
-	clutCoords.x = param & 0x003f;			//X Coordinates for CLUT in halfwords (16 bits) on the framebuffer
-	clutCoords.y = (param >> 6) & 0x01ff;	//y Coordinates for CLUT in Lines on the framebuffer
+	clutCoords.x = (GLfloat)((param & 0xf) * 64);			
+	clutCoords.y = (GLfloat)(((param >> 4) & 0x1) * 256);
+
+	return (GLfloat)((param >> 7) & 0x3);		//return Tex Page Color Depth
 }
 
 inline vec2t<uint16_t> decodeResolution(uint32_t gpuStat)

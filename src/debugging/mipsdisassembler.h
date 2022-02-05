@@ -5,9 +5,9 @@
 #include <utility>
 #include <tuple>
 #include <string>
+#include <vector>
 
-#include "psx.h"
-#include "cpu_registers.h"
+#include "bitfield.h"
 
 // Opcode, Label, Mnemonic
 typedef std::map<uint32_t, std::tuple<uint32_t, std::string, std::string>> AsmCode;
@@ -39,6 +39,23 @@ private:
 
 	//Memory Conversion Helper
 	uint32_t	regionMask[8] = { 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0x7fffffff, 0x1fffffff, 0xffffffff, 0xffffffff };
+
+	// Opcode Decoding Union
+	union Instruction
+	{
+		uint32_t		word;
+
+		BitField<26, 6> op;		//opcode
+		BitField<21, 5> rs;		//rs index
+		BitField<16, 5> rt;		//rt index
+		BitField<11, 5> rd;		//rd index
+		BitField<6, 5>	shamt;	//shift amount
+		BitField<0, 6>	funct;	//function
+		BitField<0, 16> imm;	//immediate value
+		BitField<0, 26> tgt;	//target
+		BitField<0, 25> cofun;	//coprocessor function
+		BitField<25, 1>	cop;	//cop	
+	};
 
 	//Full set of CPU Instruction Dictionaries
 	struct INSTR
