@@ -3,25 +3,26 @@
 in vec3 vColor;
 in vec2 vTextureCoords;
 in vec2 clutTable;
+in float textureOn;
 in vec2 texturePage;
 in float textureColorDepth;
-in float textureOn;
-// in float transpOn;
-// in float blendingOn;
+in float textureBlending;
+in float transOn;
+in float transAlgo;
 
 out vec4    fragColor;
 
 uniform usampler2DRect videoRam;
 
-vec4 getColor(int data)
+vec4 decodePsxColor(int data)
 {
     vec4 color;
 
     color.r = float(data & 0x1f) / 31.0;
     color.g = float((data >> 5) & 0x1f) / 31.0;
     color.b = float((data >> 10) & 0x1f) / 31.0;
-    color.a = float((data >> 15) & 0x01);  
-
+    color.a = float((data >> 15) & 0x01);
+    
     return color;
 }
 
@@ -53,26 +54,18 @@ int getTexel(int colorMode)
     return value;
 }
 
-int getClut4Entry(int texelData)
+int getClutColor(int texelData, int colorDepth)
 {
-    int shiftValue = 3 - ((int(vTextureCoords.x) % 4) * 4);
-    int index = int(texelData >> shiftValue) & 0x0f;
+    int texelPerHalfWord = 16 / colorDepth;
+    int texelMask = 0xffff >> (16 - colorDepth);
     
-    vec2 clutPosition = vec2(clutTable.x + index, clutTable.y);
-    int clutEntry = int(texture(videoRam, clutPosition).r);
-
-    return clutEntry;
-}
-
-int getClut8Entry(int texelData)
-{
-    int shiftValue = ((int(vTextureCoords.x) % 2) * 8);
-    int index = int(texelData >> shiftValue) & 0x00ff;
+    int shiftValue = ((int(vTextureCoords.x) % texelPerHalfWord) * colorDepth);
+    int index = (texelData >> shiftValue) & texelMask;
     
-    vec2 clutPosition = vec2(clutTable.x + index, clutTable.y);
-    int clutEntry = int(texture(videoRam, clutPosition).r);
+    vec2 clutPosition = vec2(clutTable.x + float(index), clutTable.y);
+    int clutColor = int(texture(videoRam, clutPosition).r);
 
-    return clutEntry;
+    return clutColor;
 }
 
 void main()
@@ -82,40 +75,50 @@ void main()
         int colorMode = int(textureColorDepth);     
         int texelData = getTexel(colorMode);
 
-        vec4 texelColor;
-        int clutEntry;
+        int clutColor;
+        vec4 finalTexelColor;
 
         switch (colorMode)
         {
             case 0:     //4 bit CLUT
-                clutEntry = getClut4Entry(texelData);
-                texelColor = getColor(clutEntry);
-                fragColor.xyz = vColor.xyz * texelColor.xyz;
-                fragColor.w = texelColor.w;
+                clutColor = getClutColor(texelData, 4);
+                finalTexelColor = decodePsxColor(clutColor); 
                 break;
             case 1:     //8 bit CLUT
-                clutEntry = getClut8Entry(texelData);
-                texelColor = getColor(clutEntry);
-                fragColor.xyz = vColor.xyz * texelColor.xyz;
-                fragColor.w = texelColor.w;
+                clutColor = getClutColor(texelData, 8);
+                finalTexelColor = decodePsxColor(clutColor);
                 break;
             case 2:     //15 Bit Texel (5-5-5-1)
-                texelColor = getColor(texelData);
-                fragColor.xyz = vColor.xyz * texelColor.xyz;
-                fragColor.w = texelColor.w;
+                finalTexelColor = decodePsxColor(texelData);
                 break;
-            case 3:     //Reserved
-                fragColor = vec4(1.0f, 0.0f, 0.0f, 1.0f);
+            case 3:     //Reserved, same as 15Bit Texel
+                finalTexelColor = decodePsxColor(texelData);
                 break;
         }
-        
+
+        //Color 0000h is full transparent for PSX palette
+        if (finalTexelColor == vec4(0.0f,0.0f,0.0f,0.0f))
+                discard;
+
+        if (textureBlending == 1.0f)
+        {
+            
+                
+
+            fragColor.xyz = (finalTexelColor.xyz); //TODO Texture Shading
+            fragColor.w = 1.0f;
+            //fragColor = vec4(0.0f, 0.0f, 1.0f, 1.0f);
+        }
+        else
+        {
+            //fragColor = vec4(0.0f, 1.0f, 0.0f, 1.0f);
+            fragColor.xyz = finalTexelColor.xyz;
+            fragColor.w = 1.0f;
+        }
     }
     else
     {
         fragColor.xyz = vColor;
         fragColor.w = 1.0f;
     }
-   
-    // fragColor.xyz = vColor;
-    // fragColor.w = 1.0f;
 }

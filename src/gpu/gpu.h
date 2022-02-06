@@ -117,13 +117,17 @@ private:
 	void writeVRAM(uint32_t& data);
 	uint32_t readVRAM();
 
+	//Helper Function
+	void DrawVRAMRectangle();
+
+
 private:
 	//Link to Bus Object
 	Psx* psx;
 
 	//VRAM 1MB
 	uint16_t	vRam[512][1024];	//vram[rows][pixels]
-
+	
 	//Internal Registers
 	uint32_t	gp0DataLatch;
 	uint32_t	gp1DataLatch;
@@ -185,11 +189,6 @@ private:
 	//Internal Clock Counter
 	uint64_t	gpuClockTicks;
 	
-	//Vertex and Color Buffer
-	int colorBuf[12] = {};
-	int vertexBuf[8] = {};
-	int textureBuf[8] = {};
-
 	//Full set GPU Instruction Dictionaries
 	struct INSTRGP0
 	{

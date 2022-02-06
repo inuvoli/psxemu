@@ -472,6 +472,9 @@ bool GPU::reset()
 	memset(&dataSize, 0, sizeof(vec2t<uint16_t>));
 	memset(&dataPointer, 0, sizeof(vec2t<uint16_t>));
 
+	//Reset Renderer Status
+	pRenderer->reset();
+
 	return true;
 }
 
@@ -493,8 +496,8 @@ bool GPU::isFrameReady()
 void GPU::writeVRAM(uint32_t& data)
 {
 	uint16_t h, l;
-	h = static_cast<uint16_t>((data & 0xffff0000) >> 16);
 	l = static_cast<uint16_t>((data & 0x0000ffff));
+	h = static_cast<uint16_t>((data & 0xffff0000) >> 16);
 
 	vRam[dataPointer.y][dataPointer.x] = l;
 	vRam[dataPointer.y][dataPointer.x + 1] = h;
@@ -568,6 +571,9 @@ bool GPU::clock()
 			
 			//vBlank should be triggered right after the last visible scanline or not? 
 			psx->cpu->interrupt(static_cast<uint32_t>(interruptCause::vblank));
+
+			//Update GPU Renderer Framebuffer at every vBlank
+			pRenderer->vBlankNewFrame();
 		}
 
 		return 0;
@@ -842,7 +848,7 @@ bool GPU::gp0_Polygons()
 	uint8_t		vertexNum = (gp0Opcode & 0x08) ? 4 : 3;
 	bool		textured  = (gp0Opcode & 0x04) ? true : false;
 	bool		transparent  = (gp0Opcode & 0x02) ? true : false;
-	bool		blending  = (gp0Opcode & 0x01) ? true : false;		
+	bool		blending  = (gp0Opcode & 0x01) ? false : true;		
 	uint16_t	texPageInfo = 0;
 	uint16_t	clutInfo = 0;
 	uint32_t 	param;
@@ -869,24 +875,41 @@ bool GPU::gp0_Polygons()
 				break;
 			}
 		}
-
 		//Add Additional Info
-		vInfo.textured = (textured) ? 1.0f : 0.0f;
-		// vInfo.blending = (blending) ? 1.0f : 0.0f;
-		// vInfo.transparent = (transparent) ? 1.0f : 0.0f;
 		decodeClut(clutInfo, vInfo.clutTableCoords);
-		vInfo.texColorDepth = decodeTexPage(texPageInfo, vInfo.texPageCoords);
-
-		//Add Current Vertex Info to local Buffer
+		decodeTexPage(texPageInfo, vInfo.texPageCoords, vInfo.texColorDepth, vInfo.transMode);
+		vInfo.textured = (textured) ? 1.0f : 0.0f;
+		vInfo.texBlending = (blending) ? 1.0f : 0.0f;
+		vInfo.transparent = (transparent) ? 1.0f : 0.0f;
+		
+		//Add Current Vertex Info GPU Vertex Buffer
 		vertexPolyInfo.push_back(vInfo);
 
 		//If it is a 4 Vertex Polygon add Vertex 2 and 3 again 
 		if ((i == 2) && (vertexNum == 4))
 			vertexPolyInfo.insert(vertexPolyInfo.end(), { vertexPolyInfo[1], vertexPolyInfo[2] });
+
+		//Add texPageInfo to First Vertex
+		if (i == 1)
+		{
+			vertexPolyInfo[0].texColorDepth = vertexPolyInfo[1].texColorDepth;
+			vertexPolyInfo[0].transMode = vertexPolyInfo[1].transMode;
+			vertexPolyInfo[0].texPageCoords.x = vertexPolyInfo[1].texPageCoords.x;
+			vertexPolyInfo[0].texPageCoords.y = vertexPolyInfo[1].texPageCoords.y;
+		}
 	}
 
-	//Render Polygon
-	pRenderer->DrawPolygon(vertexPolyInfo);
+	if (textured)
+	{
+		// for(int k=0;k<16;k++)
+		// 	printf("color %d: %04x %04x %04x\n", k, vRam[480][192+k], vRam[480][256+k], vRam[480][320+k]);
+		// exit(1);
+		//printf("CLutInfo (%f, %f)\n", vInfo.clutTableCoords.x, vInfo.clutTableCoords.y);
+	}		
+
+	//Add Polygon vertex infos into Renderer Vertex DrawData structure
+	pRenderer->InsertPolygon(vertexPolyInfo);
+	vertexPolyInfo.clear();
 
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
@@ -1516,4 +1539,19 @@ void GPU::getDebugInfo(GpuDebugInfo& info)
 		info.videoStandard = "PAL";
 		break;
 	}
+}
+
+void GPU::DrawVRAMRectangle()
+{	
+	// int x1 = (int)(vertexPolyInfo[0].texPageCoords.x + vertexPolyInfo[0].vertexTexCoords.x);
+	// int y1 = (int)(vertexPolyInfo[0].texPageCoords.y + vertexPolyInfo[0].vertexTexCoords.y);
+	// int x2 = (int)(vertexPolyInfo[0].texPageCoords.x + vertexPolyInfo[1].vertexTexCoords.x);
+	// int y2 = (int)(vertexPolyInfo[0].texPageCoords.y + vertexPolyInfo[2].vertexTexCoords.y);
+
+	float x1 = (vertexPolyInfo[0].texPageCoords.x + vertexPolyInfo[0].vertexTexCoords.x);
+	float y1 = (vertexPolyInfo[0].texPageCoords.y + vertexPolyInfo[0].vertexTexCoords.y);
+	float x2 = (vertexPolyInfo[0].texPageCoords.x + vertexPolyInfo[1].vertexTexCoords.x);
+	float y2 = (vertexPolyInfo[0].texPageCoords.y + vertexPolyInfo[2].vertexTexCoords.y);
+
+	printf("Rectangle (%f, %f), (%f, %f)\n", x1, y1, x2, y2);
 }

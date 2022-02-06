@@ -40,8 +40,9 @@ inline void decodePosition(const uint32_t param, glm::vec2 &position)
 
 inline uint16_t decodeTexture(const uint32_t param, glm::vec2 &texCoords)
 {
-	texCoords.x = (GLfloat)((param >> 8) & 0x000000ff); 	//U Coordinate
-	texCoords.y = (GLfloat)(param & 0x000000ff);			//V Coordinates
+	
+	texCoords.x = (GLfloat)(param & 0x000000ff);			//U Coordinates
+	texCoords.y = (GLfloat)((param >> 8) & 0x000000ff); 	//V Coordinate
 
 	return (uint16_t)(param >> 16);
 }
@@ -52,12 +53,12 @@ inline void decodeClut(const uint16_t param, glm::vec2 &clutCoords)
 	clutCoords.y = (GLfloat)((param >> 6) & 0x01ff);			//y Coordinates for CLUT in Lines on the framebuffer
 }
 
-inline GLfloat decodeTexPage(const uint16_t param, glm::vec2 &clutCoords)
+inline void decodeTexPage(const uint16_t param, glm::vec2 &texPageCoords, glm::float32 &texColorDepth, glm::float32 transMode)
 {
-	clutCoords.x = (GLfloat)((param & 0xf) * 64);			
-	clutCoords.y = (GLfloat)(((param >> 4) & 0x1) * 256);
-
-	return (GLfloat)((param >> 7) & 0x3);		//return Tex Page Color Depth
+	texPageCoords.x = (GLfloat)((param & 0xf) * 64);			
+	texPageCoords.y = (GLfloat)(((param >> 4) & 0x1) * 256);
+	transMode = (GLfloat)((param >> 5) & 0x3);
+	texColorDepth = (GLfloat)((param >> 7) & 0x3);
 }
 
 inline vec2t<uint16_t> decodeResolution(uint32_t gpuStat)

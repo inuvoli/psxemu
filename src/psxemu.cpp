@@ -103,6 +103,9 @@ bool psxemu::init(int wndWidth, int wndHeight)
     //Set Default Clear Color
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
+    //Disable Blending
+    glDisable(GL_BLEND);
+
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -280,22 +283,25 @@ bool psxemu::render(StepMode stepMode)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //Render PSX Output
-    switch(stepMode)
-    {
-        case StepMode::Halt:
-            break;
+    // switch(stepMode)
+    // {
+    //     case StepMode::Halt:
+    //         break;
 
-        case StepMode::Manual:
-            break;
+    //     case StepMode::Manual:
+    //         break;
 
-        case StepMode::Instruction:
-            break;
+    //     case StepMode::Instruction:
+    //         break;
 
-        case StepMode::Frame:
-            pPsx->gpu->pRenderer->RenderFrame();
-            break;
-    }
+    //     case StepMode::Frame:
+    //         pPsx->gpu->pRenderer->RenderDrawData();
+    //         break;
+    // }
     
+    //Render Current PSX Frame
+    pPsx->gpu->pRenderer->RenderDrawData();
+
     //Render ImGUI Debug Widgets
     renderWidgets();
 

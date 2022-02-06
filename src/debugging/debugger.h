@@ -25,7 +25,7 @@ public:
     ~Debugger();
 
     bool isBreakpoint (uint32_t addr) { return (addr == (breakPoint - 0x4)); };
-    bool setBreakpoint(uint32_t addr) { breakPoint = addr; };
+    void setBreakpoint(uint32_t addr) { breakPoint = addr; };
     uint32_t getBreakPoint() { return breakPoint; };
 
     void setStepMode(StepMode mode) { stepMode = mode; };
