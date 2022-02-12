@@ -43,8 +43,8 @@ public:
 	bool reset();
 	bool clock();
 
-	bool setParameter(uint32_t addr, uint32_t& data, uint8_t bytes);
-	uint32_t getParameter(uint32_t addr, uint8_t bytes);
+	bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes);
+	uint32_t readAddr(uint32_t addr, uint8_t bytes);
 	
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
@@ -79,6 +79,6 @@ private:
 	uint8_t		runningSyncMode;
 
 	//Memory Mapping
-	Range memRangeChannelRegs =  Range(0x1f801080, 0x70);
+	lite::range memRangeChannelRegs =  lite::range(0x1f801080, 0x70);
 };
 

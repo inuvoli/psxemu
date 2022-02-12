@@ -4,7 +4,7 @@
 Bios::Bios()
 {
 	//Load Bios
-	loadBios("scph1001.bin");
+	loadBios("scph5501.bin");
 }
 
 Bios::~Bios()
@@ -42,7 +42,7 @@ bool Bios::loadBios(const std::string& fileName)
 	return false;
 }
 
-uint32_t Bios::rdMem(uint32_t phAddr, uint8_t bytes)
+uint32_t Bios::read(uint32_t phAddr, uint8_t bytes)
 {
 	uint32_t data = 0;
 	uint32_t addr = phAddr & 0x0007ffff;

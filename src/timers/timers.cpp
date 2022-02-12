@@ -274,7 +274,7 @@ void Timers::updateTimer2()
 	}
 }
 
-bool Timers::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
+bool Timers::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 {
 	// Counter Mode data bit meaning:
 	// 0	Synchronization Enable(0 = Free Run, 1 = Synchronize via Bit1 - 2)
@@ -375,7 +375,7 @@ bool Timers::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 	return true;
 }
 
-uint32_t Timers::getParameter(uint32_t addr, uint8_t bytes)
+uint32_t Timers::readAddr(uint32_t addr, uint8_t bytes)
 {
 	uint32_t data;
 

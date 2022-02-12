@@ -29,11 +29,6 @@ struct decodedOpcode
 	bool		cop;
 };
 
-struct DecodedInstr
-{
-
-};
-
 class CPU
 {
 public:
@@ -184,8 +179,8 @@ private:
 	std::vector<INSTR> functSet;		//Full Function Set
 
 	//Memory Mapping
-	Range memRangeScratchpad =  Range(0x1f800000, 0x400);
-	Range memRangeIntRegs = Range(0x1f801070, 0x8);
-	Range memRangeCacheRegs = Range(0xfffe0130, 0x4);
+	lite::range memRangeScratchpad =  lite::range(0x1f800000, 0x400);
+	lite::range memRangeIntRegs = lite::range(0x1f801070, 0x8);
+	lite::range memRangeCacheRegs = lite::range(0xfffe0130, 0x4);
 };
 

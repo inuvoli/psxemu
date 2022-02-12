@@ -60,8 +60,8 @@ target_include_directories(psxemu
     PRIVATE 
  		${PROJECT_SOURCE_DIR}/3rdparty/bitfield
 		${PROJECT_SOURCE_DIR}/3rdparty/imgui
+		${PROJECT_SOURCE_DIR}/3rdparty/litelib
 		${PROJECT_SOURCE_DIR}/src
-		${PROJECT_SOURCE_DIR}/src/common
 		${PROJECT_SOURCE_DIR}/src/cpu
 		${PROJECT_SOURCE_DIR}/src/debugging
 		${PROJECT_SOURCE_DIR}/src/gpu

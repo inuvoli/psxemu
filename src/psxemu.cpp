@@ -233,6 +233,16 @@ bool psxemu::handleEvents()
             case SDLK_7:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Gpu);
                 break;
+            case SDLK_8:
+                pDebugger->toggleDebugModuleStatus(DebugModule::Cdrom);
+                break;
+            //-------------------------------- Test
+            case SDLK_d:
+                pPsx->cpu->interrupt(static_cast<uint32_t>(cpu::interruptCause::dma));
+                break;
+            case SDLK_c:
+                pPsx->cpu->interrupt(static_cast<uint32_t>(cpu::interruptCause::cdrom));
+                break;
             }
             break;
         }
@@ -255,14 +265,14 @@ bool psxemu::update(StepMode stepMode)
 
         case StepMode::Instruction:
             pPsx->clock();
-            if (pDebugger->isBreakpoint(pPsx->cpu->pc)) pDebugger->setStepMode(StepMode::Halt);
+            if (pDebugger->isBreakpoint()) pDebugger->setStepMode(StepMode::Halt);
             break;
 
         case StepMode::Frame:
             while (!pPsx->gpu->isFrameReady())
             {
                 pPsx->clock();
-                if (pDebugger->isBreakpoint(pPsx->cpu->pc))
+                if (pDebugger->isBreakpoint())
                 {
                     pDebugger->setStepMode(StepMode::Halt);
                     break;
@@ -281,23 +291,6 @@ bool psxemu::render(StepMode stepMode)
 {
     //Clear Frame Buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    //Render PSX Output
-    // switch(stepMode)
-    // {
-    //     case StepMode::Halt:
-    //         break;
-
-    //     case StepMode::Manual:
-    //         break;
-
-    //     case StepMode::Instruction:
-    //         break;
-
-    //     case StepMode::Frame:
-    //         pPsx->gpu->pRenderer->RenderDrawData();
-    //         break;
-    // }
     
     //Render Current PSX Frame
     pPsx->gpu->pRenderer->RenderDrawData();
@@ -541,5 +534,14 @@ bool psxemu::renderSpuWidget()
 
 bool psxemu::renderCdromWidget()
 {
+    CdromDebugInfo info;
+    pPsx->cdrom->getDebugInfo(info);
+
+    ImGui::Begin("CDROM");
+    ImGui::Text("Status Register:           Value  0x%02x  ", info.statusRegister);
+    ImGui::Text("Request Register:          Value  0x%02x  ", info.requestRegister);
+    ImGui::Text("Interrupt Enable Register: Value  0x%02x  ", info.interruptEnableRegister);
+    ImGui::Text("Interrupt Flag Register:   Value  0x%02x  ", info.interruptFlagRegister);
+    ImGui::End();
     return false;
 };

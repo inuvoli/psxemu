@@ -12,8 +12,8 @@ public:
 	SPU();
 	~SPU();
 
-	bool setParameter(uint32_t addr, uint32_t& data, uint8_t bytes);
-	uint32_t getParameter(uint32_t addr, uint8_t bytes);
+	bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes);
+	uint32_t readAddr(uint32_t addr, uint8_t bytes);
 
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }

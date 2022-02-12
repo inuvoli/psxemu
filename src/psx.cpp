@@ -63,6 +63,7 @@ bool Psx::reset()
 	dma->reset();
 	mem->reset();
 	timers->reset();
+	cdrom->reset();
 
 	return true;
 }
@@ -70,14 +71,16 @@ bool Psx::reset()
 bool Psx::clock()
 {
 	//-------------------------------------------------------------------
-	// GPU Clock: 53.2000 Mhz
-	// CPU Clock: 33.8685 MHz
+	// GPU Clock:  53.2000 Mhz
+	// CPU Clock:  33.8685 MHz
+	// CDR Clock: 360.4680 kHz
 	//
 	// CPU Clock is 7/11 of the GPU Clock. This is achieved starting from
 	// a Master Clock at 372.5535 Mhz then:
 	// CPU Clock		= Master Clock / 11 (2)
 	// GPU Clock		= Master Clock / 7  (1)
 	// System/8 Clock	= Master Clock / 88 (16)
+	// CDRom Clock 		= Master Clock / 11 * 2352 / 4 / 44100	SystemClock*930h/4/44100Hz
 	//-------------------------------------------------------------------
 
 	if (!(masterClock % 2))
@@ -95,6 +98,11 @@ bool Psx::clock()
 	if (!(masterClock % 16))
 	{
 		timers->clock(ClockSource::System8);
+	}
+
+	if (!(masterClock % 150))
+	{
+		cdrom->clock(); //Temporary
 	}
 
 	masterClock++;
@@ -120,13 +128,21 @@ uint32_t Psx::rdMem(uint32_t vAddr, uint8_t bytes)
 
 	cache = convertVirtualAddr(vAddr, phAddr);
 
+	//ROM Read Access (BIOS)
+	if (memRangeBIOS.contains(phAddr)) return bios->read(phAddr);
+	//RAM Read Access
 	if (memRangeRAM.contains(phAddr))  return mem->read(phAddr, bytes);
-	if (memRangeDMA.contains(phAddr))  return dma->getParameter(phAddr, bytes);
-	if (memRangeTMR.contains(phAddr))  return timers->getParameter(phAddr, bytes);
-	if (memRangeCDR.contains(phAddr))  return cdrom->getParameter(phAddr, bytes);
-	if (memRangeGPU.contains(phAddr))  return gpu->getParameter(phAddr, bytes);
-	if (memRangeSPU.contains(phAddr))  return spu->getParameter(phAddr, bytes);
-	if (memRangeBIOS.contains(phAddr)) return bios->rdMem(phAddr, 4);
+
+	//Memory Mapped I/O Devices
+	if (memRangeDMA.contains(phAddr))  return dma->readAddr(phAddr, bytes);
+	if (memRangeTMR.contains(phAddr))  return timers->readAddr(phAddr, bytes);
+	if (memRangeCDR.contains(phAddr))  return cdrom->readAddr(phAddr, bytes);
+	if (memRangeGPU.contains(phAddr))  return gpu->readAddr(phAddr, bytes);
+	if (memRangeSPU.contains(phAddr))  return spu->readAddr(phAddr, bytes);
+
+	//Expansion ROM Header
+	if (memRangeExpROM.contains(phAddr))  return this->readAddr(phAddr, bytes);
+	
 	
 	printf("Unhandled Memory Read  - addr: 0x%08x (%d)\n", vAddr, bytes);
 
@@ -140,21 +156,24 @@ bool Psx::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 
 	cache = convertVirtualAddr(vAddr, phAddr);	
 	
+	//RAM Write Access
 	if (memRangeRAM.contains(phAddr))  return mem->write(phAddr, data, bytes);
-	if (memRangeMEM1.contains(phAddr)) return setParameter(phAddr, data, bytes);
-	if (memRangeMEM2.contains(phAddr)) return mem->setParameter(phAddr, data, bytes);
-	if (memRangeDMA.contains(phAddr))  return dma->setParameter(phAddr, data, bytes);
-	if (memRangeTMR.contains(phAddr))  return timers->setParameter(phAddr, data, bytes);
-	if (memRangeCDR.contains(phAddr))  return cdrom->setParameter(phAddr, data, bytes);
-	if (memRangeGPU.contains(phAddr))  return gpu->setParameter(phAddr, data, bytes);
-	if (memRangeSPU.contains(phAddr))  return spu->setParameter(phAddr, data, bytes);
-	if (memRangeIDP.contains(phAddr))  return setParameter(phAddr, data, bytes);
+
+	//Memory Mapped I/O Devices
+	if (memRangeMEM1.contains(phAddr)) return this->writeAddr(phAddr, data, bytes);
+	if (memRangeMEM2.contains(phAddr)) return mem->writeAddr(phAddr, data, bytes);
+	if (memRangeDMA.contains(phAddr))  return dma->writeAddr(phAddr, data, bytes);
+	if (memRangeTMR.contains(phAddr))  return timers->writeAddr(phAddr, data, bytes);
+	if (memRangeCDR.contains(phAddr))  return cdrom->writeAddr(phAddr, data, bytes);
+	if (memRangeGPU.contains(phAddr))  return gpu->writeAddr(phAddr, data, bytes);
+	if (memRangeSPU.contains(phAddr))  return spu->writeAddr(phAddr, data, bytes);
+	if (memRangeIDP.contains(phAddr))  return this->writeAddr(phAddr, data, bytes);
 
 	printf("Unhandled Memory Write - addr: 0x%08x, data: 0x%08x (%d)\n", vAddr, data, bytes);
 
 	return false;
 }
-bool Psx::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
+bool Psx::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 {
 	switch (addr)
 	{
@@ -194,8 +213,17 @@ bool Psx::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 	}
 	return true;
 }
-uint32_t Psx::getParameter(uint32_t addr, uint8_t bytes)
+uint32_t Psx::readAddr(uint32_t addr, uint8_t bytes)
 {
-	printf("PSX - Unknown Parameter Set addr: 0x%08x (%d)\n", addr, bytes);
-	return 0;
+	uint32_t data;
+
+	switch(addr)
+	{
+	default:
+		data = 0;
+		printf("PSX - Unknown Parameter Set addr: 0x%08x (%d)\n", addr, bytes);
+		break;
+	}
+
+	return data;
 }

@@ -2,7 +2,7 @@
 
 Memory::Memory()
 {
-	ramSize = 0x00000000;
+	ramSize = 0x0;
 }
 
 Memory::~Memory()
@@ -11,7 +11,11 @@ Memory::~Memory()
 
 bool Memory::reset()
 {
+	//Reset RAM Content
 	memset(ram, 0x00, sizeof(ram));
+
+	//Reset Internal Registers
+	ramSize = 0x0;
 
 	return true;
 }
@@ -38,7 +42,7 @@ bool Memory::write(uint32_t phAddr, uint32_t& data, uint8_t bytes)
 	return true;
 }
 
-bool Memory::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
+bool Memory::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 {
 	switch (addr)
 	{
@@ -52,7 +56,7 @@ bool Memory::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 	return true;
 }
 
-uint32_t Memory::getParameter(uint32_t addr, uint8_t bytes)
+uint32_t Memory::readAddr(uint32_t addr, uint8_t bytes)
 {
 	printf("Memory - Unknown Parameter Get 0x%08x (%d)\n", addr, bytes);
 	return 0;

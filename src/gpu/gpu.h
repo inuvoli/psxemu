@@ -95,8 +95,8 @@ public:
 	bool reset();
 	bool clock();
 
-	bool setParameter(uint32_t addr, uint32_t& data, uint8_t bytes = 4);
-	uint32_t getParameter(uint32_t addr, uint8_t bytes = 4);
+	bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes = 4);
+	uint32_t readAddr(uint32_t addr, uint8_t bytes = 4);
 
 	bool isFrameReady();
 
@@ -135,7 +135,7 @@ private:
 	uint32_t	gpuStat;
 	
 	//Command FIFO
-	CommandFifo<uint32_t, 16>	fifo;
+	lite::fifo<uint32_t, 16>	fifo;
 
 	//Vertex Info
 	std::vector<VertexInfo> vertexPolyInfo;

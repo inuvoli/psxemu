@@ -34,7 +34,7 @@ SPU::~SPU()
 {
 }
 
-bool SPU::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
+bool SPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 {
 	switch (addr)
 	{
@@ -121,7 +121,7 @@ bool SPU::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 	return true;
 }
 
-uint32_t SPU::getParameter(uint32_t addr, uint8_t bytes)
+uint32_t SPU::readAddr(uint32_t addr, uint8_t bytes)
 {
 	uint32_t data;
 

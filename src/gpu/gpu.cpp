@@ -570,7 +570,7 @@ bool GPU::clock()
 			vBlank = false;		//Reset vBlank immediately in order to update GPUSTAT.31 on a new frame correctly otherwise is always reset to zero.
 			
 			//vBlank should be triggered right after the last visible scanline or not? 
-			psx->cpu->interrupt(static_cast<uint32_t>(interruptCause::vblank));
+			psx->cpu->interrupt(static_cast<uint32_t>(cpu::interruptCause::vblank));
 
 			//Update GPU Renderer Framebuffer at every vBlank
 			pRenderer->vBlankNewFrame();
@@ -691,7 +691,7 @@ bool GPU::clock()
 	return true;
 }
 
-bool GPU::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
+bool GPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 {
 	auto gp0ReceiveCommand = [&](uint32_t word)
 	{
@@ -777,7 +777,7 @@ bool GPU::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 	return true;
 }
 
-uint32_t GPU::getParameter(uint32_t addr, uint8_t bytes)
+uint32_t GPU::readAddr(uint32_t addr, uint8_t bytes)
 {
 	uint32_t data;
 	

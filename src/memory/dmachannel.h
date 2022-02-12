@@ -35,8 +35,8 @@ public:
 	DmaChannel();
 	~DmaChannel();
 
-	bool setParameter(uint32_t addr, uint32_t& data, uint8_t bytes = 4);
-	uint32_t getParameter(uint32_t addr, uint8_t bytes = 4);
+	bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes = 4);
+	uint32_t readAddr(uint32_t addr, uint8_t bytes = 4);
 
 public:
 	//Channel Registers

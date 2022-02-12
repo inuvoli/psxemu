@@ -1,10 +1,11 @@
 #include "debugger.h"
 
-Debugger::Debugger(const std::shared_ptr<Psx>& instance)
+Debugger::Debugger(std::shared_ptr<Psx> instance)
 {
     //TODO
     psx = instance;
     breakPoint = 0xffffffff;
+    //breakPoint = 0x800585c4;
     stepMode = StepMode::Halt;
 };
 
@@ -31,4 +32,4 @@ bool Debugger::getDebugModuleStatus(DebugModule module)
 bool Debugger::update()
 {
     return true;
-}
+};

@@ -13,7 +13,7 @@ DmaChannel::~DmaChannel()
 {
 }
 
-bool DmaChannel::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
+bool DmaChannel::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 {
 	//The value of addr identifies the channel according to this association:
 	//1F80108xh DMA0 channel 0  MDECin(RAM to MDEC)
@@ -53,7 +53,7 @@ bool DmaChannel::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 	return true;
 }
 
-uint32_t DmaChannel::getParameter(uint32_t addr, uint8_t bytes)
+uint32_t DmaChannel::readAddr(uint32_t addr, uint8_t bytes)
 {
 	//The value of addr identifies the channel according to this association:
 	//1F80108xh DMA0 channel 0  MDECin(RAM to MDEC)

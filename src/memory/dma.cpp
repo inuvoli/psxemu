@@ -126,7 +126,7 @@ bool Dma::clock()
 	return true;
 }
 
-bool Dma::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
+bool Dma::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 {
 	int chn = 0;
 
@@ -134,7 +134,7 @@ bool Dma::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 	if (memRangeChannelRegs.contains(addr))
 	{
 		chn = (addr - 0x1f801080) >> 4;
-		dmaChannel[chn].setParameter(addr, data);
+		dmaChannel[chn].writeAddr(addr, data);
 		return true;
 	}
 
@@ -168,7 +168,7 @@ bool Dma::setParameter(uint32_t addr, uint32_t& data, uint8_t bytes)
 	return true;
 }
 
-uint32_t Dma::getParameter(uint32_t addr, uint8_t bytes)
+uint32_t Dma::readAddr(uint32_t addr, uint8_t bytes)
 {
 	uint32_t data = 0;
 
@@ -176,7 +176,7 @@ uint32_t Dma::getParameter(uint32_t addr, uint8_t bytes)
 	if (memRangeChannelRegs.contains(addr))
 	{
 		int chn = (addr - 0x1f801080) >> 4;
-		data = dmaChannel[chn].getParameter(addr);
+		data = dmaChannel[chn].readAddr(addr);
 		return data;
 	}
 
@@ -194,7 +194,7 @@ uint32_t Dma::getParameter(uint32_t addr, uint8_t bytes)
 		printf("DMA - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
 		return 0x0;
 	}
-
+	
 	return data;
 }
 
@@ -246,7 +246,7 @@ bool Dma::syncmode1()
 		switch (runningChannel)
 		{
 		case 2:	//------------------------------------------GPU
-			psx->gpu->setParameter(0x1f801810, data); //Write to GP0
+			psx->gpu->writeAddr(0x1f801810, data); //Write to GP0
 			break;
 
 		default:
@@ -305,7 +305,7 @@ bool Dma::syncmode2()
 			{
 			case 2:	//------------------------------------------GPU
 				data = psx->mem->read(runningAddr);
-				psx->gpu->setParameter(0x1f801810, data); //Write to GP0
+				psx->gpu->writeAddr(0x1f801810, data); //Write to GP0
 				runningAddr += 4;
 				runningSize--;
 				break;
@@ -363,7 +363,7 @@ bool Dma::dmaStop()
 bool Dma::interruptCheck()
 {
 	if (dmaDicr.masterFlagIrq)
-		psx->cpu->interrupt(static_cast<uint32_t>(interruptCause::dma));
+		psx->cpu->interrupt(static_cast<uint32_t>(cpu::interruptCause::dma));
 
 	return true;
 }

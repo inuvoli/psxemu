@@ -16,7 +16,7 @@ public:
 
 	bool loadBios(const std::string& fileName);
 	
-	uint32_t rdMem(uint32_t phAddr, uint8_t bytes);
+	uint32_t read(uint32_t phAddr, uint8_t bytes = 4);
 	
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }

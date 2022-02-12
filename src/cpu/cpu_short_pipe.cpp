@@ -225,7 +225,7 @@ inline uint32_t CPU::rdInst(uint32_t vAddr, uint8_t bytes)
 {
 	//Check if PC in unaligned
 	if ((bool)(vAddr % bytes))
-		exception(static_cast<uint32_t>(exceptionCause::addrerrload));
+		exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
 
 	//TODO: Instruction Cache Management
 
@@ -234,13 +234,13 @@ inline uint32_t CPU::rdInst(uint32_t vAddr, uint8_t bytes)
 
 inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
 {
-	StatusRegister statusReg;
+	cpu::StatusRegister statusReg;
 
 	statusReg.word = cop0_reg[12];
 
 	//Check if vAddr in unaligned
 	if ((bool)(vAddr % bytes) && checkalign)
-		exception(static_cast<uint32_t>(exceptionCause::addrerrload));
+		exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
 
 	//Check if Cache is Isolated
 	if (statusReg.isc)
@@ -275,13 +275,13 @@ inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
 
 inline bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool checkalign)
 {
-	StatusRegister statusReg;
+	cpu::StatusRegister statusReg;
 
 	statusReg.word = cop0_reg[12];
 
 	//Check if vAddr in unaligned
 	if ((bool)(vAddr % bytes) && checkalign)
-		exception(static_cast<uint32_t>(exceptionCause::addrerrstore));
+		exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrstore));
 
 	//Check if Cache is Isolated
 	if (statusReg.isc)
@@ -397,7 +397,7 @@ bool CPU::clock()
 		return true;
 
 	//Fetch Instruction from current PC and increment it
-	Instruction opcode;
+	cpu::Instruction opcode;
 	opcode.word = rdInst(pc);
 
 	//Check if branchDelaySlot is set, in that case we are executing the instruction in the Branch Delay Slot
@@ -449,8 +449,8 @@ bool CPU::clock()
 
 bool CPU::exception(uint32_t cause)
 {
-	StatusRegister	statusReg;
-	CauseRegister	causeReg;
+	cpu::StatusRegister	statusReg;
+	cpu::CauseRegister	causeReg;
 
 	//printf("EXCEPTION (%d)\n", cause);
 
@@ -498,8 +498,8 @@ bool CPU::interrupt(uint32_t cause)
 
 bool CPU::interruptCheck()
 {
-	StatusRegister	statusReg;
-	CauseRegister	causeReg;
+	cpu::StatusRegister	statusReg;
+	cpu::CauseRegister	causeReg;
 
 	//Check for any active interrupt
 	if (interruptStatus & interruptMask & 0x000007ff)
@@ -527,7 +527,7 @@ bool CPU::interruptCheck()
 	//Playstation only use Hardware Interrupt Int0.
 	if (statusReg.imhw & causeReg.iphw)
 	{
-		exception(static_cast<uint32_t>(exceptionCause::interrupt));		
+		exception(static_cast<uint32_t>(cpu::exceptionCause::interrupt));		
 		return true;
 	}
 
@@ -663,7 +663,7 @@ bool CPU::op_addi()
 			
 	if (overflow)
 	{
-		exception(static_cast<uint32_t>(exceptionCause::overflow));
+		exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
 		printf("addi throw Integer Overflow Exception!\n");
 	}
 
@@ -733,24 +733,24 @@ bool CPU::op_cop0()
 		switch (currentOpcode.funct)
 		{
 		case 0x01:	//tlbr
-			exception(static_cast<uint32_t>(exceptionCause::copunusable));
+			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 			printf("Error! - tlbr unsupported\n");
 			break;
 		case 0x02:	//tlbwi
-			exception(static_cast<uint32_t>(exceptionCause::copunusable));
+			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 			printf("Error! - tlbwi unsupported\n");
 			break;
 		case 0x06:	//tlbwr
-			exception(static_cast<uint32_t>(exceptionCause::copunusable));
+			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 			printf("Error! - tlbwr unsupported\n");
 			break;
 		case 0x08:	//tlbp
-			exception(static_cast<uint32_t>(exceptionCause::copunusable));
+			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 			printf("Error! - tlbp unsupported\n");
 			break;
 		case 0x10:	//rfe
 			//Restore Interrupt Status (shift 2 position right bit [0, 5] for SR, bit 5 and 4 remain untouched)
-			StatusRegister statusReg;
+			cpu::StatusRegister statusReg;
 			statusReg.word = cop0_reg[12];
 			statusReg.stk = ((statusReg.stk >> 2) & 0x0f) | (statusReg.stk & 0x30);
 			cop0_reg[12] = statusReg.word;
@@ -770,7 +770,7 @@ bool CPU::op_cop0()
 				
 			break;
 		case 0x02:	//cfc0 rt, rd
-			exception(static_cast<uint32_t>(exceptionCause::copunusable));
+			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 			printf("Error! - cfc0 is unsupported\n");
 			break;
 		case 0x04:	//mtc0 rt, rd
@@ -778,7 +778,7 @@ bool CPU::op_cop0()
 			//printf("Move (0x%08x) from GPR[%d] to CPR[0, %d]\n", currentOpcode.regB, currentOpcode.rt, currentOpcode.rd);
 			break;
 		case 0x06:	//ctc0 rt, rd
-			exception(static_cast<uint32_t>(exceptionCause::copunusable));
+			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 			printf("Error! - ctc0 is unsupported\n");
 			break;
 		}
@@ -789,7 +789,7 @@ bool CPU::op_cop0()
 
 bool CPU::op_cop1()
 {
-	exception(static_cast<uint32_t>(exceptionCause::copunusable));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -824,7 +824,7 @@ bool CPU::op_cop2()
 
 bool CPU::op_cop3()
 {
-	exception(static_cast<uint32_t>(exceptionCause::copunusable));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -940,7 +940,7 @@ bool CPU::op_lwc0()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(exceptionCause::copunusable));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -949,7 +949,7 @@ bool CPU::op_lwc1()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(exceptionCause::copunusable));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -963,7 +963,7 @@ bool CPU::op_lwc3()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(exceptionCause::copunusable));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -972,7 +972,7 @@ bool CPU::op_swc0()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(exceptionCause::copunusable));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -981,7 +981,7 @@ bool CPU::op_swc1()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(exceptionCause::copunusable));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -995,7 +995,7 @@ bool CPU::op_swc3()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(exceptionCause::copunusable));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -1069,14 +1069,14 @@ bool CPU::op_jalr()
 
 bool CPU::op_syscall()
 {
-	exception(static_cast<uint32_t>(exceptionCause::syscall));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::syscall));
 
 	return true;
 }
 
 bool CPU::op_break()
 {
-	exception(static_cast<uint32_t>(exceptionCause::breakpoint));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::breakpoint));
 
 	return true;
 }
@@ -1199,7 +1199,7 @@ bool CPU::op_add()
 		gpr[currentOpcode.rd] = (int32_t)currentOpcode.regA + (int32_t)currentOpcode.regB;
 	
 	if (overflow)
-		exception(static_cast<uint32_t>(exceptionCause::overflow));
+		exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
 
 	return true;
 }
@@ -1221,7 +1221,7 @@ bool CPU::op_sub()
 		gpr[currentOpcode.rd] = (int32_t)currentOpcode.regA - (int32_t)currentOpcode.regB;
 
 	if (overflow)
-		exception(static_cast<uint32_t>(exceptionCause::overflow));
+		exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
 	
 	return true;
 }
@@ -1284,7 +1284,7 @@ bool CPU::op_sltu()
 
 bool CPU::op_unknown()
 {
-	exception(static_cast<uint32_t>(exceptionCause::resinst));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::resinst));
 	
 	return true;
 }
