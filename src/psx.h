@@ -13,6 +13,7 @@
 #include "dma.h"
 #include "cdrom.h"
 #include "timers.h"
+#include "tty.h"
 #include "range.h"
 
 class Psx
@@ -42,9 +43,14 @@ public:
 	std::shared_ptr<Dma>	dma;
 	std::shared_ptr<Cdrom>	cdrom;
 	std::shared_ptr<Timers>	timers;
+	std::shared_ptr<Tty> tty;
 
 	//Mater Clock: 372.5535MHz
 	uint64_t	masterClock;
+
+	//Temporary Debug
+	uint32_t writingAddress;
+	uint32_t readingAddress;
 
 	//Internal Registers
 	uint32_t exp1BaseAddr;		//0x1f801000
@@ -79,7 +85,8 @@ private:
 	lite::range memRangeGPU =  lite::range(0x1f801810, 0x8);
 	lite::range memRangeSPU =  lite::range(0x1f801c00, 0x400);
 	lite::range memRangeEXP2 = lite::range(0x1f802000, 0x1000);
-	lite::range memRangeIDP =  lite::range(0x1f802000, 0x80);
+	lite::range memRangeTTY = lite::range(0x1f802020, 0x10);
+	lite::range memRangePOST =  lite::range(0x1f802041, 0x1);
 	lite::range memRangeEXP3 = lite::range(0x1fa00000, 0x200000);
 	lite::range memRangeBIOS = lite::range(0x1fc00000, 0x80000);
 };

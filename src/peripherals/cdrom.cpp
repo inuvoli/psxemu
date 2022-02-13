@@ -346,7 +346,7 @@ bool Cdrom::clock()
 			{
 				interruptFlagRegister = (interruptFlagRegister & 0xf8) | interruptNum;
 				psx->cpu->interrupt(static_cast<uint32_t>(cpu::interruptCause::cdrom));
-				printf("CDROM - INT%d\n", interruptFlagRegister & 0x7);
+				//printf("CDROM - INT%d\n", interruptFlagRegister & 0x7);
 			}
 		}
 	}
@@ -357,7 +357,7 @@ bool Cdrom::clock()
 		commandAvailable = false;
 		statusRegister.busysts = 0;
 
-		printf("CDROM - Command %s!\n", commandSet[commandRegister].mnemonic.c_str());
+		//printf("CDROM - Command %s!\n", commandSet[commandRegister].mnemonic.c_str());
 		bResult = (this->*commandSet[commandRegister].operate)();
 			if (!bResult)
 				printf("CDROM - Unimplemented Command %s!\n", commandSet[commandRegister].mnemonic.c_str());
@@ -371,7 +371,7 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 	switch (addr)
 	{
 	case 0x1f801800:
-		printf("CDROM - Write Status Register:\t\t0x%08x       , data: 0x%08x\n", addr, data);
+		//printf("CDROM - Write Status Register:\t\t0x%08x       , data: 0x%08x\n", addr, data);
 		statusRegister.index = data & 0x3;
 		break;
 	
@@ -382,22 +382,22 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 			commandRegister = data;
 			commandAvailable = true;
 			statusRegister.busysts = 1;
-			printf("CDROM - Write Command Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
+			//printf("CDROM - Write Command Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
 			break;
 
 		case 1:
 			//Sound Map Data Out
-			printf("CDROM - Write Sound Map Data Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
+			//printf("CDROM - Write Sound Map Data Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
 			break;
 
 		case 2:
 			//Sound Map Coding Info
-			printf("CDROM - Write Sound Map Coding Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
+			//printf("CDROM - Write Sound Map Coding Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
 			break;
 
 		case 3:
 			//Audio Volume for Right-CD-Out to Right-SPU-Input
-			printf("CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
+			//printf("CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
 			break;
 		};
 		break;
@@ -407,22 +407,22 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		{
 		case 0:
 			parameterFifo.push(data);
-			printf("CDROM - Write Parameter Fifo:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
+			//printf("CDROM - Write Parameter Fifo:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
 			break;
 
 		case 1:
 			interruptEnableRegister = data & 0x1f;
-			printf("CDROM - Write Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
+			//printf("CDROM - Write Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
 			break;
 
 		case 2:
 			//Audio Volume for Left-CD-Out to Left-SPU-Input
-			printf("CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data); 
+			//printf("CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data); 
 			break;
 
 		case 3:
 			//Audio Volume for Right-CD-Out to Left-SPU-Input
-			printf("CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
+			//printf("CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
 			break;
 		};
 		break;
@@ -432,7 +432,7 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		{
 		case 0:
 			requestRegister.byte = data & 0xe0;
-			printf("CDROM - Write Request Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
+			//printf("CDROM - Write Request Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
 			break;
 
 		case 1:
@@ -440,17 +440,17 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 			if (data & 0x40)
 				parameterFifo.flush();
 
-			printf("CDROM - Write Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
+			//printf("CDROM - Write Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
 			break;
 
 		case 2:
 			//Audio Volume for Left-CD-Out to Right-SPU-Input
-			printf("CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
+			//printf("CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
 			break;
 
 		case 3:
 			//Audio Volume Apply Changes
-			printf("CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
+			//printf("CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data);
 			break;
 		};
 		break;
@@ -494,18 +494,18 @@ uint32_t Cdrom::readAddr(uint32_t addr, uint8_t bytes)
 	{
 	case 0x1f801800:
 		data = statusRegister.byte;
-		printf("CDROM - Read Status Register:\t\t0x%08x       , data: 0x%08x\n", addr, data);
+		//printf("CDROM - Read Status Register:\t\t0x%08x       , data: 0x%08x\n", addr, data);
 		break;
 
 	case 0x1f801801:
 		responseFifo.pop(tmp);
 		data = tmp;
-		printf("CDROM - Read Response Fifo:\t\t0x%08x       , data: 0x%08x\n", addr, data); 
+		//printf("CDROM - Read Response Fifo:\t\t0x%08x       , data: 0x%08x\n", addr, data); 
 		break;
 	
 	case 0x1f801802:
 		data = readDataFifo();
-		printf("CDROM - Read Data Fifo:\t\t0x%08x           , data: 0x%08x\n", addr, data); 
+		//printf("CDROM - Read Data Fifo:\t\t0x%08x           , data: 0x%08x\n", addr, data); 
 		break;
 
 	case 0x1f801803:
@@ -513,22 +513,22 @@ uint32_t Cdrom::readAddr(uint32_t addr, uint8_t bytes)
 		{
 		case 0:
 			data = interruptEnableRegister;
-			printf("CDROM - Read Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data); 
+			//printf("CDROM - Read Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data); 
 			break;
 
 		case 1:
 			data = 0b11100000 | (interruptFlagRegister & 0x1f);
-			printf("CDROM - Read Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data); 
+			//printf("CDROM - Read Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data); 
 			break;
 
 		case 2:
 			data = interruptEnableRegister;
-			printf("CDROM - Read Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data); 
+			//printf("CDROM - Read Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data); 
 			break;
 
 		case 3:
 			data = 0b11100000 | (interruptFlagRegister & 0x1f);
-			printf("CDROM - Read Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data); 
+			//printf("CDROM - Read Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x\n", addr, statusRegister.index, data); 
 			break;
 		};
 		break;

@@ -36,6 +36,7 @@ set(PSXEMU_SOURCES
 	src/timers/timers.cpp
 	src/debugging/debugger.cpp
 	src/debugging/mipsdisassembler.cpp
+	src/debugging/tty.cpp
 	src/main.cpp
 	src/psx.cpp
 	src/psxemu.cpp

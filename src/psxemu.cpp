@@ -203,45 +203,42 @@ bool psxemu::handleEvents()
             case SDLK_SPACE:
                 pDebugger->setStepMode(StepMode::Manual);
                 break;
-            case SDLK_h:
+            case SDLK_p:
                 pDebugger->setStepMode(StepMode::Halt);
                 break;
             case SDLK_i:
                 pDebugger->setStepMode(StepMode::Instruction);
                 break;
-            case SDLK_f:
+            case SDLK_y:
                 pDebugger->setStepMode(StepMode::Frame);
                 break;
-            case SDLK_1:
+            case SDLK_F1:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Bios);
                 break;
-            case SDLK_2:
+            case SDLK_F2:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Ram);
                 break;
-            case SDLK_3:
+            case SDLK_F3:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Cpu);
                 break;
-            case SDLK_4:
+            case SDLK_F4:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Code);
                 break;
-            case SDLK_5:
+            case SDLK_F5:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Dma);
                 break;
-            case SDLK_6:
+            case SDLK_F6:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Timers);
                 break;
-            case SDLK_7:
+            case SDLK_F7:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Gpu);
                 break;
-            case SDLK_8:
+            case SDLK_F8:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Cdrom);
                 break;
             //-------------------------------- Test
-            case SDLK_d:
-                pPsx->cpu->interrupt(static_cast<uint32_t>(cpu::interruptCause::dma));
-                break;
-            case SDLK_c:
-                pPsx->cpu->interrupt(static_cast<uint32_t>(cpu::interruptCause::cdrom));
+            case SDLK_t:
+                pPsx->mem->ram[0xb9b0] = 0x01;
                 break;
             }
             break;
