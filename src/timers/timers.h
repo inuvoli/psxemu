@@ -11,8 +11,11 @@
 class Psx;
 
 constexpr auto TIMER_NUMBER = 3;
+constexpr auto PULSE_DURATION = 1500;
 
 enum class ClockSource { System, System8, Dot, hBlank };
+
+
 
 union CounterMode
 {
@@ -39,6 +42,8 @@ struct TimerStatus
 	CounterMode	counterMode;	//Timer Counter Mode (R/W)
 	//Helper Variables
 	ClockSource	clockSource;
+	bool		toTarget;		//Timer Counter has reached Target Value
+	bool		toOverflow;		//Timer Counter has overflowed (0xffff)
 
 	TimerStatus& operator=(TimerStatus& x)
 	{
@@ -46,6 +51,8 @@ struct TimerStatus
 		this->counterTarget = x.counterTarget;
 		this->counterMode = x.counterMode;
 		this->clockSource = x.clockSource;
+		this->toTarget = x.toTarget;
+		this->toOverflow = x.toOverflow;
 
 		return *this;
 	}
@@ -82,6 +89,9 @@ private:
 	void updateTimer0();
 	void updateTimer1();
 	void updateTimer2();
+	void updateInterrupt(uint8_t timerNumber);
+
+	uint32_t	pulseDuration[TIMER_NUMBER];
 
 	//Timers Internal Registers
 	std::array<TimerStatus, TIMER_NUMBER>	timerStatus;

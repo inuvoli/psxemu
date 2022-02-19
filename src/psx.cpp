@@ -13,7 +13,9 @@ Psx::Psx()
 	dma = std::make_shared<Dma>();
 	cdrom = std::make_shared<Cdrom>();
 	timers = std::make_shared<Timers>();
+	controller = std::make_shared<Controller>();
 	tty = std::make_shared<Tty>();
+	interrupt = std::make_shared<Interrupt>();
 
 	//Link Hardware Devices
 	cpu->link(this);
@@ -24,7 +26,9 @@ Psx::Psx()
 	dma->link(this);
 	cdrom->link(this);
 	timers->link(this);
+	controller->link(this);
 	tty->link(this);
+	interrupt->link(this);
 
 	//Reset Internal Parameters
 	exp1BaseAddr = 0x0;
@@ -66,6 +70,7 @@ bool Psx::reset()
 	mem->reset();
 	timers->reset();
 	cdrom->reset();
+	interrupt->reset();
 
 	return true;
 }
@@ -102,9 +107,14 @@ bool Psx::clock()
 		timers->clock(ClockSource::System8);
 	}
 
-	if (!(masterClock % 150))
+	if (!(masterClock % 250))
 	{
 		cdrom->clock(); //Temporary
+	}
+
+	if (!(masterClock % 2))
+	{
+		interrupt->clock();
 	}
 
 	masterClock++;
@@ -143,8 +153,11 @@ uint32_t Psx::rdMem(uint32_t vAddr, uint8_t bytes)
 	if (memRangeCDR.contains(phAddr))  return cdrom->readAddr(phAddr, bytes);
 	if (memRangeGPU.contains(phAddr))  return gpu->readAddr(phAddr, bytes);
 	if (memRangeSPU.contains(phAddr))  return spu->readAddr(phAddr, bytes);
-	if (memRangeTTY.contains(phAddr))  return tty->readAddr(phAddr, bytes);	
+	if (memRangeINT.contains(phAddr))  return interrupt->readAddr(phAddr, bytes);	
 	
+	//Debug Bios TTY
+	if (memRangeTTY.contains(phAddr))  return tty->readAddr(phAddr, bytes);
+		
 	printf("Unhandled Memory Read  - addr: 0x%08x (%d)\n", vAddr, bytes);
 
 	return 0;	
@@ -170,7 +183,10 @@ bool Psx::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 	if (memRangeCDR.contains(phAddr))  return cdrom->writeAddr(phAddr, data, bytes);
 	if (memRangeGPU.contains(phAddr))  return gpu->writeAddr(phAddr, data, bytes);
 	if (memRangeSPU.contains(phAddr))  return spu->writeAddr(phAddr, data, bytes);
+	if (memRangeINT.contains(phAddr))  return interrupt->writeAddr(phAddr, data, bytes);
 	if (memRangePOST.contains(phAddr))  return this->writeAddr(phAddr, data, bytes);
+
+	//Debug Bios TTY
 	if (memRangeTTY.contains(phAddr))  return tty->writeAddr(phAddr, data, bytes);
 
 	printf("Unhandled Memory Write - addr: 0x%08x, data: 0x%08x (%d)\n", vAddr, data, bytes);
@@ -223,6 +239,9 @@ uint32_t Psx::readAddr(uint32_t addr, uint8_t bytes)
 
 	switch(addr)
 	{
+	case 0:
+		break;
+
 	default:
 		data = 0;
 		printf("PSX - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);

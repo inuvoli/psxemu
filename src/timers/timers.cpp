@@ -11,6 +11,11 @@ Timers::Timers()
 		e.counterTarget = 0x0;
 		e.counterMode.word = 0x0;
 	}
+
+	//Init Pulse Duration Counters
+	pulseDuration[0] = PULSE_DURATION;
+	pulseDuration[1] = PULSE_DURATION;
+	pulseDuration[2] = PULSE_DURATION;
 }
 
 Timers::~Timers()
@@ -58,8 +63,10 @@ bool Timers::clock(ClockSource source)
 		printf("TIMERS - Unknown Clock Source!\n");
 	}
 
-
-	timerStatus[1].counterMode.clkSource;
+	//Update Interrupt Signals
+	// updateInterrupt(0);
+	// updateInterrupt(1);
+	// updateInterrupt(2);
 
 	return true;
 }
@@ -87,9 +94,11 @@ void Timers::updateTimer0()
 			if (!psx->gpu->hBlank) timerStatus[0].counterValue++;
 			break;
 		case 1:
+			timerStatus[0].counterValue++;
 			if (psx->gpu->hBlank) timerStatus[0].counterValue = 0x0000;
 			break;
 		case 2:
+			if (psx->gpu->hBlank) timerStatus[0].counterValue++; ///DA VERIFICARE, NON HA SENSO
 			if (psx->gpu->hBlank) timerStatus[0].counterValue = 0x0000; //CHECK - hBlank shoult be active only at the end of visible area?
 			break;
 		case 3:
@@ -105,8 +114,7 @@ void Timers::updateTimer0()
 			if (timerStatus[0].counterValue > timerStatus[0].counterTarget)
 			{
 				timerStatus[0].counterValue = 0x0000;
-				timerStatus[0].counterMode.isTarget = true;
-				//TODO - Interrupt Management
+				timerStatus[0].counterTarget = true;
 			}
 		}
 		else
@@ -114,8 +122,7 @@ void Timers::updateTimer0()
 			if (timerStatus[0].counterValue > 0xffff)
 			{
 				timerStatus[0].counterValue = 0x0000;
-				timerStatus[0].counterMode.isOverflow = true;
-				//TODO - Interrupt Management
+				timerStatus[0].toOverflow = true;
 			}
 		}
 	}
@@ -130,8 +137,7 @@ void Timers::updateTimer0()
 		if (timerStatus[0].counterValue > 0xffff)
 		{
 			timerStatus[0].counterValue = 0x0000;
-			//timerStatus[0].counterMode.isOverflow = true;
-			//TODO Interrupt Management
+			timerStatus[0].toOverflow = true;
 		}
 	}
 }
@@ -159,10 +165,12 @@ void Timers::updateTimer1()
 			if (!psx->gpu->vBlank) timerStatus[1].counterValue++;
 			break;
 		case 1:
+			timerStatus[1].counterValue++;
 			if (psx->gpu->vBlank) timerStatus[1].counterValue = 0x0000;
 			break;
 		case 2:
-			if (psx->gpu->vBlank) timerStatus[1].counterValue = 0x0000; //CHECK - hBlank shoult be active only at the end of visible area?
+			if (psx->gpu->vBlank) timerStatus[0].counterValue++; ///DA VERIFICARE, NON HA SENSO
+			if (psx->gpu->vBlank) timerStatus[1].counterValue = 0x0000; //CHECK - vBlank shoult be active only at the end of visible area?
 			break;
 		case 3:
 			if (psx->gpu->vBlank) timerStatus[1].counterMode.syncEn = false;
@@ -177,8 +185,7 @@ void Timers::updateTimer1()
 			if (timerStatus[1].counterValue > timerStatus[1].counterTarget)
 			{
 				timerStatus[1].counterValue = 0x0000;
-				timerStatus[1].counterMode.isTarget = true;
-				//TODO - Interrupt Management
+				timerStatus[1].counterTarget = true;
 			}
 		}
 		else
@@ -186,8 +193,7 @@ void Timers::updateTimer1()
 			if (timerStatus[1].counterValue > 0xffff)
 			{
 				timerStatus[1].counterValue = 0x0000;
-				timerStatus[1].counterMode.isOverflow = true;
-				//TODO - Interrupt Management
+				timerStatus[1].toOverflow = true;
 			}
 		}
 	}
@@ -202,8 +208,7 @@ void Timers::updateTimer1()
 		if (timerStatus[1].counterValue > 0xffff)
 		{
 			timerStatus[1].counterValue = 0x0000;
-			//timerStatus[1].counterMode.isOverflow = true;
-			//TODO Interrupt Management
+			timerStatus[1].toOverflow = true;
 		}
 	}
 }
@@ -243,8 +248,7 @@ void Timers::updateTimer2()
 			if (timerStatus[2].counterValue > timerStatus[2].counterTarget)
 			{
 				timerStatus[2].counterValue = 0x0000;
-				timerStatus[2].counterMode.isTarget = true;
-				//TODO - Interrupt Management
+				timerStatus[2].counterTarget = true;
 			}
 		}
 		else
@@ -252,8 +256,7 @@ void Timers::updateTimer2()
 			if (timerStatus[2].counterValue > 0xffff)
 			{
 				timerStatus[2].counterValue = 0x0000;
-				timerStatus[2].counterMode.isOverflow = true;
-				//TODO - Interrupt Management
+				timerStatus[2].toOverflow = true;
 			}
 		}
 	}
@@ -268,8 +271,7 @@ void Timers::updateTimer2()
 		if (timerStatus[2].counterValue > 0xffff)
 		{
 			timerStatus[2].counterValue = 0x0000;
-			//timerStatus[2].counterMode.isOverflow = true;
-			//TODO Interrupt Management
+			timerStatus[2].toOverflow = true;
 		}
 	}
 }
@@ -319,6 +321,9 @@ bool Timers::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 			timerStatus[0].clockSource = ClockSource::System;
 		else
 			timerStatus[0].clockSource = ClockSource::Dot;
+		
+		timerStatus[0].toTarget = false;
+		timerStatus[0].toOverflow = false;
 		break;
 
 	case 0x1f801108:	//----------------------------Counter Target 0
@@ -340,6 +345,9 @@ bool Timers::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 			timerStatus[1].clockSource = ClockSource::System;
 		else
 			timerStatus[1].clockSource = ClockSource::hBlank;
+		
+		timerStatus[1].toTarget = false;
+		timerStatus[1].toOverflow = false;
 		break;
 
 	case 0x1f801118:	//----------------------------Counter Target 1
@@ -361,7 +369,9 @@ bool Timers::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 			timerStatus[2].clockSource = ClockSource::System;
 		else
 			timerStatus[2].clockSource = ClockSource::System8;
-
+		
+		timerStatus[2].toTarget = false;
+		timerStatus[2].toOverflow = false;
 		break;
 
 	case 0x1f801128:	//----------------------------Counter Target 2
@@ -388,8 +398,6 @@ uint32_t Timers::readAddr(uint32_t addr, uint8_t bytes)
 
 	case 0x1f801104:
 		data = timerStatus[0].counterMode.word;
-		timerStatus[0].counterMode.isTarget = false;		//Reset on any reading
-		timerStatus[0].counterMode.isOverflow = false;		//Reset on any reading
 		break;
 
 	case 0x1f801108:
@@ -403,8 +411,6 @@ uint32_t Timers::readAddr(uint32_t addr, uint8_t bytes)
 
 	case 0x1f801114:
 		data = timerStatus[1].counterMode.word;
-		timerStatus[1].counterMode.isTarget = false;		//Reset on any reading
-		timerStatus[1].counterMode.isOverflow = false;		//Reset on any reading
 		break;
 
 	case 0x1f801118:
@@ -418,8 +424,6 @@ uint32_t Timers::readAddr(uint32_t addr, uint8_t bytes)
 
 	case 0x1f801124:
 		data = timerStatus[2].counterMode.word;
-		timerStatus[2].counterMode.isTarget = false;		//Reset on any reading
-		timerStatus[2].counterMode.isOverflow = false;		//Reset on any reading
 		break;
 
 	case 0x1f801128:
@@ -432,6 +436,139 @@ uint32_t Timers::readAddr(uint32_t addr, uint8_t bytes)
 	}
 
 	return data;
+}
+
+void Timers::updateInterrupt(uint8_t timerNumber)
+{
+	bool toggleMode = (bool)timerStatus[timerNumber].counterMode.irqToggle;
+	bool repeatMode = (bool)timerStatus[timerNumber].counterMode.irqRepeat;
+	bool isTarget = (bool)timerStatus[timerNumber].counterMode.isTarget;
+	bool isOverflow = (bool)timerStatus[timerNumber].counterMode.isOverflow;
+	bool triggerTarget = timerStatus[timerNumber].toTarget;
+	bool triggerOverflow = timerStatus[timerNumber].toOverflow;
+	bool throwInterrupt = false;
+
+	if (toggleMode)
+	{
+		//Toggle Mode
+		if (repeatMode)
+		{
+			//Repeat Mode
+			if (isTarget & triggerTarget)
+			{
+				timerStatus[timerNumber].counterMode.irqRequest = (bool)(timerStatus[timerNumber].counterMode.irqRequest) ? false : true;
+				timerStatus[timerNumber].toTarget = false;
+				throwInterrupt = !(bool)timerStatus[timerNumber].counterMode.irqRequest;
+			}
+
+			if (isOverflow & triggerOverflow)
+			{
+				timerStatus[timerNumber].counterMode.irqRequest = (bool)(timerStatus[timerNumber].counterMode.irqRequest) ? false : true;
+				timerStatus[timerNumber].toOverflow = false;
+				throwInterrupt = !(bool)timerStatus[timerNumber].counterMode.irqRequest;
+			}
+				
+		}
+		else
+		{
+			//Once Mode
+			if (isTarget & triggerTarget)
+			{
+				timerStatus[timerNumber].counterMode.irqRequest = false;
+				timerStatus[timerNumber].toTarget = false;
+				throwInterrupt = true;
+			}
+
+			if (isOverflow & triggerOverflow)
+			{
+				timerStatus[timerNumber].counterMode.irqRequest = false;
+				timerStatus[timerNumber].toOverflow = false;
+				throwInterrupt = true;
+			}
+		}
+	}
+	else
+	{
+		//Pulse Mode
+		if (repeatMode)
+		{
+			if (timerStatus[timerNumber].counterMode.irqRequest = false)
+			{
+				pulseDuration[timerNumber]--;
+				if (pulseDuration == 0)
+					timerStatus[timerNumber].counterMode.irqRequest = true;
+				return;
+			}
+
+			//Repeat Mode
+			if (isTarget & triggerTarget)
+			{
+				timerStatus[timerNumber].counterMode.irqRequest = false;
+				pulseDuration[timerNumber] = PULSE_DURATION;
+				timerStatus[timerNumber].toTarget = false;
+				throwInterrupt = true;
+			}
+
+			if (isOverflow & triggerOverflow)
+			{
+				timerStatus[timerNumber].counterMode.irqRequest = false;
+				pulseDuration[timerNumber] = PULSE_DURATION;
+				timerStatus[timerNumber].toOverflow = false;
+				throwInterrupt = true;
+			}
+		}
+		else
+		{
+			if (timerStatus[timerNumber].counterMode.irqRequest = false)
+			{
+				pulseDuration[timerNumber]--;
+				if (pulseDuration == 0)
+					timerStatus[timerNumber].counterMode.irqRequest = true;
+				//Hack
+				timerStatus[timerNumber].counterMode.isTarget = false;
+				timerStatus[timerNumber].counterMode.isOverflow = false;
+
+				return;
+			}
+
+			//Once Mode
+			if (isTarget & triggerTarget)
+			{
+				timerStatus[timerNumber].counterMode.irqRequest = false;
+				pulseDuration[timerNumber] = PULSE_DURATION;
+				timerStatus[timerNumber].toTarget = false;
+				throwInterrupt = true;
+			}
+
+			if (isOverflow & triggerOverflow)
+			{
+				timerStatus[timerNumber].counterMode.irqRequest = false;
+				pulseDuration[timerNumber] = PULSE_DURATION;
+				timerStatus[timerNumber].toOverflow = false;
+				throwInterrupt = true;
+			}
+		}
+	}
+
+	//Throw Interrupt
+	if (throwInterrupt)
+	{
+		switch(timerNumber)
+		{
+		case 0:
+			psx->interrupt->set(static_cast<uint32_t>(interruptCause::timer0));
+			break;
+		case 1:
+			psx->interrupt->set(static_cast<uint32_t>(interruptCause::timer1));
+			break;
+		case 2:
+			psx->interrupt->set(static_cast<uint32_t>(interruptCause::timer2));
+			break;
+			
+		}
+
+		throwInterrupt = false;
+	}
 }
 
 //-----------------------------------------------------------------------------------------------------

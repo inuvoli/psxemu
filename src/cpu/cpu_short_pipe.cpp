@@ -1,5 +1,6 @@
 #include "cpu_short_pipe.h"
 #include "psx.h"
+#include "functions_name.h"
 
 CPU::CPU()
 {
@@ -7,22 +8,15 @@ CPU::CPU()
 	pc = 0xbfc00000;
 	hi = 0x00000000;
 	lo = 0x00000000;
-	memset(gpr, 0x00, sizeof(uint32_t) * 32);
-	memset(cop0_reg, 0x00, sizeof(uint32_t) * 32);
-	memset(cop1_reg, 0x00, sizeof(uint32_t) * 32);
-	memset(cop2_reg, 0x00, sizeof(uint32_t) * 32);
-	memset(cop3_reg, 0x00, sizeof(uint32_t) * 32);
+	std::memset(gpr, 0x00, sizeof(uint32_t) * 32);
 	cacheReg = 0x00000000;
-	interruptStatus = 0x00000000;
-	interruptMask = 0x00000000;
 
-	//Cop0 SR Initial Value: BEV is Set , TS is Set
-	cop0_reg[12] = 0x00600000;
-	//Cop0 PRid Initial Value
-	cop0_reg[15] = 0x00000002;
+	//Init Coprocessors cop0 & cop2
+	cop0 = std::make_shared<Cop0>(this);
+	cop2 = std::make_shared<Cop2>(this);
 
 	//Init Pipeline Registers and Status
-	memset(&currentOpcode, 0x00, sizeof(decodedOpcode));
+	std::memset(&currentOpcode, 0x00, sizeof(decodedOpcode));
 	stallPipeline = false;
 	dmaTakeOnBus = false;
 	branchDelaySlot = false;
@@ -176,27 +170,20 @@ bool CPU::reset()
 	pc = 0xbfc00000;
 	hi = 0x00000000;
 	lo = 0x00000000;
-	memset(gpr, 0x00, sizeof(uint32_t) * 32);
-	memset(cop0_reg, 0x00, sizeof(uint32_t) * 32);
-	memset(cop1_reg, 0x00, sizeof(uint32_t) * 32);
-	memset(cop2_reg, 0x00, sizeof(uint32_t) * 32);
-	memset(cop3_reg, 0x00, sizeof(uint32_t) * 32);
+	std::memset(gpr, 0x00, sizeof(uint32_t) * 32);
 	cacheReg = 0x00000000;
-	interruptStatus = 0x00000000;
-	interruptMask = 0x00000000;
 
-	//Cop0 SR Initial Value: BEV is Set , TS is Set
-	cop0_reg[12] = 0x00600000;
-	//Cop0 PRid Initial Value
-	cop0_reg[15] = 0x00000002;
+	//Reset Coprocessor Cop0 and Cop2
+	cop0->reset();
+	cop2->reset();
 
 	//Init Pipeline Registers and Status
-	memset(&currentOpcode, 0x00, sizeof(decodedOpcode));
+	std::memset(&currentOpcode, 0x00, sizeof(decodedOpcode));
 	stallPipeline = false;
 	dmaTakeOnBus = false;
 	branchDelaySlot = false;
 	branchAddress = 0x00000000;
-
+	
 	return true;
 }
 
@@ -234,9 +221,9 @@ inline uint32_t CPU::rdInst(uint32_t vAddr, uint8_t bytes)
 
 inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
 {
-	cpu::StatusRegister statusReg;
+	cop0::StatusRegister statusReg;
 
-	statusReg.word = cop0_reg[12];
+	statusReg.word = cop0->reg[12];
 
 	//Check if vAddr in unaligned
 	if ((bool)(vAddr % bytes) && checkalign)
@@ -251,22 +238,6 @@ inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
 	//Check if Reading from Data Cache, aka ScratchPad (0x1f800000 - 0x1f8003ff)
 	if (memRangeScratchpad.contains(vAddr)) return rdDataCache(vAddr, bytes);
 
-	//Check if Reading from Interrupt Control Registers (0x1f801070 - 0x1f801074)
-	if (memRangeIntRegs.contains(vAddr))
-	{
-		switch (vAddr)
-		{
-		case 0x1f801070:
-			//printf("Interrupt Status:       0x%08x\n", interruptStatus);
-			return interruptStatus;
-			break;
-		case 0x1f801074:
-			//printf("Interrupt Mask Read:    0x%08x\n", interruptMask);
-			return interruptMask;
-			break;
-		}
-	}
-
 	//Check if Reading from Cache Control Register (0xfffe0130)
 	if (memRangeCacheRegs.contains(vAddr)) return cacheReg;
 	
@@ -275,9 +246,9 @@ inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
 
 inline bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool checkalign)
 {
-	cpu::StatusRegister statusReg;
+	cop0::StatusRegister statusReg;
 
-	statusReg.word = cop0_reg[12];
+	statusReg.word = cop0->reg[12];
 
 	//Check if vAddr in unaligned
 	if ((bool)(vAddr % bytes) && checkalign)
@@ -294,25 +265,6 @@ inline bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool check
 
 	//Check if Writing to Data Cache, aka ScratchPad
 	if (memRangeScratchpad.contains(vAddr)) return wrDataCache(vAddr, data, bytes);
-	
-
-	//Check if Writing to Interrupt Control Registers (0x1f801070 - 0x1f801074)
-	if (memRangeIntRegs.contains(vAddr))
-	{
-		switch (vAddr)
-		{
-		case 0x1f801070:
-			interruptStatus &= data;
-			//printf("Interrupt Acknowledge:  0x%08x\n", data);
-			return true;
-			break;
-		case 0x1f801074:
-			interruptMask = data;
-			//printf("Interrupt Mask Write:   0x%08x\n", data);
-			return true;
-			break;
-		}
-	}
 
 	//Check if Writing to Cache Control Register (0xfffe0130)
 	if (memRangeCacheRegs.contains(vAddr))
@@ -392,13 +344,15 @@ bool CPU::clock()
 	if (dmaTakeOnBus)
 		return true;
 
-	//If Interrupt is triggered skip to next clock cycle
-	if (interruptCheck())
-		return true;
-
 	//Fetch Instruction from current PC and increment it
 	cpu::Instruction opcode;
 	opcode.word = rdInst(pc);
+
+	//TEMPORARY
+	// if (pc == 0xa0) printf("Function A(%02xh) --- %s\n", gpr[9], function_A[gpr[9]].c_str());
+	// if ((pc == 0xb0) & (gpr[9] != 0x3d)) printf("Function B(%02xh) --- %s\n", gpr[9], function_B[gpr[9]].c_str());
+	// if (pc == 0xc0) printf("Function C(%02xh) --- %s\n", gpr[9], function_C[gpr[9]].c_str());
+	// if (pc == 0xc0 && gpr[9] == 0x0b) exit(1);
 
 	//Check if branchDelaySlot is set, in that case we are executing the instruction in the Branch Delay Slot
 	//and Program Counter must be set to branch new value, if not just step to the next instruction
@@ -418,20 +372,20 @@ bool CPU::clock()
 		//Decode Current Instruction Fields
 		currentOpcode.op = opcode.op;
 		currentOpcode.funct = opcode.funct;
-		currentOpcode.rd = opcode.rd;
+		currentOpcode.rd = (uint8_t)opcode.rd;
 		currentOpcode.rt = opcode.rt;
 		currentOpcode.rs = opcode.rs;
 		currentOpcode.regA = gpr[currentOpcode.rs];
 		currentOpcode.regB = gpr[currentOpcode.rt];
 		currentOpcode.tgt = opcode.tgt;
-		currentOpcode.shamt = opcode.shamt;
+		currentOpcode.shamt = (uint8_t)opcode.shamt;
 		currentOpcode.cofun = opcode.cofun;
 		currentOpcode.imm = (uint32_t)(int16_t)opcode.imm; //Sign Extended
-		currentOpcode.cop = (bool)opcode.cop;
 
 		//Execute Current Instruction
 		if (currentOpcode.op == 0x00)
 		{
+			//SPECIAL opcode
 			bResult = (this->*functSet[currentOpcode.funct].operate)();
 			if (!bResult)
 				printf("Unimplemented Function %s!\n", functSet[currentOpcode.funct].mnemonic.c_str());
@@ -449,32 +403,31 @@ bool CPU::clock()
 
 bool CPU::exception(uint32_t cause)
 {
-	cpu::StatusRegister	statusReg;
-	cpu::CauseRegister	causeReg;
+	cop0::StatusRegister	statusReg;
+	cop0::CauseRegister		causeReg;
+	
+	//Get Current values of Cause Register and Status Register
+	statusReg.word = cop0->reg[12];
+	causeReg.word = cop0->reg[13];
 
-	//printf("EXCEPTION (%d)\n", cause);
-
-	statusReg.word = cop0_reg[12];
-	causeReg.word = cop0_reg[13];
+	//Disable Interrupt (shift 2 position left bit [0, 5] for SR)
+	statusReg.stk = (statusReg.stk << 2) & 0x3f;
 	
 	//Check if exception occurred in a branch delay slot
 	if (branchDelaySlot)
 	{
-		cop0_reg[14] = pc - 4;		//Set EPC to Jump Instruction if exception occurs in a Branch Delay Slot
+		cop0->reg[14] = pc - 4;		//Set EPC to Jump Instruction if exception occurs in a Branch Delay Slot
 		causeReg.bd = true;			//Set BD bit in cop0 CAUSE Register if exception occurs in a Branch Delay Slot
 		branchDelaySlot = false;
 	}
 	else
 	{
-		cop0_reg[14] = pc;			//Set EPC to Current Instruction if we are not in a Branch Delay Slot
+		cop0->reg[14] = pc;			//Set EPC to Current Instruction if we are not in a Branch Delay Slot
 		causeReg.bd = false;		//Set BD bit in cop0 CAUSE Register if exception occurs in a Branch Delay Slot
 	}
 	
 	//Set Exception Code in CAUSE Register
 	causeReg.excode = cause;
-	
-	//Disable Interrupt (shift 2 position left bit [0, 5] for SR)
-	statusReg.stk = (statusReg.stk << 2) & 0x3f;
 		
 	//Jump to exception handler
 	if (statusReg.bev)
@@ -482,56 +435,38 @@ bool CPU::exception(uint32_t cause)
 	else
 		pc = 0x80000080;
 
-	cop0_reg[13] = causeReg.word;
-	cop0_reg[12] = statusReg.word;
+	//Update Cause Register and Status Register
+	cop0->reg[13] = causeReg.word;
+	cop0->reg[12] = statusReg.word;
 
 	return true;
 }
 
-bool CPU::interrupt(uint32_t cause)
+bool CPU::interrupt(uint8_t status)
 {
-	//Set I_STAT Interrupt Flag according to the Interrupt Cause
-	interruptStatus |= 1UL << cause;
+	static int i = 0;
+	cop0::StatusRegister	statusReg;
+	cop0::CauseRegister		causeReg;
 
-	return true;
-}
+	//Get Current values of Cause Register and Status Register
+	statusReg.word = cop0->reg[12];
+	causeReg.word = cop0->reg[13];
 
-bool CPU::interruptCheck()
-{
-	cpu::StatusRegister	statusReg;
-	cpu::CauseRegister	causeReg;
+	i++;
 
-	//Check for any active interrupt
-	if (interruptStatus & interruptMask & 0x000007ff)
+	//Set cop0r13.bit10 (Cause Register) according to INTn pin value, PSX only use Hw INT0
+	causeReg.iphw = status;	
+	cop0->reg[13] = causeReg.word;		//Update Cause Register
+
+	//Check COP0 for Pending non masked Interrupts with iEc enabled.
+	if ((bool)(statusReg.imhw & causeReg.iphw) & (bool)statusReg.iec)
 	{
-		//Set cop0r13.bit10
-		causeReg.word = cop0_reg[13];
-		causeReg.iphw = 0x01;
-		cop0_reg[13] = causeReg.word;
-	}
-	else
-	{
-		//Reset cop0r13.bit10
-		causeReg.word = cop0_reg[13];
-		causeReg.iphw = 0x00;
-		cop0_reg[13] = causeReg.word;
-		return false;
-	}
+		//printf("INTERRUPT0!!!!!\n");
 
-	//Check COP0 Status Register for Interrupt Enable Current
-	statusReg.word = cop0_reg[12];
-	if (!(bool)statusReg.iec)
-		return false;
-
-	//Check COP0 for Pending Interrupt with active Interupt Mask
-	//Playstation only use Hardware Interrupt Int0.
-	if (statusReg.imhw & causeReg.iphw)
-	{
 		exception(static_cast<uint32_t>(cpu::exceptionCause::interrupt));		
-		return true;
 	}
-
-	return false;
+		
+	return true;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------
@@ -728,61 +663,8 @@ bool CPU::op_lui()
 
 bool CPU::op_cop0()
 {
-	if (currentOpcode.cop)
-	{
-		switch (currentOpcode.funct)
-		{
-		case 0x01:	//tlbr
-			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
-			printf("Error! - tlbr unsupported\n");
-			break;
-		case 0x02:	//tlbwi
-			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
-			printf("Error! - tlbwi unsupported\n");
-			break;
-		case 0x06:	//tlbwr
-			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
-			printf("Error! - tlbwr unsupported\n");
-			break;
-		case 0x08:	//tlbp
-			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
-			printf("Error! - tlbp unsupported\n");
-			break;
-		case 0x10:	//rfe
-			//Restore Interrupt Status (shift 2 position right bit [0, 5] for SR, bit 5 and 4 remain untouched)
-			cpu::StatusRegister statusReg;
-			statusReg.word = cop0_reg[12];
-			statusReg.stk = ((statusReg.stk >> 2) & 0x0f) | (statusReg.stk & 0x30);
-			cop0_reg[12] = statusReg.word;
-			break;
-		}
-	}
-	else
-	{
-		switch (currentOpcode.rs)
-		{
-		case 0x00:	//mfc0 rt, rd
-			if (currentOpcode.rt != 0)
-			{
-				gpr[currentOpcode.rt] = cop0_reg[currentOpcode.rd];
-				//printf("Move (0x%08x) from CPR[0, %d] to GPR[%d]\n", cop0_reg[currentOpcode.rd], currentOpcode.rd, currentOpcode.rt);
-			}
-				
-			break;
-		case 0x02:	//cfc0 rt, rd
-			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
-			printf("Error! - cfc0 is unsupported\n");
-			break;
-		case 0x04:	//mtc0 rt, rd
-			cop0_reg[currentOpcode.rd] = currentOpcode.regB;
-			//printf("Move (0x%08x) from GPR[%d] to CPR[0, %d]\n", currentOpcode.regB, currentOpcode.rt, currentOpcode.rd);
-			break;
-		case 0x06:	//ctc0 rt, rd
-			exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
-			printf("Error! - ctc0 is unsupported\n");
-			break;
-		}
-	}
+	if (!cop0->execute(currentOpcode.cofun))
+		exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -796,28 +678,8 @@ bool CPU::op_cop1()
 
 bool CPU::op_cop2()
 {
-	if (currentOpcode.cop)
-	{
-		printf("Error! - cop2 not implemented yet!\n");
-	}
-	else
-	{
-		switch (currentOpcode.rs)
-		{
-		case 0x00:	//mfc2 rt, rd
-			printf("Error! - mfc2 not implemented yet!\n");
-			break;
-		case 0x02:	//cfc2 rt, rd
-			printf("Error! - cfc2 not implemented yet!\n");
-			break;
-		case 0x04:	//mtc2 rt, rd
-			printf("Error! - mtc2 not implemented yet!\n");
-			break;
-		case 0x06:	//ctc2 rt, rd
-			printf("Error! - ctc2 not implemented yet!\n");
-			break;
-		}
-	}
+	if (!cop2->execute(currentOpcode.cofun))
+		exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -1050,7 +912,7 @@ bool CPU::op_srav()
 
 bool CPU::op_jr()
 {
-	//Foreward PC to fetch stage
+	//Foreard PC to fetch stage
 	branchAddress = currentOpcode.regA;
 	branchDelaySlot = true;
 
@@ -1059,7 +921,7 @@ bool CPU::op_jr()
 
 bool CPU::op_jalr()
 {
-	//Foreward PC to fetch stage
+	//Forward PC to fetch stage
 	branchAddress = currentOpcode.regA;
 	branchDelaySlot = true;
 	gpr[31] = pc + 4;
@@ -1069,6 +931,7 @@ bool CPU::op_jalr()
 
 bool CPU::op_syscall()
 {
+	//printf("SYSCALL (%02xh) -------------------------------------------------\n", gpr[4]);
 	exception(static_cast<uint32_t>(cpu::exceptionCause::syscall));
 
 	return true;

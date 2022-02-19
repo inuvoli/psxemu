@@ -237,8 +237,13 @@ bool psxemu::handleEvents()
                 pDebugger->toggleDebugModuleStatus(DebugModule::Cdrom);
                 break;
             //-------------------------------- Test
-            case SDLK_t:
-                pPsx->mem->ram[0xb9b0] = 0x01;
+            case SDLK_z:
+                pDebugger->setBreakpoint(0x00000001);
+                //pPsx->interrupt->set(static_cast<uint32_t>(interruptCause::cdrom));
+                break;
+            case SDLK_x:
+                pDebugger->setBreakpoint(0x00000000);
+                //pPsx->interrupt->set(static_cast<uint32_t>(interruptCause::cdrom));
                 break;
             }
             break;
@@ -354,6 +359,9 @@ bool psxemu::renderRamWidget()
 
 bool psxemu::renderCpuWidget()
 {
+    InterruptDebugInfo interruptInfo;
+    pPsx->interrupt->getDebugInfo(interruptInfo);
+
     ImGui::Begin("CPU Registers");
     for (int i = 0; i < 32; i++)
     {
@@ -362,9 +370,9 @@ bool psxemu::renderCpuWidget()
         ImGui::Text("%s = 0x%08x", cpuRegisterName[i].c_str() , pPsx->cpu->gpr[i]);
         ImGui::SameLine();
         if (cop0RegisterName[i] == "")
-            ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0_reg[i]);
+            ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
         else
-            ImGui::Text("%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0_reg[i]);
+            ImGui::Text("%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
         switch (i)
         {
         case 0:
@@ -385,11 +393,11 @@ bool psxemu::renderCpuWidget()
             break;
         case 5:
             ImGui::SameLine();
-            ImGui::Text("Int. Status = 0x%08x", pPsx->cpu->interruptStatus);
+            ImGui::Text("Int. Status = 0x%08x", interruptInfo.i_stat);
             break;
         case 6:
             ImGui::SameLine();
-            ImGui::Text("Int. Mask   = 0x%08x", pPsx->cpu->interruptMask);
+            ImGui::Text("Int. Mask   = 0x%08x", interruptInfo.i_mask);
             break;
         case 8:
             ImGui::SameLine();

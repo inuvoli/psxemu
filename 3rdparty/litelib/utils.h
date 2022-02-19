@@ -61,9 +61,9 @@ inline void decodeTexPage(const uint16_t param, glm::vec2 &texPageCoords, glm::f
 	texColorDepth = (GLfloat)((param >> 7) & 0x3);
 }
 
-inline vec2t<uint16_t> decodeResolution(uint32_t gpuStat)
+inline lite::vec2t<uint16_t> decodeResolution(uint32_t gpuStat)
 {
-	vec2t<uint16_t> resolution;
+	lite::vec2t<uint16_t> resolution;
 	uint8_t hRes1, hRes2, vRes1, vMode, iMode;
 
 	hRes1 = (gpuStat >> 17) & 0x3;

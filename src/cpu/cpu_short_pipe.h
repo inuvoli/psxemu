@@ -7,9 +7,13 @@
 #include <map>
 #include <memory>
 
+#include "litelib.h" 
 #include "bitfield.h"
+
 #include "cpu_registers.h"
-#include "range.h" 
+#include "cop0.h"
+#include "cop2.h"
+
 
 class Psx;
 
@@ -26,7 +30,6 @@ struct decodedOpcode
 	uint32_t	tgt;
 	uint8_t		shamt;
 	uint32_t	cofun;
-	bool		cop;
 };
 
 class CPU
@@ -49,7 +52,7 @@ public:
 
 	//Pipeline Fase Functions
 	bool exception(uint32_t cause);
-	bool interrupt(uint32_t cause);
+	bool interrupt(uint8_t status);
 
 public:
 	//CPU Internal Registers
@@ -57,13 +60,11 @@ public:
 	uint32_t	hi;					//HI Register, used for Mult and Div
 	uint32_t	lo;					//LO Register, used for Mult and Div
 	uint32_t	gpr[32];			//CPU General Purpose Registers
-	uint32_t	cop0_reg[32];		//Coprocessor0 Registers
-	uint32_t	cop1_reg[32];		//Coprocessor1 Registers (Not Implemented)
-	uint32_t	cop2_reg[32];		//Coprocessor2 Registers
-	uint32_t	cop3_reg[32];		//Coprocessor3 Registers (Not Implemented)
 	uint32_t	cacheReg;			//Cache Control Register (mapped to 0xfffe0130)
-	uint16_t	interruptStatus;	//Interrupt Status (mapped to 0x1f801070)
-	uint16_t	interruptMask;		//Interrupt Mask (mapped to 0x1f801074)
+
+	//Coprocessors
+	std::shared_ptr<Cop0>	cop0;	//Coprocessor 0
+	std::shared_ptr<Cop2>	cop2;	//Coprocessor 2 (GTE)
 
 	//Pipeline Registers and Status
 	decodedOpcode	currentOpcode;
@@ -86,9 +87,6 @@ public:
 private:
 	//Helper functions
 	bool isOverflow(int32_t a, int32_t b);
-
-	//Interrupt Status Check
-	bool interruptCheck();
 
 	//CPU Instructions
 	bool op_bxx();

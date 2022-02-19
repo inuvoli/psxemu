@@ -83,10 +83,9 @@ public:
 	bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes);
 	uint32_t readAddr(uint32_t addr, uint8_t bytes);
 
-		//Debug Info
+	//Debug Info
 	void getDebugInfo(CdromDebugInfo& info);
 
-public:
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
 

@@ -32,7 +32,7 @@ Shader::Shader(const GLchar* vertexSourcePath, const GLchar* fragmentSourcePath)
     }
     catch(const std::exception& e)
     {
-        std::cout << "ERROR::SHADER::FILE_NOT_READ" << std::endl;
+        std::cout << "ERROR::SHADER::FILE_NOT_READ::" << e.what() << std::endl;
     }
 
     const GLchar* vShaderCode = vertexCode.c_str();

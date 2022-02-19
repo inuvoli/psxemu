@@ -157,7 +157,7 @@ bool Renderer::vBlankNewFrame()
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     //Store Number the number of Vertex copied on the Vertex Buffer Object and Empty DrawData Structure
-    drawDataVertexNumber = drawData.size();
+    drawDataVertexNumber = (int)drawData.size();
     drawData.clear();
 
     return true;

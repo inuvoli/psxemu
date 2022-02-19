@@ -28,7 +28,11 @@ set(PSXEMU_SOURCES
 	src/memory/dmachannel.cpp
 	src/memory/memory.cpp
     src/peripherals/cdrom.cpp
+	src/peripherals/controller.cpp
+	src/peripherals/interrupt.cpp
 	src/cpu/cpu_short_pipe.cpp
+	src/cpu/cop0.cpp
+	src/cpu/cop2.cpp
 	src/gpu/gpu.cpp
 	src/gpu/renderer.cpp
 	src/gpu/shader.cpp
@@ -64,6 +68,7 @@ target_include_directories(psxemu
 		${PROJECT_SOURCE_DIR}/3rdparty/litelib
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_SOURCE_DIR}/src/cpu
+		${PROJECT_SOURCE_DIR}/src/core
 		${PROJECT_SOURCE_DIR}/src/debugging
 		${PROJECT_SOURCE_DIR}/src/gpu
 		${PROJECT_SOURCE_DIR}/src/memory

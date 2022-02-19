@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <memory>
 
+#include "litelib.h"
+
 //#include "cpu_full_pipe.h"
 #include "cpu_short_pipe.h"
 #include "gpu.h"
@@ -13,8 +15,9 @@
 #include "dma.h"
 #include "cdrom.h"
 #include "timers.h"
+#include "controller.h"
 #include "tty.h"
-#include "range.h"
+#include "interrupt.h"
 
 class Psx
 {
@@ -30,20 +33,22 @@ public:
 	bool	 wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes = 4);
 	bool	 writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes = 4);
 	uint32_t readAddr(uint32_t addr, uint8_t bytes = 4);
-
-
 	
 public:
-	//PSP Hardware Components
-	std::shared_ptr<CPU>	cpu;
-	std::shared_ptr<GPU>	gpu;
-	std::shared_ptr<SPU>	spu;
-	std::shared_ptr<Memory>	mem;
-	std::shared_ptr<Bios>	bios;
-	std::shared_ptr<Dma>	dma;
-	std::shared_ptr<Cdrom>	cdrom;
-	std::shared_ptr<Timers>	timers;
-	std::shared_ptr<Tty> tty;
+	//PSP Memory Components
+	std::shared_ptr<Bios>		bios;
+	std::shared_ptr<Memory>		mem;
+
+	//PSP Devices and Peripherals
+	std::shared_ptr<CPU>		cpu;
+	std::shared_ptr<GPU>		gpu;
+	std::shared_ptr<SPU>		spu;
+	std::shared_ptr<Dma>		dma;
+	std::shared_ptr<Cdrom>		cdrom;
+	std::shared_ptr<Timers>		timers;
+	std::shared_ptr<Controller> controller;
+	std::shared_ptr<Tty> 		tty;
+	std::shared_ptr<Interrupt>	interrupt;
 
 	//Mater Clock: 372.5535MHz
 	uint64_t	masterClock;
@@ -79,6 +84,7 @@ private:
 	lite::range memRangeMEM1 = lite::range(0x1f801000, 0x24);
 	lite::range memRangeIOPP = lite::range(0x1f801040, 0x20);
 	lite::range memRangeMEM2 = lite::range(0x1f801060, 0x4);
+	lite::range memRangeINT = lite::range(0x1f801070, 0x8);
 	lite::range memRangeDMA =  lite::range(0x1f801080, 0x80);
 	lite::range memRangeTMR =  lite::range(0x1f801100, 0x30);
 	lite::range memRangeCDR =  lite::range(0x1f801800, 0x4);

@@ -59,9 +59,6 @@ bool Dma::reset()
 
 bool Dma::clock()
 {
-	//Check for any pending Interrupr
-	interruptCheck();
-
 	//Check id DMA is already Running
 	if (isRunning)
 	{
@@ -91,7 +88,7 @@ bool Dma::clock()
 		{
 			isRunning = true;
 			runningChannel = e.channel;
-			runningSyncMode = dmaChannel[e.channel].chanChcr.syncMode;
+			runningSyncMode = (uint8_t)dmaChannel[e.channel].chanChcr.syncMode;
 
 			runningAddr = dmaChannel[e.channel].chanMadr;
 			runningIncrement = ((bool)dmaChannel[e.channel].chanChcr.memStep) ? -4 : +4;
@@ -335,7 +332,7 @@ inline bool Dma::updateDicr(uint32_t data)
 	dmaDicr.masterEnableIrq = tmp.masterEnableIrq;
 	dmaDicr.flagsIrq = dmaDicr.flagsIrq & ~tmp.flagsIrq;
 	dmaDicr.masterFlagIrq = ((bool)dmaDicr.forceIrq || ((bool)dmaDicr.masterEnableIrq && (dmaDicr.enableIrq && dmaDicr.flagsIrq))) ? 1 : 0;
-
+	
 	return true;
 }
 
@@ -350,20 +347,15 @@ bool Dma::dmaStop()
 
 	psx->cpu->dmaTakeOnBus = false;
 
-	//Set DMA Channel Completion Interrupt Flag and update DICR
+	//Set DMA Channel Completion Interrupt Flag, Update DICR and Activate Interrupt if DICR.31 goes from 0 to 1
 	if (dmaDicr.enableIrq & (1UL << runningChannel))
 	{
 		dmaDicr.flagsIrq = dmaDicr.flagsIrq | (1UL << runningChannel);
 		dmaDicr.masterFlagIrq = ((bool)dmaDicr.forceIrq || ((bool)dmaDicr.masterEnableIrq && (dmaDicr.enableIrq && dmaDicr.flagsIrq))) ? 1 : 0;
+
+		if (dmaDicr.masterFlagIrq)
+			psx->interrupt->set(static_cast<uint32_t>(interruptCause::dma));
 	}
-
-	return true;
-}
-
-bool Dma::interruptCheck()
-{
-	if (dmaDicr.masterFlagIrq)
-		psx->cpu->interrupt(static_cast<uint32_t>(cpu::interruptCause::dma));
 
 	return true;
 }

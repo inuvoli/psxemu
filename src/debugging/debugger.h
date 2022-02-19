@@ -21,9 +21,10 @@ public:
     Debugger(std::shared_ptr<Psx> instance);
     ~Debugger();
 
-    //bool isBreakpoint () { return ((psx->cpu->pc - 0x4) == breakPoint); };
+    bool isBreakpoint () { return ((psx->cpu->pc) == breakPoint); };
     //bool isBreakpoint () { return (psx->cpu->gpr[1] == breakPoint); };
-    bool isBreakpoint () { return (psx->readingAddress == breakPoint); };
+    //bool isBreakpoint () { return (psx->readingAddress == breakPoint); };
+    //bool isBreakpoint () { return (psx->interrupt->i_stat == breakPoint); };
     
     void setBreakpoint(uint32_t addr) { breakPoint = addr; };
     uint32_t getBreakPoint() { return breakPoint; };

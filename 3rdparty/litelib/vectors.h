@@ -3,50 +3,53 @@
 //-------------------------------------------------------------------------------------
 // Generic Template Class for 2, 3 and 4 element Vectors
 //-------------------------------------------------------------------------------------
-template <typename T>
-struct vec2t
+namespace lite
 {
-	T	x;
-	T	y;
-
-	vec2t& operator= (const vec2t& t)
+	template <typename T>
+	struct vec2t
 	{
-		x = t.x;
-		y = t.y;
-		return *this;
-	}
-};
+		T	x;
+		T	y;
 
-template <typename T>
-struct vec3t
-{
-	T	x;
-	T	y;
-	T	z;
+		vec2t& operator= (const vec2t& t)
+		{
+			x = t.x;
+			y = t.y;
+			return *this;
+		}
+	};
 
-	vec3t& operator= (const vec3t& t)
+	template <typename T>
+	struct vec3t
 	{
-		x = t.x;
-		y = t.y;
-		z = t.z;
-		return *this;
-	}
-};
+		T	x;
+		T	y;
+		T	z;
 
-template <typename T>
-struct vec4t
-{
-	T	x1;
-	T	y1;
-	T	x2;
-	T	y2;
+		vec3t& operator= (const vec3t& t)
+		{
+			x = t.x;
+			y = t.y;
+			z = t.z;
+			return *this;
+		}
+	};
 
-	vec4t& operator= (const vec4t& t)
+	template <typename T>
+	struct vec4t
 	{
-		x1 = t.x1;
-		y1 = t.y1;
-		x2 = t.x2;
-		y2 = t.y2;
-		return *this;
-	}
-};
+		T	x1;
+		T	y1;
+		T	x2;
+		T	y2;
+
+		vec4t& operator= (const vec4t& t)
+		{
+			x1 = t.x1;
+			y1 = t.y1;
+			x2 = t.x2;
+			y2 = t.y2;
+			return *this;
+		}
+	};
+}

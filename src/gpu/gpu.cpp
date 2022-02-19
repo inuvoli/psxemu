@@ -27,14 +27,14 @@ GPU::GPU()
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
-	memset(&videoResolution, 0, sizeof(vec2t<uint16_t>));
-	memset(&displayRange, 0, sizeof(vec4t<uint16_t>));
-	memset(&displayStart, 0, sizeof(vec2t<uint16_t>));
-	memset(&drawingArea, 0, sizeof(vec4t<uint16_t>));
-	memset(&drawingOffset, 0, sizeof(vec2t<uint16_t>));
-	memset(&textureMask, 0, sizeof(vec2t<uint8_t>));
-	memset(&textureOffset, 0, sizeof(vec2t<uint8_t>));
-	memset(&texturePage, 0, sizeof(vec2t<uint16_t>));
+	memset(&videoResolution, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&displayRange, 0, sizeof(lite::vec4t<uint16_t>));
+	memset(&displayStart, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&drawingArea, 0, sizeof(lite::vec4t<uint16_t>));
+	memset(&drawingOffset, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&textureMask, 0, sizeof(lite::vec2t<uint8_t>));
+	memset(&textureOffset, 0, sizeof(lite::vec2t<uint8_t>));
+	memset(&texturePage, 0, sizeof(lite::vec2t<uint16_t>));
 	dmaDirection = 0;
 
 	//Reset Internal Clock Counter
@@ -68,10 +68,10 @@ GPU::GPU()
 	//Memory Transfer Status & Configuration
 	dataReadActive = false;
 	dataWriteActive = false;
-	memset(&dataDestination, 0, sizeof(vec2t<uint16_t>));
-	memset(&dataSource, 0, sizeof(vec2t<uint16_t>));
-	memset(&dataSize, 0, sizeof(vec2t<uint16_t>));
-	memset(&dataPointer, 0, sizeof(vec2t<uint16_t>));
+	memset(&dataDestination, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&dataSource, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&dataSize, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&dataPointer, 0, sizeof(lite::vec2t<uint16_t>));
 
 	//Init GPU Instruction Dictionaries
 	gp0InstrSet =
@@ -434,14 +434,14 @@ bool GPU::reset()
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
-	memset(&videoResolution, 0, sizeof(vec2t<uint16_t>));
-	memset(&displayRange, 0, sizeof(vec4t<uint16_t>));
-	memset(&displayStart, 0, sizeof(vec2t<uint16_t>));
-	memset(&drawingArea, 0, sizeof(vec4t<uint16_t>));
-	memset(&drawingOffset, 0, sizeof(vec2t<uint16_t>));
-	memset(&textureMask, 0, sizeof(vec2t<uint8_t>));
-	memset(&textureOffset, 0, sizeof(vec2t<uint8_t>));
-	memset(&texturePage, 0, sizeof(vec2t<uint16_t>));
+	memset(&videoResolution, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&displayRange, 0, sizeof(lite::vec4t<uint16_t>));
+	memset(&displayStart, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&drawingArea, 0, sizeof(lite::vec4t<uint16_t>));
+	memset(&drawingOffset, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&textureMask, 0, sizeof(lite::vec2t<uint8_t>));
+	memset(&textureOffset, 0, sizeof(lite::vec2t<uint8_t>));
+	memset(&texturePage, 0, sizeof(lite::vec2t<uint16_t>));
 	dmaDirection = 0;
 
 	//Reset Internal Clock Counter
@@ -467,10 +467,10 @@ bool GPU::reset()
 	//Memory Transfer Status & Configuration
 	dataReadActive = false;
 	dataWriteActive = false;
-	memset(&dataDestination, 0, sizeof(vec2t<uint16_t>));
-	memset(&dataSource, 0, sizeof(vec2t<uint16_t>));
-	memset(&dataSize, 0, sizeof(vec2t<uint16_t>));
-	memset(&dataPointer, 0, sizeof(vec2t<uint16_t>));
+	memset(&dataDestination, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&dataSource, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&dataSize, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&dataPointer, 0, sizeof(lite::vec2t<uint16_t>));
 
 	//Reset Renderer Status
 	pRenderer->reset();
@@ -570,7 +570,7 @@ bool GPU::clock()
 			vBlank = false;		//Reset vBlank immediately in order to update GPUSTAT.31 on a new frame correctly otherwise is always reset to zero.
 			
 			//vBlank should be triggered right after the last visible scanline or not? 
-			psx->cpu->interrupt(static_cast<uint32_t>(cpu::interruptCause::vblank));
+			psx->interrupt->set(static_cast<uint32_t>(interruptCause::vblank));
 
 			//Update GPU Renderer Framebuffer at every vBlank
 			pRenderer->vBlankNewFrame();
@@ -1003,7 +1003,7 @@ bool GPU::gp0_FillVRam()
 	//Fill Rectangle in VRAM
 	uint32_t	param;
 	uint16_t	color;
-	vec2t<uint16_t> position, size;	
+	lite::vec2t<uint16_t> position, size;	
 	
 	color = rgb24torgb15(gp0Command & 0x00ffffff);	//Color + Command(CcBbGgRrh); 24bit RGB value
 

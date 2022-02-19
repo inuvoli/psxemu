@@ -7,11 +7,10 @@
 #include <string>
 #include <memory>
 
-#include "fifo.h"
-#include "vectors.h"
 #include "renderer.h"
 #include "utils.h"
 #include "timers.h"
+#include "litelib.h"
 
 class Psx;
 
@@ -36,20 +35,20 @@ enum class VideoMode { NTSC = 0x0, PAL = 0x1 };
 //GPU Debug Status
 struct GpuDebugInfo
 {
-	uint32_t			gpuStat;
-	void*				vRam;
-	vec2t<uint16_t>		displayStart;
-	vec4t<uint16_t>		displayRange;
-	vec2t<uint16_t>		drawingOffset;
-	vec4t<uint16_t>		drawingArea;
-	vec2t<uint16_t>		videoResolution;
-	std::string			videoStandard;
-	std::string			textureAllowDisable;
-	std::string			textureDisable;
-	vec2t<uint16_t>		texturePage;
-	std::string			texturePageColor;
-	vec2t<uint8_t>		textureMask;
-	vec2t<uint8_t>		textureOffset;
+	uint32_t					gpuStat;
+	void*						vRam;
+	lite::vec2t<uint16_t>		displayStart;
+	lite::vec4t<uint16_t>		displayRange;
+	lite::vec2t<uint16_t>		drawingOffset;
+	lite::vec4t<uint16_t>		drawingArea;
+	lite::vec2t<uint16_t>		videoResolution;
+	std::string					videoStandard;
+	std::string					textureAllowDisable;
+	std::string					textureDisable;
+	lite::vec2t<uint16_t>		texturePage;
+	std::string					texturePageColor;
+	lite::vec2t<uint8_t>		textureMask;
+	lite::vec2t<uint8_t>		textureOffset;
 };
 
 union GPUSTAT
@@ -146,14 +145,14 @@ private:
 	VideoMode			videoMode;
 	uint8_t				dotClockRatio;
 	bool				verticalInterlace;
-	vec2t<uint16_t>		videoResolution;
-	vec2t<uint16_t>		displayStart;
-	vec4t<uint16_t>		displayRange;
-	vec2t<uint16_t>		drawingOffset;
-	vec4t<uint16_t>		drawingArea;
-	vec2t<uint8_t>		textureMask;
-	vec2t<uint8_t>		textureOffset;
-	vec2t<uint16_t>		texturePage;
+	lite::vec2t<uint16_t>		videoResolution;
+	lite::vec2t<uint16_t>		displayStart;
+	lite::vec4t<uint16_t>		displayRange;
+	lite::vec2t<uint16_t>		drawingOffset;
+	lite::vec4t<uint16_t>		drawingArea;
+	lite::vec2t<uint8_t>		textureMask;
+	lite::vec2t<uint8_t>		textureOffset;
+	lite::vec2t<uint16_t>		texturePage;
 	uint8_t				texturePageColor;
 
 	bool				textureAllowDisable;
@@ -179,12 +178,12 @@ private:
 	bool				newFrameReady;		//Set if a new Frame has started
 		
 	//Memory Transfer Status
-	vec2t<uint16_t>		dataDestination;	//Framebuffer destination start point: x is offset in halfwords, y is offset in rows
-	vec2t<uint16_t>		dataSource;			//Framebuffer source start point: x is offset in halfwords, y is offset in rows
-	vec2t<uint16_t>		dataSize;			//Data Rectangle size: x is in halfwords, y is in rows
-	vec2t<uint16_t>		dataPointer;		//Pointer to current read or write address in VRAM
-	bool				dataReadActive;		//Set by GP0(C0h), enable data tranfer from VRAM to RAM 
-	bool				dataWriteActive;	//Set by GP0(A0h), enable data transfer from RAM to VRAM
+	lite::vec2t<uint16_t>		dataDestination;	//Framebuffer destination start point: x is offset in halfwords, y is offset in rows
+	lite::vec2t<uint16_t>		dataSource;			//Framebuffer source start point: x is offset in halfwords, y is offset in rows
+	lite::vec2t<uint16_t>		dataSize;			//Data Rectangle size: x is in halfwords, y is in rows
+	lite::vec2t<uint16_t>		dataPointer;		//Pointer to current read or write address in VRAM
+	bool						dataReadActive;		//Set by GP0(C0h), enable data tranfer from VRAM to RAM 
+	bool						dataWriteActive;	//Set by GP0(A0h), enable data transfer from RAM to VRAM
 		
 	//Internal Clock Counter
 	uint64_t	gpuClockTicks;

@@ -1,4 +1,5 @@
 #include "tty.h"
+#include "psx.h"
 
 Tty::Tty()
 {
