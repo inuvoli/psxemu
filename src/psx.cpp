@@ -110,6 +110,7 @@ bool Psx::clock()
 	if (!(masterClock % 250))
 	{
 		cdrom->clock(); //Temporary
+		controller->clock(); //Temporary
 	}
 
 	if (!(masterClock % 2))
@@ -148,12 +149,13 @@ uint32_t Psx::rdMem(uint32_t vAddr, uint8_t bytes)
 	if (memRangeRAM.contains(phAddr))  return mem->read(phAddr, bytes);
 
 	//Memory Mapped I/O Devices
+	if (memRangeGPU.contains(phAddr))  return gpu->readAddr(phAddr, bytes);
+	if (memRangeSPU.contains(phAddr))  return spu->readAddr(phAddr, bytes);
 	if (memRangeDMA.contains(phAddr))  return dma->readAddr(phAddr, bytes);
 	if (memRangeTMR.contains(phAddr))  return timers->readAddr(phAddr, bytes);
 	if (memRangeCDR.contains(phAddr))  return cdrom->readAddr(phAddr, bytes);
-	if (memRangeGPU.contains(phAddr))  return gpu->readAddr(phAddr, bytes);
-	if (memRangeSPU.contains(phAddr))  return spu->readAddr(phAddr, bytes);
-	if (memRangeINT.contains(phAddr))  return interrupt->readAddr(phAddr, bytes);	
+	if (memRangeINT.contains(phAddr))  return interrupt->readAddr(phAddr, bytes);
+	if (memRangeCNT.contains(phAddr))  return controller->readAddr(phAddr, bytes);	
 	
 	//Debug Bios TTY
 	if (memRangeTTY.contains(phAddr))  return tty->readAddr(phAddr, bytes);
@@ -176,14 +178,16 @@ bool Psx::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 	if (memRangeRAM.contains(phAddr))  return mem->write(phAddr, data, bytes);
 
 	//Memory Mapped I/O Devices
-	if (memRangeMEM1.contains(phAddr)) return this->writeAddr(phAddr, data, bytes);
-	if (memRangeMEM2.contains(phAddr)) return mem->writeAddr(phAddr, data, bytes);
+	if (memRangeGPU.contains(phAddr))  return gpu->writeAddr(phAddr, data, bytes);
+	if (memRangeSPU.contains(phAddr))  return spu->writeAddr(phAddr, data, bytes);
 	if (memRangeDMA.contains(phAddr))  return dma->writeAddr(phAddr, data, bytes);
 	if (memRangeTMR.contains(phAddr))  return timers->writeAddr(phAddr, data, bytes);
 	if (memRangeCDR.contains(phAddr))  return cdrom->writeAddr(phAddr, data, bytes);
-	if (memRangeGPU.contains(phAddr))  return gpu->writeAddr(phAddr, data, bytes);
-	if (memRangeSPU.contains(phAddr))  return spu->writeAddr(phAddr, data, bytes);
 	if (memRangeINT.contains(phAddr))  return interrupt->writeAddr(phAddr, data, bytes);
+	if (memRangeCNT.contains(phAddr))  return controller->writeAddr(phAddr, data, bytes);
+	
+	if (memRangeMEM1.contains(phAddr)) return this->writeAddr(phAddr, data, bytes);
+	if (memRangeMEM2.contains(phAddr)) return mem->writeAddr(phAddr, data, bytes);
 	if (memRangePOST.contains(phAddr))  return this->writeAddr(phAddr, data, bytes);
 
 	//Debug Bios TTY

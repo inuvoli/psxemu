@@ -131,7 +131,7 @@ bool Renderer::InsertRectangle()
     return false;
 }
 
-bool Renderer::vBlankNewFrame()
+bool Renderer::NewFrameReady()
 {
     //Skip if no vertex is available
     if (drawData.size() == 0) return false;

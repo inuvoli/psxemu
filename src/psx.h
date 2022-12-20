@@ -15,9 +15,9 @@
 #include "dma.h"
 #include "cdrom.h"
 #include "timers.h"
-#include "controller.h"
 #include "tty.h"
 #include "interrupt.h"
+#include "controller.h"
 
 class Psx
 {
@@ -95,5 +95,6 @@ private:
 	lite::range memRangePOST =  lite::range(0x1f802041, 0x1);
 	lite::range memRangeEXP3 = lite::range(0x1fa00000, 0x200000);
 	lite::range memRangeBIOS = lite::range(0x1fc00000, 0x80000);
+	lite::range memRangeCNT = lite::range(0x1f801040, 0x10);
 };
 

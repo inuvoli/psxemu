@@ -600,17 +600,17 @@ bool Cdrom::cmd_getid()
 	statusCode.spindlemotor = 1;
 
 	//Push INT5
-	interruptFifo.push(cdrom::INT5);
-	responseFifo.push( {0x11, 0x80} );
+	//interruptFifo.push(cdrom::INT5);
+	//responseFifo.push( {0x11, 0x80} );
 
 	//Push INT3(stat)
-	//interruptFifo.push(cdrom::INT3);
-	//responseFifo.push(statusCode.byte);
+	interruptFifo.push(cdrom::INT3);
+	responseFifo.push(statusCode.byte);
 
 	//Temporary - Empty CD Only
 	//Push INT5
-	//interruptFifo.push(cdrom::INT5);
-	//responseFifo.push( {0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} );
+	interruptFifo.push(cdrom::INT5);
+	responseFifo.push( {0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} );
 	
 	return true;
 };

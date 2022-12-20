@@ -41,7 +41,7 @@ class Renderer
         
         bool SetResolution(int16_t hRes, int16_t vRes);
 
-        bool vBlankNewFrame();              //Called from GPU at every vBlank, update OpenGL Vertex Arrays and vRAM Texture Data 
+        bool NewFrameReady();               //Called from GPU at every vBlank, update OpenGL Vertex Arrays and vRAM Texture Data 
         bool RenderDrawData();              //Called from PSX at every NewFrame, render all Vertex Array to Default Frame Buffer 
 
     public:

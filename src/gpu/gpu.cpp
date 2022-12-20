@@ -41,8 +41,6 @@ GPU::GPU()
 	gpuClockTicks = 0;
 	
 	//GPU Internal Status & Configurations
-	recvCommand = false;
-	recvParameters = false;
 	gp0CommandAvailable = false;
 	gp0Opcode = 0x00;
 	gp0Command = 0x00000000;
@@ -448,8 +446,6 @@ bool GPU::reset()
 	gpuClockTicks = 0;
 	
 	//GPU Internal Status & Configurations
-	recvCommand = false;
-	recvParameters = false;
 	gp0CommandAvailable = false;
 	gp0Opcode = 0x00;
 	gp0Command = 0x00000000;
@@ -548,32 +544,39 @@ bool GPU::clock()
 {
 	auto updateVHBlank = [&](const unsigned int active_ticks, const unsigned int hblank_ticks, const unsigned int visible_scanlines, const unsigned int vblank_scanlines)
 	{
+		//Update hBlank and vBlank Status
 		hBlank = !(hCount < active_ticks);
 		vBlank = !(vCount < visible_scanlines);
 
+		//Reset NewFrame and NewScanline Status
+		newScanline = false;
+		newFrameReady = false;
+		
 		hCount++;
+		if (hCount == active_ticks)
+		{
+			//Trigger hBlank signal
+			//Generate hBlank Clock 
+			psx->timers->clock(ClockSource::hBlank);
+		}
+		if (vCount == visible_scanlines)
+		{
+			//Trigger vBlank signal
+			//Trigger vBlank Interrupt
+			vCount++; //Add a fake line to trigger interrupt just one time 
+			psx->interrupt->set(static_cast<uint32_t>(interruptCause::vblank));
+		}
 		if (hCount >= (active_ticks + hblank_ticks))
 		{
 			hCount = 0;
 			vCount++;
 			newScanline = true;
-			hBlank = false;		//Reset hBlank immediately on a new line, is it really needed?
-			
-			//Generate hBlank Clock, not sure if it has to be triggered as soon as exit the visible area 
-			psx->timers->clock(ClockSource::hBlank);
 		}
 
 		if (vCount >= (visible_scanlines + vblank_scanlines))
 		{
 			vCount = 0;
 			newFrameReady = true;
-			vBlank = false;		//Reset vBlank immediately in order to update GPUSTAT.31 on a new frame correctly otherwise is always reset to zero.
-			
-			//vBlank should be triggered right after the last visible scanline or not? 
-			psx->interrupt->set(static_cast<uint32_t>(interruptCause::vblank));
-
-			//Update GPU Renderer Framebuffer at every vBlank
-			pRenderer->vBlankNewFrame();
 		}
 
 		return 0;
@@ -582,7 +585,7 @@ bool GPU::clock()
 	{
 		if (gp0CommandFifo)
 		{
-			//Is is a Command stored on the FIFO
+			//It is a Command stored on the FIFO
 			//Flush the Command from FIFO first. Already have its value on gp0Command.	
 			uint32_t tmp;
 			fifo.pop(tmp);
@@ -608,9 +611,6 @@ bool GPU::clock()
 		return 0;
 	};
 
-	newScanline = false;
-	newFrameReady = false;
-
 	//Update Vertical and Horizontal Blank Flag according to Video Mode
 	switch (videoMode)
 	{
@@ -627,9 +627,9 @@ bool GPU::clock()
 	//  - Toggle at every new scanline if GPUSTAT.19 = 0
 	//  - Toggle at every new frame if GPUSTAT.19 = 1
 	//  - Always Zero during vBlank
+	if (vBlank) { gpuStat &= ~(1UL << 31); };
 	if (newScanline & !static_cast<bool>((gpuStat & (1UL << 19)))) { gpuStat ^= (1UL << 31); };
 	if (newFrameReady & static_cast<bool>((gpuStat & (1UL << 19)))) { gpuStat ^= (1UL << 31); };
-	if (vBlank) { gpuStat &= ~(1UL << 31); };
 
 	//Update GPUSTAT.28
 	//  - Set to 0 after receiving both GP0/1 Command and all GP0/1 Parameters (GPU is Busy)
@@ -645,7 +645,6 @@ bool GPU::clock()
 	//Update GPUSTAT.26
 	//  - Set to 0 after receiving a GP0 Command or when GPU is Busy
 	//  - Set to 1 when GPU is ready to receive a new command (previous command completed execution)
-	//if (recvCommand) { gpuStat &= ~(1UL << 26); } //Reset to 0
 	gpuStat = (gpuStat & ~(1UL << 26)) | (static_cast<uint32_t>(!recvCommand) << 26);
 
 	//Update GPUSTAT.25
@@ -687,6 +686,12 @@ bool GPU::clock()
 		psx->timers->clock(ClockSource::Dot);
 	}
 	gpuClockTicks++;
+
+	//Signal New Frame is Ready to Renderer
+	if (newFrameReady)
+	{
+		pRenderer->NewFrameReady();
+	}
 
 	return true;
 }
@@ -898,14 +903,6 @@ bool GPU::gp0_Polygons()
 			vertexPolyInfo[0].texPageCoords.y = vertexPolyInfo[1].texPageCoords.y;
 		}
 	}
-
-	if (textured)
-	{
-		// for(int k=0;k<16;k++)
-		// 	printf("color %d: %04x %04x %04x\n", k, vRam[480][192+k], vRam[480][256+k], vRam[480][320+k]);
-		// exit(1);
-		//printf("CLutInfo (%f, %f)\n", vInfo.clutTableCoords.x, vInfo.clutTableCoords.y);
-	}		
 
 	//Add Polygon vertex infos into Renderer Vertex DrawData structure
 	pRenderer->InsertPolygon(vertexPolyInfo);

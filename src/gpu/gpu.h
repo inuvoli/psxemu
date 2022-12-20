@@ -16,13 +16,13 @@ class Psx;
 
 //PAL Magic Numbers
 constexpr auto PAL_VISIBLE_SCANLINES = 288;
-constexpr auto PAL_VBLANK_SCANLINES = 25;
+constexpr auto PAL_VBLANK_SCANLINES = 25+1;
 constexpr auto PAL_HBLANK_GPU_TICK = 638;
 constexpr auto PAL_ACTIVE_GPU_TICK = 2766;
 
 //NTSC Magic Numbers
 constexpr auto NTSC_VISIBLE_SCANLINES = 240;
-constexpr auto NTSC_VBLANK_SCANLINES = 23;
+constexpr auto NTSC_VBLANK_SCANLINES = 23+1;
 constexpr auto NTSC_HBLANK_GPU_TICK = 585;
 constexpr auto NTSC_ACTIVE_GPU_TICK = 2827;
 

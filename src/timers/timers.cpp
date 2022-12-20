@@ -64,9 +64,9 @@ bool Timers::clock(ClockSource source)
 	}
 
 	//Update Interrupt Signals
-	// updateInterrupt(0);
-	// updateInterrupt(1);
-	// updateInterrupt(2);
+	updateInterrupt(0);
+	updateInterrupt(1);
+	updateInterrupt(2);
 
 	return true;
 }
@@ -99,7 +99,7 @@ void Timers::updateTimer0()
 			break;
 		case 2:
 			if (psx->gpu->hBlank) timerStatus[0].counterValue++; ///DA VERIFICARE, NON HA SENSO
-			if (psx->gpu->hBlank) timerStatus[0].counterValue = 0x0000; //CHECK - hBlank shoult be active only at the end of visible area?
+			if (psx->gpu->hBlank) timerStatus[0].counterValue = 0x0000; //CHECK - hBlank should be active only at the end of visible area?
 			break;
 		case 3:
 			if (psx->gpu->hBlank) timerStatus[0].counterMode.syncEn = false;

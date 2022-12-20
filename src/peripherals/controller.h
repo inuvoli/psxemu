@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdio>
+
 #include "device.h"
 
 class Controller : public Idevice
