@@ -37,7 +37,7 @@ bool Interrupt::set(uint32_t cause)
     //Set I_STAT Interrupt Flag according to the Interrupt Cause
 	i_stat |= 1UL << cause;
 
-    //printf("%s requesting INTERRUPT\n", interruptDescription[cause].c_str());
+    printf("%s requesting INTERRUPT\n", interruptDescription[cause].c_str());
     
     return true;
 }

@@ -10,7 +10,7 @@ int main(int argc, char* argv[])
     //Init PSX Emulator
     if (!emu.init(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT))
     {
-        printf("Failed to Initialize SDL!\n");
+        printf("Failed to Initialize PSX Emulator!\n");
         return 0;
     }
 

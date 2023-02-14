@@ -1,18 +1,20 @@
 #pragma once
 
+#define DEBUGGER_ENABLED
+
 #include <cstdint>
 #include <memory>
 
+#include "videolib.h"
 #include "psx.h"
-
 #include "vectors.h"
 #include "mipsdisassembler.h"
 
 constexpr auto ModulesNumber = 15;
 enum class StepMode { Halt = 0, Manual = 1, Instruction = 2, Frame = 3 };
-enum class DebugModule { Bios = 0, Ram = 1, Cpu = 2, Code = 3, Dma = 4, Timers = 5, Gpu = 6, Spu = 7, Cdrom = 8 };
+enum class DebugModule { Bios = 0, Ram = 1, Cpu = 2, Code = 3, Dma = 4, Timers = 5, Gpu = 6, Spu = 7, Cdrom = 8, Stdio = 9};
 
-//Class Psx foreward declaration
+//Class Psx forward declaration
 //class Psx;
 
 class Debugger
@@ -22,10 +24,6 @@ public:
     ~Debugger();
 
     bool isBreakpoint () { return ((psx->cpu->pc) == breakPoint); };
-    //bool isBreakpoint () { return (psx->cpu->gpr[1] == breakPoint); };
-    //bool isBreakpoint () { return (psx->readingAddress == breakPoint); };
-    //bool isBreakpoint () { return (psx->interrupt->i_stat == breakPoint); };
-    
     void setBreakpoint(uint32_t addr) { breakPoint = addr; };
     uint32_t getBreakPoint() { return breakPoint; };
 

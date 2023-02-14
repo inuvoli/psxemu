@@ -5,19 +5,9 @@
 #include <string>
 #include <memory>
 
-//PSXEMU specific Includes, note PSXEMU is using GLEW OpenGL loader
-#include <GL/glew.h>
-#include <SDL.h>
-
-//ImGui specific Includes, note ImGui is using a stripped GL3W OpenGL loader
-#include "imgui.h"
-#include "imgui_impl_sdl.h"
-#include "imgui_impl_opengl3.h"
-#include "imgui_memory_editor.h"
-
+#include "videolib.h"
 #include "psx.h"
 #include "debugger.h"
-#include "mipsdisassembler.h"
 
 class psxemu
 {
@@ -44,6 +34,7 @@ private:
 private:
 	SDL_Event			sdlEvent;
 	SDL_Window*			pWindow;
+	SDL_Window*			pWindow2;
 	SDL_GLContext		glContext;
 	SDL_AudioDeviceID	sdlAudioDevice;
 

@@ -349,9 +349,9 @@ bool CPU::clock()
 	opcode.word = rdInst(pc);
 
 	//TEMPORARY
-	if (pc == 0xa0) printf("Function A(%02xh) --- %s\n", gpr[9], function_A[gpr[9]].c_str());
-	if ((pc == 0xb0) & (gpr[9] != 0x3d)) printf("Function B(%02xh) --- %s\n", gpr[9], function_B[gpr[9]].c_str());
-	if (pc == 0xc0) printf("Function C(%02xh) --- %s\n", gpr[9], function_C[gpr[9]].c_str());
+	if (pc == 0xa0) printf("Function A(%02xh) --- %s (%08x, %08x, %08x, %08x)\n", gpr[9], function_A[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7]);
+	if ((pc == 0xb0) & (gpr[9] != 0x3d)) printf("Function B(%02xh) --- %s (%08x, %08x, %08x, %08x)\n", gpr[9], function_B[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7]);
+	if (pc == 0xc0) printf("Function C(%02xh) --- %s (%08x, %08x, %08x, %08x)\n", gpr[9], function_C[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7]);
 	if (pc == 0xc0 && gpr[9] == 0x0b) exit(1);
 
 	//Check if branchDelaySlot is set, in that case we are executing the instruction in the Branch Delay Slot
@@ -405,6 +405,8 @@ bool CPU::exception(uint32_t cause)
 {
 	cop0::StatusRegister	statusReg;
 	cop0::CauseRegister		causeReg;
+
+	//printf("Exception (%d)\n", cause);
 	
 	//Get Current values of Cause Register and Status Register
 	statusReg.word = cop0->reg[12];
@@ -444,15 +446,12 @@ bool CPU::exception(uint32_t cause)
 
 bool CPU::interrupt(uint8_t status)
 {
-	static int i = 0;
 	cop0::StatusRegister	statusReg;
 	cop0::CauseRegister		causeReg;
 
 	//Get Current values of Cause Register and Status Register
 	statusReg.word = cop0->reg[12];
 	causeReg.word = cop0->reg[13];
-
-	i++;
 
 	//Set cop0r13.bit10 (Cause Register) according to INTn pin value, PSX only use Hw INT0
 	causeReg.iphw = status;	
@@ -461,7 +460,7 @@ bool CPU::interrupt(uint8_t status)
 	//Check COP0 for Pending non masked Interrupts with iEc enabled.
 	if ((bool)(statusReg.imhw & causeReg.iphw) & (bool)statusReg.iec)
 	{
-		//printf("INTERRUPT0!!!!!\n");
+		printf("CPU - HW Interrupt 0 Triggered\n");
 
 		exception(static_cast<uint32_t>(cpu::exceptionCause::interrupt));		
 	}
@@ -599,7 +598,6 @@ bool CPU::op_addi()
 	if (overflow)
 	{
 		exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
-		printf("addi throw Integer Overflow Exception!\n");
 	}
 
 	return true;
@@ -931,7 +929,7 @@ bool CPU::op_jalr()
 
 bool CPU::op_syscall()
 {
-	//printf("SYSCALL (%02xh) -------------------------------------------------\n", gpr[4]);
+	printf("Function SYS(%02xh) - %s\n", gpr[4], function_SYS[gpr[4] & 0x0000000f].c_str());
 	exception(static_cast<uint32_t>(cpu::exceptionCause::syscall));
 
 	return true;

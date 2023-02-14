@@ -5,18 +5,6 @@ Debugger::Debugger(std::shared_ptr<Psx> instance)
     //TODO
     psx = instance;
     breakPoint = 0xffffffff;
-    //breakPoint = 0x800585c4;
-    //breakPoint = 0xa000b9b0;
-    //breakPoint = 0xbfc06f18;
-    //breakPoint = 0xa0010000;
-    //breakPoint = 0x1f000084;
-    //breakPoint = 0x1f802021;
-    //breakPoint = 0x80000080;
-    //breakPoint = 0x1f801801;
-    //breakPoint = 0x00000001;
-    //breakPoint = 0xbfc80000;
-    //breakPoint = 0x80030828;
-    
     stepMode = StepMode::Halt;
 };
 

@@ -554,3 +554,15 @@ std::string function_C[256] =
     "AdjustA0Table()",
     "get_card_find_mode()"
 };
+
+std::string function_SYS[8] =
+{
+    "NoFunction()",
+    "EnterCriticalSection()",
+    "ExitCriticalSection()",
+    "ChangeThreadSubFunction(addr)",
+    "DeliverEvent(f0000010, 4000h)",
+    "DeliverEvent(f0000010, 4000h)",
+    "DeliverEvent(f0000010, 4000h)",
+    "DeliverEvent(f0000010, 4000h)"
+};

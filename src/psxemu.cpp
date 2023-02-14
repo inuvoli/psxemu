@@ -61,11 +61,10 @@ bool psxemu::init(int wndWidth, int wndHeight)
 
     }
 
-    // OpenGL 4.6 + GLSL v. 460
-    const char* glsl_version = "#version 460 core";
+    // set OpenGL Version
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, opengl_major_version);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, opengl_minor_version);
 
     // Create window with graphics context
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -78,6 +77,14 @@ bool psxemu::init(int wndWidth, int wndHeight)
         printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
         return false;
     }
+    printf("Window Created...\n");
+
+    // pWindow2 = SDL_CreateWindow("PSX Debugger", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, wndWidth, wndHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    // if (pWindow == nullptr)
+    // {
+    //     printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+    //     return false;
+    // }
     printf("Window Created...\n");
      
     //Set window minimum size

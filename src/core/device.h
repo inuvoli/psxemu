@@ -7,6 +7,14 @@
 //Forward declaration
 class Psx;
 
+class Ibus
+{
+public:
+    //Bus interface functions
+    virtual bool clock() = 0;
+    virtual bool reset() = 0;
+};
+
 class Idevice
 {
 public:

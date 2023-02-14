@@ -1,6 +1,5 @@
 #include "bios.h"
 
-
 Bios::Bios()
 {
 	//Load Bios
@@ -36,11 +35,12 @@ bool Bios::loadBios(const std::string& fileName)
 
 		printf("PSP Bios Loaded\n");
 
-		//Patch Bios: Enable std::io
+//#ifdef PSXEMU_ENABLE_STDIO
 		uint32_t patch[] = { 0x01, 0x00, 0x01, 0x24, 0xe1, 0x19, 0xf0, 0x0f, 0xc0, 0xa9, 0x81, 0xaf };
 		for(int i=0;i<12;i++)
 			rom[0x06f0c + i] = patch[i];
 		printf("PSP Bios Patched - Enable std_io\n");
+//#endif
 
 		return true;
 	}
