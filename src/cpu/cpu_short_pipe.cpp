@@ -1,3 +1,4 @@
+#include <loguru.hpp>
 #include "cpu_short_pipe.h"
 #include "psx.h"
 #include "functions_name.h"
@@ -258,7 +259,7 @@ inline bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool check
 	if (statusReg.isc)
 	{
 		//TODO:
-		//printf("Write Isolated cache! (addr: %08x bytes: %d)\n",vAddr, bytes);
+		LOG_F(3 , "CPU - Write Isolated cache! (Unsupported) (addr: %08x bytes: %d)",vAddr, bytes);
 		//return wrDataCache(vAddr, data, bytes);
 		return true;
 	}
@@ -272,7 +273,6 @@ inline bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool check
 		cacheReg = data;
 		iCacheEnabled = (bool)(cacheReg & ICACHE_EN_MASK);
 		dCacheEnabled = (bool)(cacheReg & DCACHE_EN1_MASK) && (bool)(cacheReg & DCACHE_EN2_MASK);
-		//printf("Cache Register: data: 0x%08x, iCache: %d, dCache: %d, IsC: %d, SwC: %d\n", data, iCacheEnabled, dCacheEnabled, (bool)(cop0_reg[12] & CP0_ISC_MASK), (bool)(cop0_reg[12] & CP0_SWC_MASK));
 		return true;
 	}
 
@@ -349,9 +349,9 @@ bool CPU::clock()
 	opcode.word = rdInst(pc);
 
 	//TEMPORARY
-	if (pc == 0xa0) printf("Function A(%02xh) --- %s (%08x, %08x, %08x, %08x)\n", gpr[9], function_A[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7]);
-	if ((pc == 0xb0) & (gpr[9] != 0x3d)) printf("Function B(%02xh) --- %s (%08x, %08x, %08x, %08x)\n", gpr[9], function_B[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7]);
-	if (pc == 0xc0) printf("Function C(%02xh) --- %s (%08x, %08x, %08x, %08x)\n", gpr[9], function_C[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7]);
+	if (pc == 0xa0) LOG_F(1, "CPU - Calling %s (%08x, %08x, %08x, %08x) [A(%02xh)]", function_A[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
+	if ((pc == 0xb0) & (gpr[9] != 0x3d)) LOG_F(1, "CPU - Calling %s (%08x, %08x, %08x, %08x) [B(%02xh)]", function_B[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
+	if (pc == 0xc0) LOG_F(1, "CPU - Calling %s (%08x, %08x, %08x, %08x) [C(%02xh)]", function_C[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
 	if (pc == 0xc0 && gpr[9] == 0x0b) exit(1);
 
 	//Check if branchDelaySlot is set, in that case we are executing the instruction in the Branch Delay Slot
@@ -388,13 +388,13 @@ bool CPU::clock()
 			//SPECIAL opcode
 			bResult = (this->*functSet[currentOpcode.funct].operate)();
 			if (!bResult)
-				printf("Unimplemented Function %s!\n", functSet[currentOpcode.funct].mnemonic.c_str());
+				LOG_F(ERROR, "CPU - Unimplemented Function %s!", functSet[currentOpcode.funct].mnemonic.c_str());
 		}
 		else
 		{
 			bResult = (this->*instrSet[currentOpcode.op].operate)();
 			if (!bResult)
-				printf("Unimplemented Instruction %s!\n", instrSet[currentOpcode.op].mnemonic.c_str());
+				LOG_F(ERROR, "CPU - Unimplemented Instruction %s!", instrSet[currentOpcode.op].mnemonic.c_str());
 		}
 	}
 				
@@ -405,8 +405,8 @@ bool CPU::exception(uint32_t cause)
 {
 	cop0::StatusRegister	statusReg;
 	cop0::CauseRegister		causeReg;
-
-	//printf("Exception (%d)\n", cause);
+	
+	LOG_F(2, "CPU - Received Exception [Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
 	
 	//Get Current values of Cause Register and Status Register
 	statusReg.word = cop0->reg[12];
@@ -441,6 +441,8 @@ bool CPU::exception(uint32_t cause)
 	cop0->reg[13] = causeReg.word;
 	cop0->reg[12] = statusReg.word;
 
+	LOG_F(2, "CPU - Throw Exception [Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
+
 	return true;
 }
 
@@ -460,8 +462,7 @@ bool CPU::interrupt(uint8_t status)
 	//Check COP0 for Pending non masked Interrupts with iEc enabled.
 	if ((bool)(statusReg.imhw & causeReg.iphw) & (bool)statusReg.iec)
 	{
-		printf("CPU - HW Interrupt 0 Triggered\n");
-
+		LOG_F(2, "CPU - Hardware Interrupt 0 Triggered");
 		exception(static_cast<uint32_t>(cpu::exceptionCause::interrupt));		
 	}
 		
@@ -499,7 +500,7 @@ bool CPU::op_bxx()
 		break;
 	default:
 		branch = false;
-		printf("Unknown Branch Instruction\n");
+		LOG_F(ERROR, "CPU - Unknown Branch Instruction\n");
 		return false;
 	}
 
@@ -713,6 +714,7 @@ bool CPU::op_lwl()
 	if (currentOpcode.rt != 0)
 		gpr[currentOpcode.rt] = rdMem(currentOpcode.regA + currentOpcode.imm - 0x03, 4, false); //treated as lw but startin at the LSB
 
+	LOG_F(WARNING, "CPU - LWL Instruction not fully supported");
 	//TODO: sta roba non funziona! sul registro destinazione devo sovrapporre le due letture LWL e LWR. Qui le sovrascrivo	
 	return true;
 }
@@ -750,6 +752,7 @@ bool CPU::op_lwr()
  	if (currentOpcode.rt != 0)
 		gpr[currentOpcode.rt] = rdMem(currentOpcode.regA + currentOpcode.imm, 4, false); //treated as lw but startin at the LSB
 
+	LOG_F(WARNING, "CPU - LWR Instruction not fully supported");
 	//TODO: sta roba non funziona! sul registro destinazione devo sovrapporre le due letture LWL e LWR. Qui le sovrascrivo
 	return true;
 }
@@ -929,7 +932,7 @@ bool CPU::op_jalr()
 
 bool CPU::op_syscall()
 {
-	printf("Function SYS(%02xh) - %s\n", gpr[4], function_SYS[gpr[4] & 0x0000000f].c_str());
+	LOG_F(1, "CPU - Calling %s [SYS(%02xh)]", function_SYS[gpr[4] & 0x0000000f].c_str(), gpr[4]);
 	exception(static_cast<uint32_t>(cpu::exceptionCause::syscall));
 
 	return true;

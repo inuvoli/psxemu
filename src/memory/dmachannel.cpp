@@ -1,3 +1,4 @@
+#include <loguru.hpp>
 #include "dmachannel.h"
 
 DmaChannel::DmaChannel()
@@ -46,7 +47,7 @@ bool DmaChannel::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		break;
 
 	default:
-		printf("DMA Channel Register Set Unknown!\n");
+		LOG_F(ERROR, "DMA Channel Register Set Unknown!");
 		break;
 	}
 
@@ -87,7 +88,7 @@ uint32_t DmaChannel::readAddr(uint32_t addr, uint8_t bytes)
 		break;
 
 	default:
-		printf("DMA Channel Register Get Unknown!\n");
+		LOG_F(ERROR, "DMA Channel Register Get Unknown!");
 		break;
 	}
 

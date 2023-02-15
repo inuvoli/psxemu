@@ -1,3 +1,5 @@
+#include <loguru.hpp>
+
 #include "psxemu.h"
 
 constexpr auto DEFAULT_SCREEN_WIDTH = 1024;
@@ -6,17 +8,21 @@ constexpr auto DEFAULT_SCREEN_HEIGHT = 768;
 int main(int argc, char* argv[])
 {
     psxemu  emu;
+
+    //Init Log Library
+    loguru::init(argc, argv);
+    loguru::g_stderr_verbosity = loguru::Verbosity_WARNING; 
+    loguru::add_file("debug.log", loguru::Append, 2);
     
-    //Init PSX Emulator
     if (!emu.init(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT))
     {
-        printf("Failed to Initialize PSX Emulator!\n");
+        LOG_F(ERROR, "Failed to Initialize PSX Emulator!\n");
         return 0;
     }
 
     if (!emu.run())
     {
-        printf("Failed to Run PSP!\n");
+        LOG_F(ERROR, "Failed to Run PSP!\n");
         return 0;
     }
     

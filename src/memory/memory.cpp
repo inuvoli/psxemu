@@ -1,3 +1,4 @@
+#include <loguru.hpp>
 #include "memory.h"
 
 Memory::Memory()
@@ -50,7 +51,7 @@ bool Memory::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		ramSize = data;
 		break;
 	default:
-		printf("Memory - Unknown Parameter Set 0x%08x (%d)\n", addr, bytes);
+		LOG_F(ERROR, "Memory - Unknown Parameter Set 0x%08x (%d)", addr, bytes);
 		return false;
 	}
 	return true;
@@ -58,6 +59,6 @@ bool Memory::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 
 uint32_t Memory::readAddr(uint32_t addr, uint8_t bytes)
 {
-	printf("Memory - Unknown Parameter Get 0x%08x (%d)\n", addr, bytes);
+	LOG_F(ERROR, "Memory - Unknown Parameter Get 0x%08x (%d)", addr, bytes);
 	return 0;
 }

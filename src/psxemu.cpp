@@ -1,3 +1,5 @@
+#include <loguru.hpp>
+
 #include "psxemu.h"
 
 //-------------------------------------------------------------------------------------------------------------
@@ -14,9 +16,9 @@ MessageCallback( GLenum source,
                  const GLchar* message,
                  const void* userParam )
 {
-  printf( "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
-           ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
-            type, severity, message );
+    LOG_F(WARNING,  "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s",
+                    ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+                    type, severity, message );
 }
 
 psxemu::psxemu()
@@ -43,19 +45,20 @@ bool psxemu::init(int wndWidth, int wndHeight)
     //Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) < 0)
     {
-        printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
+        LOG_F(ERROR, "SDL could not initialize! SDL_Error: %s", SDL_GetError());
         return false;
     }
-    printf("SDL Initialized...\n");
+    
+    LOG_F(INFO, "SDL Initialized...");
         
     //Create Controller
-    printf("Scanning Controllers....detected [%d]\n", SDL_NumJoysticks());
+    LOG_F(INFO, "Scanning Controllers....detected [%d]", SDL_NumJoysticks());
 
     for (int i = 0; i < SDL_NumJoysticks(); i++)
     {
         if (SDL_IsGameController(i))
         {
-            printf("Configuring Controller [%d]\n", i + 1);
+            LOG_F(INFO, "Configuring Controller [%d]", i + 1);
             pControllerA = SDL_GameControllerOpen(i);
         }
 
@@ -74,18 +77,18 @@ bool psxemu::init(int wndWidth, int wndHeight)
     pWindow = SDL_CreateWindow("PSXEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, wndWidth, wndHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (pWindow == nullptr)
     {
-        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+        LOG_F(ERROR, "Window could not be created! SDL_Error: %s", SDL_GetError());
         return false;
     }
-    printf("Window Created...\n");
+    LOG_F(INFO, "PSXEMU Window Created...");
 
     // pWindow2 = SDL_CreateWindow("PSX Debugger", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, wndWidth, wndHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     // if (pWindow == nullptr)
     // {
-    //     printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+    //     LOG_F(ERROR, "Window could not be created! SDL_Error: %s", SDL_GetError());
     //     return false;
     // }
-    printf("Window Created...\n");
+    //LOG_F(INFO, (INFO, "DEBUGGER Window Created...");
      
     //Set window minimum size
     SDL_SetWindowMinimumSize(pWindow, wndWidth, wndHeight);
@@ -99,10 +102,10 @@ bool psxemu::init(int wndWidth, int wndHeight)
     GLenum err = glewInit();
     if (err != GLEW_OK)
     {
-        printf("Failed to initialize OpenGL Loader...Error: %s\n", glewGetErrorString(err));
+        LOG_F(ERROR, "Failed to initialize OpenGL Loader...Error: %s", glewGetErrorString(err));
         return false;
     }
-    printf("OpenGL Loader Initialized...\n");
+    LOG_F(INFO, "OpenGL Loader Initialized...");
 
     //Set VievPort
     glViewport(0, 0, wndWidth, wndHeight);

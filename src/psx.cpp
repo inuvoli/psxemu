@@ -1,3 +1,4 @@
+#include <loguru.hpp>
 #include "psx.h"
 
 Psx::Psx()
@@ -78,16 +79,17 @@ bool Psx::reset()
 bool Psx::clock()
 {
 	//-------------------------------------------------------------------
-	// GPU Clock:  53.2000 Mhz
-	// CPU Clock:  33.8685 MHz
-	// CDR Clock: 360.4680 kHz
+	// GPU Clock (PAL):  	53.203425 MHz
+	// GPU Clock (NTSC): 	53.693175 MHz
+	// CPU Clock:  			33.8688 MHz       [(44.100KHz * 600h) / 2]
+	// CDR Clock: 			4.00MHz
 	//
-	// CPU Clock is 7/11 of the GPU Clock. This is achieved starting from
+	// CPU Clock is about 7/11 of the GPU Clock. This is achieved starting from
 	// a Master Clock at 372.5535 Mhz then:
 	// CPU Clock		= Master Clock / 11 (2)
 	// GPU Clock		= Master Clock / 7  (1)
-	// System/8 Clock	= Master Clock / 88 (16)
-	// CDRom Clock 		= Master Clock / 11 * 2352 / 4 / 44100	SystemClock*930h/4/44100Hz
+	// System/8 Clock	= Master Clock / 88 (13)
+	// CDRom Clock 		= Master Clock / 93 (13)
 	//-------------------------------------------------------------------
 
 	if (!(masterClock % 2))
@@ -102,12 +104,12 @@ bool Psx::clock()
 		gpu->clock();
 	}
 
-	if (!(masterClock % 16))
+	if (!(masterClock % 13))
 	{
 		timers->clock(ClockSource::System8);
 	}
 
-	if (!(masterClock % 250))
+	if (!(masterClock % 13))
 	{
 		cdrom->clock(); //Temporary
 		controller->clock(); //Temporary
@@ -160,7 +162,7 @@ uint32_t Psx::rdMem(uint32_t vAddr, uint8_t bytes)
 	//Debug Bios TTY
 	if (memRangeTTY.contains(phAddr))  return tty->readAddr(phAddr, bytes);
 		
-	printf("Unhandled Memory Read  - addr: 0x%08x (%d)\n", vAddr, bytes);
+	LOG_F(ERROR, "Unhandled Memory Read  - addr: 0x%08x (%d)", vAddr, bytes);
 
 	return 0;	
 }
@@ -193,7 +195,7 @@ bool Psx::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 	//Debug Bios TTY
 	if (memRangeTTY.contains(phAddr))  return tty->writeAddr(phAddr, data, bytes);
 
-	printf("Unhandled Memory Write - addr: 0x%08x, data: 0x%08x (%d)\n", vAddr, data, bytes);
+	LOG_F(ERROR, "Unhandled Memory Write - addr: 0x%08x, data: 0x%08x (%d)", vAddr, data, bytes);
 
 	return false;
 }
@@ -232,7 +234,7 @@ bool Psx::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		postStatus = data;
 		break;
 	default:
-		printf("PSX - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x\n", addr, bytes, data);
+		LOG_F(ERROR, "PSX - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return false;
 	}
 	return true;
@@ -248,7 +250,7 @@ uint32_t Psx::readAddr(uint32_t addr, uint8_t bytes)
 
 	default:
 		data = 0;
-		printf("PSX - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
+		LOG_F(ERROR, "PSX - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
 		break;
 	}
 

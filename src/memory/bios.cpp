@@ -1,3 +1,4 @@
+#include <loguru.hpp>
 #include "bios.h"
 
 Bios::Bios()
@@ -13,7 +14,7 @@ Bios::~Bios()
 bool Bios::loadBios(const std::string& fileName)
 {
 	//Load BIOS Image
-	printf("PSP Bios (%s) Loading\n", fileName.c_str());
+	LOG_F(INFO, "PSP Bios (%s) Loading...", fileName.c_str());
 
 	std::ifstream ifs;
 	ifs.open(fileName, std::ifstream::binary);
@@ -25,7 +26,7 @@ bool Bios::loadBios(const std::string& fileName)
 
 		if (biosSize != BIOS_SIZE)
 		{
-			printf("PSP Bios Unknown\n");
+			LOG_F(ERROR, "PSP Bios Unknown!");
 			return false;
 		}
 
@@ -33,18 +34,18 @@ bool Bios::loadBios(const std::string& fileName)
 
 		ifs.close();
 
-		printf("PSP Bios Loaded\n");
+		LOG_F(INFO, "PSP Bios Loaded");
 
-//#ifdef PSXEMU_ENABLE_STDIO
+#ifdef PSXEMU_ENABLE_STDIO
 		uint32_t patch[] = { 0x01, 0x00, 0x01, 0x24, 0xe1, 0x19, 0xf0, 0x0f, 0xc0, 0xa9, 0x81, 0xaf };
 		for(int i=0;i<12;i++)
 			rom[0x06f0c + i] = patch[i];
-		printf("PSP Bios Patched - Enable std_io\n");
-//#endif
+		LOG_F(INFO, "PSP Bios Patched - Enable std_io");
+#endif
 
 		return true;
 	}
-	printf("PSP Bios Not Found\n");
+	LOG_F(ERROR, "PSP Bios Not Found");
 
 	return false;
 }

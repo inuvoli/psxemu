@@ -4,6 +4,8 @@
 #include <fstream>
 #include <memory>
 
+//#define PSXEMU_ENABLE_STDIO
+
 constexpr auto BIOS_SIZE = 0x80000;	//512 KB
 
 class Psx;

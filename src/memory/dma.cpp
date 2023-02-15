@@ -1,3 +1,4 @@
+#include <loguru.hpp>
 #include "dma.h"
 #include "psx.h"
 
@@ -75,7 +76,7 @@ bool Dma::clock()
 			break;
 
 		default:
-			printf("DMA Channel %d Unknown Sync Mode!\n", runningChannel);
+			LOG_F(ERROR, "DMA Channel %d Unknown Sync Mode!", runningChannel);
 		}
 
 		return true;
@@ -115,7 +116,7 @@ bool Dma::clock()
 			default:
 				break;
 			}
-			//printf("DMA - Active Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d\n", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize);
+			LOG_F(1, "DMA - Active Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize);
 			//Stop CPU access to Address Bus
 			psx->cpu->dmaTakeOnBus = true;
 		}	
@@ -158,7 +159,7 @@ bool Dma::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		break;
 
 	default:
-		printf("DMA - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x\n", addr, bytes, data);
+		LOG_F(ERROR, "DMA - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return false;
 	}
 
@@ -188,7 +189,7 @@ uint32_t Dma::readAddr(uint32_t addr, uint8_t bytes)
 		break;
 
 	default:
-		printf("DMA - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
+		LOG_F(ERROR, "DMA - Unknown Parameter Get addr: 0x%08x (%d)", addr, bytes);
 		return 0x0;
 	}
 	
@@ -203,7 +204,7 @@ bool Dma::syncmode0()
 	{
 		//TODO
 		//Sync Mode 0 should not support reading From RAM
-		printf("Channel %d - Sync Mode 0 read from Ram not supported!\n", runningChannel);
+		LOG_F(ERROR, "Channel %d - Sync Mode 0 read from Ram not supported!", runningChannel);
 	}
 	else
 	{
@@ -215,7 +216,7 @@ bool Dma::syncmode0()
 
 		default:
 			data = 0;
-			printf("Channel % d not supported in Sync Mode 0\n", runningChannel);
+			LOG_F(ERROR, "Channel % d not supported in Sync Mode 0", runningChannel);
 		}
 
 		//Write data to RAM
@@ -247,7 +248,7 @@ bool Dma::syncmode1()
 			break;
 
 		default:
-			printf("Channel % d not supported in Sync Mode 0\n", runningChannel);
+			LOG_F(ERROR, "Channel % d not supported in Sync Mode 0", runningChannel);
 		}
 
 		//Update Current Address and DMA Channel Registers
@@ -265,7 +266,7 @@ bool Dma::syncmode1()
 	else
 	{
 		//TODO - to Ram, don't know if there's any case
-		printf("Channel %d - Sync Mode 1 write to Ram not supported!\n", runningChannel);
+		LOG_F(ERROR, "Channel %d - Sync Mode 1 write to Ram not supported!", runningChannel);
 	}
 
 	if (runningSize == 0)
@@ -308,14 +309,14 @@ bool Dma::syncmode2()
 				break;
 
 			default:
-				printf("Channel %d - Sync Mode 2 write From Ram not supported!\n", runningChannel);
+				LOG_F(ERROR, "Channel %d - Sync Mode 2 write From Ram not supported!", runningChannel);
 				break;
 			}
 		}
 		else
 		{
 			//TODO - I dont't know if we ever need to receive packet to Ram.
-			printf("Channel %d - Sync Mode 2 write to Ram not supported!\n", runningChannel);
+			LOG_F(ERROR, "Channel %d - Sync Mode 2 write to Ram not supported!", runningChannel);
 		}
 	}
 

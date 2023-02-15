@@ -1,3 +1,4 @@
+#include <loguru.hpp>
 #include "controller.h"
 #include "psx.h"
 
@@ -29,7 +30,7 @@ bool Controller::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
     switch (addr)
     {
     default:
-        printf("CONTROLLER - Unknown Parameter Set addr: 0x%08x (%d)\n", addr, bytes);
+        LOG_F(ERROR, "CONTROLLER - Unknown Parameter Set addr: 0x%08x (%d)", addr, bytes);
         break;
     }
 
@@ -43,7 +44,7 @@ uint32_t Controller::readAddr(uint32_t addr, uint8_t bytes)
     switch (addr)
     {
     default:
-        printf("CONTROLLER - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
+        LOG_F(ERROR, "CONTROLLER - Unknown Parameter Get addr: 0x%08x (%d)", addr, bytes);
         break;
     }
 

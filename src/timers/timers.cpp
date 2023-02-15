@@ -1,3 +1,4 @@
+#include <loguru.hpp>
 #include "timers.h"
 #include "psx.h"
 #include "gpu.h"
@@ -60,7 +61,7 @@ bool Timers::clock(ClockSource source)
 		break;
 		
 	default:
-		printf("TIMERS - Unknown Clock Source!\n");
+		LOG_F(ERROR, "TIMERS - Unknown Clock Source!");
 	}
 
 	//Update Interrupt Signals
@@ -106,7 +107,7 @@ void Timers::updateTimer0()
 			break;
 
 		default:
-			printf("TIMER - Unknown Sync Mode!\n");
+			LOG_F(ERROR, "TIMER - Unknown Sync Mode!");
 		}
 
 		if (static_cast<bool>(timerStatus[0].counterMode.resetZero))
@@ -177,7 +178,7 @@ void Timers::updateTimer1()
 			break;
 
 		default:
-			printf("TIMER - Unknown Sync Mode!\n");
+			LOG_F(ERROR, "TIMER - Unknown Sync Mode!");
 		}
 
 		if (static_cast<bool>(timerStatus[1].counterMode.resetZero))
@@ -240,7 +241,7 @@ void Timers::updateTimer2()
 			break;
 		
 		default:
-			printf("TIMER - Unknown Sync Mode!\n");
+			LOG_F(ERROR, "TIMER - Unknown Sync Mode!");
 		}
 
 		if (static_cast<bool>(timerStatus[2].counterMode.resetZero))
@@ -379,7 +380,7 @@ bool Timers::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		break;
 
 	default:
-		printf("TIMERS - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x\n", addr, bytes, data);
+		LOG_F(ERROR, "TIMERS - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return false;
 	}
 	return true;
@@ -431,7 +432,7 @@ uint32_t Timers::readAddr(uint32_t addr, uint8_t bytes)
 		break;
 
 	default:
-		printf("TIMERS - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
+		LOG_F(ERROR, "TIMERS - Unknown Parameter Get addr: 0x%08x (%d)", addr, bytes);
 		return 0x0;
 	}
 

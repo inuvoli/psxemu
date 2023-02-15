@@ -1,3 +1,4 @@
+#include <loguru.hpp>
 #include "cop2.h"
 #include "cpu_short_pipe.h"
 
@@ -25,6 +26,6 @@ bool Cop2::reset()
 
 bool Cop2::execute(uint32_t cofun)
 {
-	printf("COP2 - Error! GTE is unsupported\n");
+	LOG_F(ERROR, "COP2 - Error! GTE is unsupported\n");
 	return false;
 }
