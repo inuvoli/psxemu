@@ -37,7 +37,7 @@ Cdrom::Cdrom()
 		{"Play", &Cdrom::cmd_play},
 		{"Forward", &Cdrom::cmd_forward},
 		{"Backward", &Cdrom::cmd_backward},
-		{"ReanN", &Cdrom::cmd_readn},
+		{"ReadN", &Cdrom::cmd_readn},
 		{"MotorOn", &Cdrom::cmd_motoron},
 		{"Stop", &Cdrom::cmd_stop},
 		{"Pause", &Cdrom::cmd_pause},
@@ -561,26 +561,105 @@ bool Cdrom::cmd_getstat()
 	return true;
 };
 
-bool Cdrom::cmd_setloc() { return false; };
+bool Cdrom::cmd_setloc()
+{ 
+	//Get All Parameters
+	uint8_t amm, ass, asect;
+	parameterFifo.pop(amm);
+	parameterFifo.pop(ass);
+	parameterFifo.pop(asect);
+
+	//Do Someting
+
+	//Push INT3(stat)
+	interruptFifo.push(cdrom::INT3);
+	responseFifo.push(statusCode.byte);
+
+	return true;
+};
+
 bool Cdrom::cmd_play() { return false; };
 bool Cdrom::cmd_forward() { return false; };
 bool Cdrom::cmd_backward() { return false; };
-bool Cdrom::cmd_readn() { return false; };
+
+bool Cdrom::cmd_readn()
+{ 
+	//Push INT3(stat)
+	interruptFifo.push(cdrom::INT3);
+	responseFifo.push(statusCode.byte);
+
+	//Reset Seek and Set Read
+	statusCode.seek = 0;
+	statusCode.read = 1;
+
+	//Push INT1(stat)
+	interruptFifo.push(cdrom::INT1);
+	responseFifo.push(statusCode.byte);
+
+	return true;
+};
+
 bool Cdrom::cmd_motoron() { return false; };
 bool Cdrom::cmd_stop() { return false; };
-bool Cdrom::cmd_pause() { return false; };
+
+bool Cdrom::cmd_pause()
+{	
+	//Push INT3(stat)
+	interruptFifo.push(cdrom::INT3);
+	responseFifo.push(statusCode.byte);
+
+	//Reset Read
+	statusCode.read = 0;
+
+	//Push INT2(stat)
+	interruptFifo.push(cdrom::INT2);
+	responseFifo.push(statusCode.byte);
+
+	return true;
+};
 bool Cdrom::cmd_init() { return false; };
 bool Cdrom::cmd_mute() { return false; };
 bool Cdrom::cmd_demute() { return false; };
 bool Cdrom::cmd_setfilter() { return false; };
-bool Cdrom::cmd_setmode() { return false; };
+
+bool Cdrom::cmd_setmode()
+{ 
+	//Get All Parameters
+	uint8_t mode;
+	parameterFifo.pop(mode);
+	
+	//Do Someting
+
+	//Push INT3(stat)
+	interruptFifo.push(cdrom::INT3);
+	responseFifo.push(statusCode.byte);
+
+	return true;
+};
+
 bool Cdrom::cmd_getparam() { return false; };
 bool Cdrom::cmd_getlocl() { return false; };
 bool Cdrom::cmd_getlocp() { return false; };
 bool Cdrom::cmd_setsession() { return false; };
 bool Cdrom::cmd_gettn() { return false; };
 bool Cdrom::cmd_cettd() { return false; };
-bool Cdrom::cmd_seekl() { return false; };
+
+bool Cdrom::cmd_seekl()
+{
+	//Push INT3(stat)
+	interruptFifo.push(cdrom::INT3);
+	responseFifo.push(statusCode.byte);
+
+	//Status Seek
+	statusCode.seek = 1;
+
+	//Push INT2(stat)
+	interruptFifo.push(cdrom::INT2);
+	responseFifo.push(statusCode.byte);
+	return true;
+
+};
+
 bool Cdrom::cmd_seekp() { return false; };
 
 bool Cdrom::cmd_test()
@@ -599,20 +678,23 @@ bool Cdrom::cmd_test()
 
 bool Cdrom::cmd_getid()
 { 
-	statusCode.spindlemotor = 1;
-
-	//Push INT5
+	//Door open
 	//interruptFifo.push(cdrom::INT5);
 	//responseFifo.push( {0x11, 0x80} );
 
 	//Push INT3(stat)
-	//interruptFifo.push(cdrom::INT3);
-	//responseFifo.push(statusCode.byte);
+	interruptFifo.push(cdrom::INT3);
+	responseFifo.push(statusCode.byte);
 
 	//Temporary - Empty CD Only
 	//Push INT5
 	//interruptFifo.push(cdrom::INT5);
 	//responseFifo.push( {0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} );
+
+	//Temporary - Licensed:Mode2 
+	//Push INT2
+	interruptFifo.push(cdrom::INT2);
+	responseFifo.push( {0x02, 0x40, 0x20, 0x00, 0x53, 0x43, 0x45, 0x41} );
 	
 	return true;
 };

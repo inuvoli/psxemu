@@ -57,7 +57,7 @@ namespace cdrom
 		};
 	};
 
-	enum {INT3 = 3, INT5 = 5};
+	enum {INT1 = 1, INT2 = 2, INT3 = 3, INT5 = 5};
 };
 
 
@@ -105,11 +105,11 @@ private:
 	uint8_t					commandRegister;
 
 	//Internal Fifo
-	lite::fifo<uint8_t, 16> parameterFifo;
-	lite::fifo<uint8_t, 2048> dataFifo;
-	lite::fifo<uint8_t, 16> responseFifo;
-	lite::fifo<uint8_t, 16> interruptFifo;
-	lite::fifo<uint8_t, 2048> adpcmFifo;
+	lite::fifo<uint8_t, 16> 	parameterFifo;
+	lite::fifo<uint8_t, 2048> 	dataFifo;
+	lite::fifo<uint8_t, 16> 	responseFifo;
+	lite::fifo<uint8_t, 16> 	interruptFifo;
+	lite::fifo<uint8_t, 2048> 	adpcmFifo;
 
 	//Command Functions
 	bool cmd_unused();
@@ -154,7 +154,7 @@ private:
 		bool(Cdrom::* operate)() = nullptr;
 	};
 
-	std::vector<COMMAND> commandSet;		//Full Command Set
+	std::vector<COMMAND> commandSet;	//Full Command Set
 	std::vector<COMMAND> functSet;		//Full Sub Functions Set
 };
 

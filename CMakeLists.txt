@@ -20,6 +20,7 @@ find_package(SDL2 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(glm REQUIRED)
+find_package(ZLIB)
 
 # Create a sources variable with a link to all cpp files to compile
 set(PSXEMU_SOURCES
@@ -85,7 +86,8 @@ target_include_directories(psxemu
 		${GLEW_INCLUDE_DIRS}
 		${OPENGL_INCLUDE_DIRS}
 		${GLM_INCLUDE_DIRS}
+		${ZLIB_INCLUDE_DIRS}
 )
 
 # Set libraries to be included
-target_link_libraries(psxemu ${OPENGL_LIBRARIES} ${SDL2_LIBRARIES} ${GLEW_LIBRARIES} ${CMAKE_DL_LIBS})
+target_link_libraries(psxemu ${OPENGL_LIBRARIES} ${SDL2_LIBRARIES} ${GLEW_LIBRARIES})
