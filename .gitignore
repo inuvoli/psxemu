@@ -36,3 +36,7 @@ bld/
 *.ini
 *.ilk
 *.json
+
+# Miscellaneous #
+###################
+*.log

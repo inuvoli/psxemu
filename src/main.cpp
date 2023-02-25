@@ -11,7 +11,7 @@ int main(int argc, char* argv[])
 
     //Init Log Library
     loguru::init(argc, argv);
-    loguru::g_stderr_verbosity = 1; 
+    loguru::g_stderr_verbosity = loguru::Verbosity_INFO; 
     //loguru::add_file("debug.log", loguru::Append, 1);
     
     if (!emu.init(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT))

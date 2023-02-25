@@ -180,5 +180,8 @@ private:
 	lite::range memRangeScratchpad =  lite::range(0x1f800000, 0x400);
 	lite::range memRangeIntRegs = lite::range(0x1f801070, 0x8);
 	lite::range memRangeCacheRegs = lite::range(0xfffe0130, 0x4);
+
+	static constexpr uint32_t	lwlMask[4] = { 0x00ffffff, 0x0000ffff, 0x000000ff, 0x00000000 };
+	static constexpr uint32_t	lwrMask[4] = { 0x00000000, 0xff000000, 0xffff0000, 0xffffff00 };
 };
 

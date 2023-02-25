@@ -708,14 +708,35 @@ bool CPU::op_lh()
 
 bool CPU::op_lwl()
 {
-	//Unaligned reading from memory is approximated with a 4 byte reading from LSB
-	//for both LWL and LWR. Both act like LW but starting from a potentially
-	//unaligned address.
-	if (currentOpcode.rt != 0)
-		gpr[currentOpcode.rt] = rdMem(currentOpcode.regA + currentOpcode.imm - 0x03, 4, false); //treated as lw but startin at the LSB
+	//Unaligned reading from memory
+	//LWL point to the MSB in memory and overwrite offset+1 byte on rt starting from the left
+	//leaving the other bytes untouched
 
-	LOG_F(WARNING, "CPU - LWL Instruction not fully supported");
-	//TODO: sta roba non funziona! sul registro destinazione devo sovrapporre le due letture LWL e LWR. Qui le sovrascrivo	
+	// rt  - destination register
+	// rs  - contains base address
+	// imm - offset
+
+	if (currentOpcode.rt == 0)
+		return true;
+	
+	uint32_t vAddr;
+	uint32_t phAddr;
+	uint32_t offset;
+	uint32_t shift;
+	uint32_t value, tmp;
+
+	value = currentOpcode.regB;   						//copy current content of rt
+	vAddr = currentOpcode.regA + currentOpcode.imm;		//sum base address and offset to get Virtual Address
+	phAddr = vAddr & 0xfffffffc;						//get word address aligned in memory
+	offset = vAddr & 0x00000003;						//get offset within the word aligned in memory
+	shift = 8*(3-offset);
+
+	tmp = rdMem(phAddr);
+	tmp = tmp << shift;
+	value = (value & lwlMask[offset]) | tmp;
+
+	gpr[currentOpcode.rt] = value;
+
 	return true;
 }
 
@@ -745,15 +766,35 @@ bool CPU::op_lhu()
 
 bool CPU::op_lwr()
 {
-	//Checked 25/08/2021
-	//Unaligned reading from memory is approximated with a 4 byte reading from LSB
-	//for both LWL and LWR. Both act like LW but starting from a potentially
-	//unaligned address.
- 	if (currentOpcode.rt != 0)
-		gpr[currentOpcode.rt] = rdMem(currentOpcode.regA + currentOpcode.imm, 4, false); //treated as lw but startin at the LSB
+	//Unaligned reading from memory
+	//LWR point to the LSB in memory and overwrite offset-4 byte on rt starting from the right
+	//leaving the other bytes untouched
 
-	LOG_F(WARNING, "CPU - LWR Instruction not fully supported");
-	//TODO: sta roba non funziona! sul registro destinazione devo sovrapporre le due letture LWL e LWR. Qui le sovrascrivo
+	// rt  - destination register
+	// rs  - contains base address
+	// imm - offset
+
+	if (currentOpcode.rt == 0)
+		return true;
+	
+	uint32_t vAddr;
+	uint32_t phAddr;
+	uint32_t offset;
+	uint32_t shift;
+	uint32_t value, tmp;
+
+	value = currentOpcode.regB;   						//copy current content of rt
+	vAddr = currentOpcode.regA + currentOpcode.imm;		//sum base address and offset to get Virtual Address
+	phAddr = vAddr & 0xfffffffc;						//get word address aligned in memory
+	offset = vAddr & 0x00000003;						//get offset within the word aligned in memory
+	shift = 8*offset;
+
+	tmp = rdMem(phAddr);
+	tmp = tmp >> shift;
+	value = (value & lwrMask[offset]) | tmp;
+
+	gpr[currentOpcode.rt] = value;
+
 	return true;
 }
 
