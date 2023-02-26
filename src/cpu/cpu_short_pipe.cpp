@@ -220,14 +220,14 @@ inline uint32_t CPU::rdInst(uint32_t vAddr, uint8_t bytes)
 	return psx->rdMem(vAddr, bytes);
 }
 
-inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes, bool checkalign)
+inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes)
 {
 	cop0::StatusRegister statusReg;
 
 	statusReg.word = cop0->reg[12];
 
 	//Check if vAddr in unaligned
-	if ((bool)(vAddr % bytes) && checkalign)
+	if ((bool)(vAddr % bytes))
 		exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
 
 	//Check if Cache is Isolated

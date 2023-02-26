@@ -43,7 +43,7 @@ public:
 
 	//Cache & Memory Access
 	uint32_t rdInst(uint32_t vAddr, uint8_t bytes = 4);
-	uint32_t rdMem(uint32_t vAddr, uint8_t bytes = 4, bool checkalign = true);
+	uint32_t rdMem(uint32_t vAddr, uint8_t bytes = 4);
 	bool	 wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes = 4, bool checkalign = true);
 	uint32_t rdDataCache(uint32_t vAddr, uint8_t bytes);
 	bool	 wrDataCache(uint32_t vAddr, uint32_t& data, uint8_t bytes);
