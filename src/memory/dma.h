@@ -14,25 +14,29 @@
 constexpr auto DMA_CHANNEL_NUMBER	= 7;				//4 KB
 
 // DMA Channel Registers Fields
-union dicrFields
+namespace dma
 {
-	uint32_t		word;
+	union dicr
+	{
+		uint32_t		word;
 
-	BitField<15, 1>	forceIrq;			//(0=None, 1=Force Bit31=1)
-	BitField<16, 7>	enableIrq;			//DMA0-DMA6 IRQ Enable (0=None, 1=Enable)
-	BitField<23, 1>	masterEnableIrq;	//Master IRQ Enable (0=None, 1=Enable)
-	BitField<24, 7>	flagsIrq;			//DMA0-DMA6 IRQ Flags (0=None, 1=IRQ)    (Write 1 to reset)
-	BitField<31, 1> masterFlagIrq;		//Chopping DMA Windows
-};
+		BitField<15, 1>	forceIrq;			//(0=None, 1=Force Bit31=1)
+		BitField<16, 7>	enableIrq;			//DMA0-DMA6 IRQ Enable (0=None, 1=Enable)
+		BitField<23, 1>	masterEnableIrq;	//Master IRQ Enable (0=None, 1=Enable)
+		BitField<24, 7>	flagsIrq;			//DMA0-DMA6 IRQ Flags (0=None, 1=IRQ)    (Write 1 to reset)
+		BitField<31, 1> masterFlagIrq;		//Chopping DMA Windows
+	};
 
+	struct StatusItem
+	{
+		bool		enabled = false;
+		uint8_t		priority = 1;
+		uint8_t		channel;
+	};
+}
+
+//PSX Object Forward Declaration
 class Psx;
-
-struct DmaStatusItem
-{
-	bool		enabled = false;
-	uint8_t		priority = 1;
-	uint8_t		channel;
-};
 
 class Dma
 {
@@ -51,10 +55,10 @@ public:
 
 public:
 	//DMA Internal Registers
-	std::array<DmaStatusItem, DMA_CHANNEL_NUMBER>	dmaStatus;
+	std::array<dma::StatusItem, DMA_CHANNEL_NUMBER>	dmaStatus;
 	DmaChannel					dmaChannel[DMA_CHANNEL_NUMBER]; //DMA Channels
 	uint32_t					dmaDpcr;
-	dicrFields					dmaDicr;
+	dma::dicr					dmaDicr;
 	
 private:
 	bool syncmode0();

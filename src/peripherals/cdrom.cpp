@@ -6,10 +6,12 @@ Cdrom::Cdrom()
 {
 	statusCode.byte = 0;
 	requestRegister.byte = 0;
+	modeRegister.byte = 0;
+
 	interruptEnableRegister = 0;
 	interruptFlagRegister = 0;
 	commandRegister = 0;
-
+	
 	adpcmFifo.flush();
 	parameterFifo.flush();
 	dataFifo.flush();
@@ -27,6 +29,9 @@ Cdrom::Cdrom()
 
 	//Init Internal Status
 	commandAvailable = false;
+
+	//Init Internal Counter
+	readSectorTimer = 53300; //about 75 Sector per Second at a Clock of 4Mhz
 
 	//Init COMMAND Dictionary
 	commandSet = 
@@ -292,16 +297,39 @@ Cdrom::Cdrom()
 
 Cdrom::~Cdrom()
 {
+	cdImage.closeImage();
+}
+
+bool Cdrom::loadImage(const std::string& fileName)
+{
+	//Load Game Image
+	LOG_F(INFO, "PSP Game (%s) Loading...", fileName.c_str());
+
+	if (cdImage.openImage(fileName))
+		LOG_F(INFO, "PSP Game Loaded");
+	else
+	{
+		LOG_F(ERROR, "PSP Game Not Found");
+		return false;
+	}
+
+	//TEMPORARY!!!!! Va messo da un'altra parte.
+	statusCode.shellopen = 0;
+	statusCode.spindlemotor = 1;
+
+	return true;
 }
 
 bool Cdrom::reset()
 {
 	statusCode.byte = 0;
 	requestRegister.byte = 0;
+	modeRegister.byte = 0;
+
 	interruptEnableRegister = 0;
 	interruptFlagRegister = 0;
 	commandRegister = 0;
-
+	
 	adpcmFifo.flush();
 	parameterFifo.flush();
 	dataFifo.flush();
@@ -319,6 +347,9 @@ bool Cdrom::reset()
 
 	//Init Internal Status
 	commandAvailable = false;
+
+	//Init Internal Counter
+	readSectorTimer = 53300; //about 75 Sector per Second at a Clock of 4Mhz
 	
 	return true;
 }
@@ -365,7 +396,37 @@ bool Cdrom::clock()
 				LOG_F(ERROR, "CDROM - Unimplemented Command %s!", commandSet[commandRegister].mnemonic.c_str());
 	}
 
-	return false;
+	//Read Sector in Read or Play mode
+	if (statusCode.play == 1 || statusCode.read == 1)
+	{
+		//Read Speed is 75 Sector per Second at x1 speed and 150 Sector per Second at x2 speed
+		//CDROM Clock speed is 4MHz, a Sector is read every:
+		//   - 4000000/75 = 53330 clock tick at x1 speed
+		//   - 4000000/150 = 26660 clock tick at x2 speed
+		//TODO - Only works for READN Command
+		if (readSectorTimer)
+		{
+			readSectorTimer--;
+		}
+		else
+		{
+			char	sectorData[sector_payload_mode1_size];
+
+			//Push INT1(stat)
+			interruptFifo.push(cdrom::INT1);
+			responseFifo.push(statusCode.byte);
+
+			cdImage.readSector(sectorData);
+
+			for(int i = 0; i < sector_payload_mode1_size;  i++)
+				dataFifo.push((uint8_t)sectorData[i]);
+
+			//Set Reading Speed according to actual mode
+			readSectorTimer = 4000000/(75*(modeRegister.speed + 1));
+		}
+	}
+
+	return true;
 }
 
 bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
@@ -434,6 +495,8 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		{
 		case 0:
 			requestRegister.byte = data & 0xe0;
+			//If RequestRegister.bit7 = 0, Reset DataFifo
+			//if (requestRegister.bfrd == 0) dataFifo.flush();
 			LOG_F(3, "CDROM - Write Request Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
 			break;
 
@@ -467,29 +530,7 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 
 uint32_t Cdrom::readAddr(uint32_t addr, uint8_t bytes)
 {
-	auto readDataFifo = [&]()
-	{
-		uint16_t data;
-		uint8_t l, h;
-
-		switch (bytes)
-		{
-		case 1:
-			dataFifo.pop(l);
-			data = l;
-			break;
-
-		case 2:
-			dataFifo.pop(l);
-			dataFifo.pop(h);
-			data = (h << 8) + l;
-			break;
-		};
-
-		return (uint32_t)data;
-	};
-
-	uint32_t data;
+	uint32_t data = 0;
 	uint8_t tmp;
 
 	switch (addr)
@@ -500,13 +541,14 @@ uint32_t Cdrom::readAddr(uint32_t addr, uint8_t bytes)
 		break;
 
 	case 0x1f801801:
-		responseFifo.pop(tmp);
-		data = tmp;
-		LOG_F(3, "CDROM - Read Response Fifo:\t\t0x%08x       , data: 0x%08x", addr, data); 
+		if (responseFifo.pop(tmp))
+			data = tmp;
+		LOG_F(3, "CDROM - Read Response Fifo:\t\t0x%08x       , data: 0x%02x", addr, data); 
 		break;
 	
 	case 0x1f801802:
-		data = readDataFifo();
+		if (dataFifo.pop(tmp))
+			data = tmp;
 		LOG_F(3, "CDROM - Read Data Fifo:\t\t0x%08x           , data: 0x%08x", addr, data); 
 		break;
 
@@ -568,8 +610,10 @@ bool Cdrom::cmd_setloc()
 	parameterFifo.pop(amm);
 	parameterFifo.pop(ass);
 	parameterFifo.pop(asect);
+	LOG_F(1, "CDROM - Command Parameters [amm %d, ass %d, asect %d]", amm, ass, asect);
 
-	//Do Someting
+	//Search Sector on CdRom Image
+	cdImage.setLocation(amm, ass, asect); 
 
 	//Push INT3(stat)
 	interruptFifo.push(cdrom::INT3);
@@ -589,13 +633,10 @@ bool Cdrom::cmd_readn()
 	responseFifo.push(statusCode.byte);
 
 	//Reset Seek and Set Read
+	statusCode.play = 0;
 	statusCode.seek = 0;
 	statusCode.read = 1;
-
-	//Push INT1(stat)
-	interruptFifo.push(cdrom::INT1);
-	responseFifo.push(statusCode.byte);
-
+	
 	return true;
 };
 
@@ -609,6 +650,8 @@ bool Cdrom::cmd_pause()
 	responseFifo.push(statusCode.byte);
 
 	//Reset Read
+	statusCode.play = 0;
+	statusCode.seek = 0;
 	statusCode.read = 0;
 
 	//Push INT2(stat)
@@ -627,8 +670,11 @@ bool Cdrom::cmd_setmode()
 	//Get All Parameters
 	uint8_t mode;
 	parameterFifo.pop(mode);
+
+	LOG_F(1, "CDROM - Command Parameters [mode %d]", mode);
 	
-	//Do Someting
+	//Update Mode Register
+	modeRegister.byte = mode;
 
 	//Push INT3(stat)
 	interruptFifo.push(cdrom::INT3);
@@ -651,7 +697,10 @@ bool Cdrom::cmd_seekl()
 	responseFifo.push(statusCode.byte);
 
 	//Status Seek
+	statusCode.play = 0;
 	statusCode.seek = 1;
+	statusCode.read = 0;
+	cdImage.seekSector();
 
 	//Push INT2(stat)
 	interruptFifo.push(cdrom::INT2);
@@ -667,6 +716,8 @@ bool Cdrom::cmd_test()
 	//Get All Params
 	uint8_t tmp;
 	parameterFifo.pop(tmp);
+
+	LOG_F(1, "CDROM - Command Parameters [param1 %02x]", tmp);
 
 	//Push INT3
 	interruptFifo.push(cdrom::INT3);

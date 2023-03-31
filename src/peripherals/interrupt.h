@@ -53,7 +53,5 @@ private:
     //Link to PSP Object
 	Psx* psx;
 
-   
-
     std::string interruptDescription[11] = { "vBlank", "GPU", "CDROM", "DMA", "Timer0", "Timer1", "Timer2", "ByteRecv", "SIO", "SPU", "Controller" };
 };

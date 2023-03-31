@@ -62,8 +62,13 @@ set(LOGURU_SOURCES
 	3rdparty/loguru/loguru.cpp
 )
 
+#  LIBCDIMAGE cpp files
+set(LIBCDIMAGE_SOURCES
+	3rdparty/libcdimage/libcdimage.cpp
+)
+
 # Add an executable with the above sources
-add_executable(psxemu ${PSXEMU_SOURCES} ${IMGUI_SOURCES} ${LOGURU_SOURCES})
+add_executable(psxemu ${PSXEMU_SOURCES} ${IMGUI_SOURCES} ${LOGURU_SOURCES} ${LIBCDIMAGE_SOURCES})
 
 # Set the directories that should be included in the build command for this target
 # when running g++ these will be included as -I/directory/path/
@@ -73,6 +78,7 @@ target_include_directories(psxemu
 		${PROJECT_SOURCE_DIR}/3rdparty/imgui
 		${PROJECT_SOURCE_DIR}/3rdparty/litelib
 		${PROJECT_SOURCE_DIR}/3rdparty/loguru
+		${PROJECT_SOURCE_DIR}/3rdparty/libcdimage
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_SOURCE_DIR}/src/cpu
 		${PROJECT_SOURCE_DIR}/src/core

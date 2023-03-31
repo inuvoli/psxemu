@@ -40,7 +40,7 @@ psxemu::~psxemu()
     SDL_Quit();
 }
 
-bool psxemu::init(int wndWidth, int wndHeight)
+bool psxemu::init(int wndWidth, int wndHeight, const std::string& biosFileName, const std::string& gameFileName)
 {
     //Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) < 0)
@@ -136,7 +136,7 @@ bool psxemu::init(int wndWidth, int wndHeight)
 
     //Init PSX Emulator Object
     isRunning = true;
-    pPsx = std::make_shared<Psx>();
+    pPsx = std::make_shared<Psx>(biosFileName, gameFileName);
 
     //Init PSX Debugger
     pDebugger = std::make_shared<Debugger>(pPsx);   

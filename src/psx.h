@@ -23,6 +23,7 @@ class Psx
 {
 public:
 	Psx();
+	Psx(const std::string& biosFileName, const std::string& gameFileName);
 	~Psx();
 		
 	bool reset();

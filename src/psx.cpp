@@ -3,6 +3,11 @@
 
 Psx::Psx()
 {
+	//never used
+}
+
+Psx::Psx(const std::string& biosFileName, const std::string& gameFileName)
+{
 	//Reset Master Clock
 	masterClock = 0;
 
@@ -42,6 +47,10 @@ Psx::Psx()
 	cdromDelaySize = 0x0;
 	comDelay = 0x0;
 	postStatus = 0x0;
+
+	//Load Bios and Game images
+	bios->loadBios(biosFileName);
+	cdrom->loadImage(gameFileName);
 }
 
 Psx::~Psx()

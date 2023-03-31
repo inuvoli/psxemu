@@ -3,8 +3,6 @@
 
 Bios::Bios()
 {
-	//Load Bios
-	loadBios("scph1001.bin");
 }
 
 Bios::~Bios()

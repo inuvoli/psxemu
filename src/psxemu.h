@@ -15,7 +15,7 @@ public:
 	psxemu();
 	~psxemu();
 
-	bool init(int wndWidth, int wndHeight);
+	bool init(int wndWidth, int wndHeight, const std::string& biosFileName, const std::string& gameFileName);
 	bool run();
 
 

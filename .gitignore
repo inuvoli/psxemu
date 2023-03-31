@@ -40,3 +40,7 @@ bld/
 # Miscellaneous #
 ###################
 *.log
+*.img
+*.cue
+*.bin
+psxemu

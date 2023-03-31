@@ -26,6 +26,6 @@ bool Cop2::reset()
 
 bool Cop2::execute(uint32_t cofun)
 {
-	LOG_F(ERROR, "COP2 - Error! GTE is unsupported\n");
-	return false;
+	LOG_F(ERROR, "COP2 - Error! GTE is unsupported [%08x]", cofun);
+	return true;
 }

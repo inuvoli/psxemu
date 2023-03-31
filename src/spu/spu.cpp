@@ -116,7 +116,7 @@ bool SPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		break;
 	
 	default:
-		LOG_F(ERROR, "SPU - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
+		LOG_F(3, "SPU - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return false;
 	}
 	return true;
@@ -205,7 +205,7 @@ uint32_t SPU::readAddr(uint32_t addr, uint8_t bytes)
 		break;
 
 	default:
-		LOG_F(ERROR, "SPU - Unknown Parameter Get addr: 0x%08x (%d)", addr, bytes);
+		LOG_F(3, "SPU - Unknown Parameter Get addr: 0x%08x (%d)", addr, bytes);
 		return 0x0;
 	}
 

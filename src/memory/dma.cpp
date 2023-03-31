@@ -60,7 +60,7 @@ bool Dma::reset()
 
 bool Dma::clock()
 {
-	//Check id DMA is already Running
+	//Check if DMA is already Running
 	if (isRunning)
 	{
 		switch (runningSyncMode)
@@ -76,7 +76,7 @@ bool Dma::clock()
 			break;
 
 		default:
-			LOG_F(ERROR, "DMA Channel %d Unknown Sync Mode!", runningChannel);
+			LOG_F(ERROR, "DMA - Channel %d Unknown Sync Mode!", runningChannel);
 		}
 
 		return true;
@@ -116,7 +116,8 @@ bool Dma::clock()
 			default:
 				break;
 			}
-			LOG_F(1, "DMA - Active Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize);
+			LOG_F(1, "DMA - Active Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d, MemoryAddr %08x, Increment %d, FromMemory %d", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize, runningAddr, runningIncrement, runningFromRam);
+			
 			//Stop CPU access to Address Bus
 			psx->cpu->dmaTakeOnBus = true;
 		}	
@@ -151,7 +152,7 @@ bool Dma::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 			e.channel = chn;
 			chn++;
 		}
-		std::sort(dmaStatus.begin(), dmaStatus.end(), [](DmaStatusItem a, DmaStatusItem b) { return ((a.priority >= b.priority) && (a.channel > b.channel)); });
+		std::sort(dmaStatus.begin(), dmaStatus.end(), [](dma::StatusItem a, dma::StatusItem b) { return ((a.priority >= b.priority) && (a.channel > b.channel)); });
 		break;
 
 	case 0x1f8010f4:
@@ -204,19 +205,26 @@ bool Dma::syncmode0()
 	{
 		//TODO
 		//Sync Mode 0 should not support reading From RAM
-		LOG_F(ERROR, "Channel %d - Sync Mode 0 read from Ram not supported!", runningChannel);
+		LOG_F(ERROR, "DMA - Channel %d - Sync Mode 0 read from Ram not supported!", runningChannel);
 	}
 	else
 	{
 		switch (runningChannel)
 		{
+		case 3: //CDROM
+			//Read a word from CDROM Data Buffer 1 byte at a time
+			data = psx->cdrom->readAddr(0x1f801802, 1);
+			data += (psx->cdrom->readAddr(0x1f801802, 1) << 8);
+			data += (psx->cdrom->readAddr(0x1f801802, 1) << 16);
+			data += (psx->cdrom->readAddr(0x1f801802, 1) << 24);
+			break;
 		case 6:	//OTC
 			data = (runningSize == 1) ? 0x00ffffff : (runningAddr + runningIncrement) & 0x001ffffc;
 			break;
 
 		default:
 			data = 0;
-			LOG_F(ERROR, "Channel % d not supported in Sync Mode 0", runningChannel);
+			LOG_F(ERROR, "DMA - Channel %d not supported in Sync Mode 0", runningChannel);
 		}
 
 		//Write data to RAM
@@ -248,7 +256,7 @@ bool Dma::syncmode1()
 			break;
 
 		default:
-			LOG_F(ERROR, "Channel % d not supported in Sync Mode 0", runningChannel);
+			LOG_F(ERROR, "DMA - Channel %d not supported in Sync Mode 0", runningChannel);
 		}
 
 		//Update Current Address and DMA Channel Registers
@@ -266,7 +274,7 @@ bool Dma::syncmode1()
 	else
 	{
 		//TODO - to Ram, don't know if there's any case
-		LOG_F(ERROR, "Channel %d - Sync Mode 1 write to Ram not supported!", runningChannel);
+		LOG_F(ERROR, "DMA - Channel %d - Sync Mode 1 write to Ram not supported!", runningChannel);
 	}
 
 	if (runningSize == 0)
@@ -309,14 +317,14 @@ bool Dma::syncmode2()
 				break;
 
 			default:
-				LOG_F(ERROR, "Channel %d - Sync Mode 2 write From Ram not supported!", runningChannel);
+				LOG_F(ERROR, "DMA - Channel %d - Sync Mode 2 write From Ram not supported!", runningChannel);
 				break;
 			}
 		}
 		else
 		{
 			//TODO - I dont't know if we ever need to receive packet to Ram.
-			LOG_F(ERROR, "Channel %d - Sync Mode 2 write to Ram not supported!", runningChannel);
+			LOG_F(ERROR, "DMA - Channel %d - Sync Mode 2 write to Ram not supported!", runningChannel);
 		}
 	}
 
@@ -325,7 +333,7 @@ bool Dma::syncmode2()
 
 inline bool Dma::updateDicr(uint32_t data)
 {
-	dicrFields tmp;
+	dma::dicr tmp;
 
 	tmp.word = data;
 	dmaDicr.forceIrq = tmp.forceIrq;
