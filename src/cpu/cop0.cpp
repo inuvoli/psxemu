@@ -44,8 +44,6 @@ bool Cop0::execute(uint32_t cofun)
 	case 0x00:	//mfc0 rt, rd
 		if (currentOperation.rt != 0)
 			cpu->gpr[currentOperation.rt] = reg[currentOperation.rd];
-			if (currentOperation.rd == 12) LOG_F(2, "COP0 - Reading StatusRegister 0x%08x", cpu->gpr[currentOperation.rt]);
-			if (currentOperation.rd == 13) LOG_F(2, "COP0 - Reading CauseRegister 0x%08x", cpu->gpr[currentOperation.rt]);
 		break;
 
 	case 0x02:	//cfc0 rt, rd
@@ -54,8 +52,6 @@ bool Cop0::execute(uint32_t cofun)
 
 	case 0x04:	//mtc0 rt, rd
 		reg[currentOperation.rd] = cpu->gpr[currentOperation.rt];
-		if (currentOperation.rd == 12) LOG_F(2, "COP0 - Writing StatusRegister 0x%08x", cpu->gpr[currentOperation.rt]);
-		if (currentOperation.rd == 13) LOG_F(2, "COP0 - Writing CauseRegister 0x%08x", cpu->gpr[currentOperation.rt]);
 		break;
 
 	case 0x06:	//ctc0 rt, rd

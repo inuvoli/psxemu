@@ -52,7 +52,7 @@ set(IMGUI_SOURCES
 	3rdparty/imgui/imgui.cpp
 	3rdparty/imgui/imgui_draw.cpp
 	3rdparty/imgui/imgui_impl_opengl3.cpp
-	3rdparty/imgui/imgui_impl_sdl.cpp
+	3rdparty/imgui/imgui_impl_sdl2.cpp
 	3rdparty/imgui/imgui_tables.cpp
 	3rdparty/imgui/imgui_widgets.cpp
 )
@@ -74,7 +74,6 @@ add_executable(psxemu ${PSXEMU_SOURCES} ${IMGUI_SOURCES} ${LOGURU_SOURCES} ${LIB
 # when running g++ these will be included as -I/directory/path/
 target_include_directories(psxemu
     PRIVATE 
- 		${PROJECT_SOURCE_DIR}/3rdparty/bitfield
 		${PROJECT_SOURCE_DIR}/3rdparty/imgui
 		${PROJECT_SOURCE_DIR}/3rdparty/litelib
 		${PROJECT_SOURCE_DIR}/3rdparty/loguru

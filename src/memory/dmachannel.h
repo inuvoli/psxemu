@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <cstdio>
 
-#include "bitfield.h"
+#include "litelib.h"
 
 
 // DMA Channel Registers Fields
@@ -11,22 +11,22 @@ union chcrFields
 {
 	uint32_t		word;
 
-	BitField<0, 1>	fromRam;		//Transfer Direction (false-> to Ram, true-> from Ram)
-	BitField<1, 1>	memStep;		//Memory Step Increment (0-> +4, 1-> -4)
-	BitField<8, 1>	chopEnable;		//Chopping Enabled
-	BitField<9, 2>	syncMode;		//SyncMode 
-	BitField<16, 3> chopDmaWnd;		//Chopping DMA Windows
-	BitField<20, 3>	chopCpuWnd;		//Chopping CPU Windows
-	BitField<24, 1>	dmaStart;		//DMA Channel Start/Stop
-	BitField<28, 1>	triggerMode;	//SyncMode 0 Trigger (false->Normal, true->Manual Start)
+	lite::bitfield<0, 1>	fromRam;		//Transfer Direction (false-> to Ram, true-> from Ram)
+	lite::bitfield<1, 1>	memStep;		//Memory Step Increment (0-> +4, 1-> -4)
+	lite::bitfield<8, 1>	chopEnable;		//Chopping Enabled
+	lite::bitfield<9, 2>	syncMode;		//SyncMode 
+	lite::bitfield<16, 3>   chopDmaWnd;		//Chopping DMA Windows
+	lite::bitfield<20, 3>	chopCpuWnd;		//Chopping CPU Windows
+	lite::bitfield<24, 1>	dmaStart;		//DMA Channel Start/Stop
+	lite::bitfield<28, 1>	triggerMode;	//SyncMode 0 Trigger (false->Normal, true->Manual Start)
 };
 
 union bcrFields
 {
 	uint32_t			word;
 
-	BitField<0, 16>		blockSize;		
-	BitField<16, 16>	blockAmount;
+	lite::bitfield<0, 16>		blockSize;		
+	lite::bitfield<16, 16>	blockAmount;
 };
 
 class DmaChannel

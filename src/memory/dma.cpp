@@ -116,7 +116,7 @@ bool Dma::clock()
 			default:
 				break;
 			}
-			LOG_F(1, "DMA - Active Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d, MemoryAddr %08x, Increment %d, FromMemory %d", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize, runningAddr, runningIncrement, runningFromRam);
+			LOG_F(1, "DMA - Active Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d, MemoryAddr %08x, Increment %d, FromMemory %d, Chopping %d", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize, runningAddr, runningIncrement, runningFromRam, (bool)dmaChannel[runningChannel].chanChcr.chopEnable);
 			
 			//Stop CPU access to Address Bus
 			psx->cpu->dmaTakeOnBus = true;
@@ -197,6 +197,9 @@ uint32_t Dma::readAddr(uint32_t addr, uint8_t bytes)
 	return data;
 }
 
+//------------------------------------------------------------------------------------------
+//  S Y N C M O D E 0
+//------------------------------------------------------------------------------------------
 bool Dma::syncmode0()
 {
 	uint32_t data;
@@ -211,15 +214,15 @@ bool Dma::syncmode0()
 	{
 		switch (runningChannel)
 		{
-		case 3: //CDROM
-			//Read a word from CDROM Data Buffer 1 byte at a time
+		case 3: //Channel 3 - Syncmode 0: CDROM - Read 4 byte from CDROM ReadFifo and write to RAM
 			data = psx->cdrom->readAddr(0x1f801802, 1);
 			data += (psx->cdrom->readAddr(0x1f801802, 1) << 8);
 			data += (psx->cdrom->readAddr(0x1f801802, 1) << 16);
 			data += (psx->cdrom->readAddr(0x1f801802, 1) << 24);
 			break;
-		case 6:	//OTC
+		case 6:	//Channel 6 - Syncmode 0: OTC - Reset Linked List in RAM. Linked is list is used to send rendering Command to GPU with DMA Channel 2 - Syncmode 2
 			data = (runningSize == 1) ? 0x00ffffff : (runningAddr + runningIncrement) & 0x001ffffc;
+			LOG_F(3, "DMA - Channel 6, Syncmode 0: Writing to RAM [0x%08x: 0x%08x]", runningAddr, data);
 			break;
 
 		default:
@@ -240,6 +243,9 @@ bool Dma::syncmode0()
 	return true;
 }
 
+//------------------------------------------------------------------------------------------
+//  S Y N C M O D E 1
+//------------------------------------------------------------------------------------------
 bool Dma::syncmode1()
 {
 	uint32_t data;
@@ -251,7 +257,7 @@ bool Dma::syncmode1()
 
 		switch (runningChannel)
 		{
-		case 2:	//------------------------------------------GPU
+		case 2:	//Channel 2 - Syncmode 1: GPU - Read 4 byte from RAM and write to GPU Command and Data (Used to copy data to VRAM)
 			psx->gpu->writeAddr(0x1f801810, data); //Write to GP0
 			break;
 
@@ -283,6 +289,9 @@ bool Dma::syncmode1()
 	return true;
 }
 
+//------------------------------------------------------------------------------------------
+//  S Y N C M O D E 2
+//------------------------------------------------------------------------------------------
 bool Dma::syncmode2()
 {
 	uint32_t data;
@@ -294,14 +303,17 @@ bool Dma::syncmode2()
 		if (dmaChannel[runningChannel].chanMadr == 0x00ffffff)
 		{
 			dmaStop();
+			LOG_F(2, "DMA - Channel 2, Syncmode 2: Stop Writing Packet to GPU");
 			return true;
 		}
 
 		//Read Linked List Header content and prepare to send packets
-		data = psx->mem->read(dmaChannel[runningChannel].chanMadr);	//Read Header directly from memory
-		runningSize = data >> 24;									//Contains the size of the packets expressed in words
-		runningAddr = dmaChannel[runningChannel].chanMadr + 4;		//Contains address of the first word of the packet
-		dmaChannel[runningChannel].chanMadr = data & 0x00ffffff;	//Update Channel Based Address to point the next Header
+		data = psx->mem->read(dmaChannel[runningChannel].chanMadr);					//Read from Channel Base Address the Header of the linked list
+		runningSize = data >> 24;													//Extract the size of the packet in words
+		runningAddr = (dmaChannel[runningChannel].chanMadr + 4) & 0x001ffffc;		//Contains address of the first word of the packet
+		LOG_F(2, "DMA - Channel 2, Syncmode 2: Start Writing Packet to GPU [Current Packet: 0x%08x, Size: %d] (Next Packet Header: 0x%08x)", dmaChannel[runningChannel].chanMadr, runningSize, data &0x00ffffff);
+		
+		dmaChannel[runningChannel].chanMadr = data & 0x00ffffff;					//Update Channel Base Address to point the next Header
 	}
 	else
 	{
@@ -309,10 +321,11 @@ bool Dma::syncmode2()
 		{
 			switch (runningChannel)
 			{
-			case 2:	//------------------------------------------GPU
+			case 2:	//Channel 2 - Syncmode 2: GPU - Read from Linked List write to GPU (Used for Rendering Command)
 				data = psx->mem->read(runningAddr);
+				LOG_F(2, "DMA - Channel 2, Syncmode 2: Writing Packet to GPU [0x%08x] 0x%08x]", runningAddr, data);
 				psx->gpu->writeAddr(0x1f801810, data); //Write to GP0
-				runningAddr += 4;
+				runningAddr = (runningAddr + runningIncrement) & 0x001ffffc; 
 				runningSize--;
 				break;
 

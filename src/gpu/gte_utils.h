@@ -1,9 +1,5 @@
 #pragma once
 
-#include <cstdint>
-#include "vectors.h"
-#include "glm/glm.hpp"
-
 //-------------------------------------------------------------
 //
 //GPU Parameters Decode Helper Functions

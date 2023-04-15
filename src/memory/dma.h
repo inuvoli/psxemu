@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "dmachannel.h"
-#include "range.h"
+#include "litelib.h"
 
 //DMA Constant Definitions
 constexpr auto DMA_CHANNEL_NUMBER	= 7;				//4 KB
@@ -20,11 +20,11 @@ namespace dma
 	{
 		uint32_t		word;
 
-		BitField<15, 1>	forceIrq;			//(0=None, 1=Force Bit31=1)
-		BitField<16, 7>	enableIrq;			//DMA0-DMA6 IRQ Enable (0=None, 1=Enable)
-		BitField<23, 1>	masterEnableIrq;	//Master IRQ Enable (0=None, 1=Enable)
-		BitField<24, 7>	flagsIrq;			//DMA0-DMA6 IRQ Flags (0=None, 1=IRQ)    (Write 1 to reset)
-		BitField<31, 1> masterFlagIrq;		//Chopping DMA Windows
+		lite::bitfield<15, 1>	forceIrq;			//(0=None, 1=Force Bit31=1)
+		lite::bitfield<16, 7>	enableIrq;			//DMA0-DMA6 IRQ Enable (0=None, 1=Enable)
+		lite::bitfield<23, 1>	masterEnableIrq;	//Master IRQ Enable (0=None, 1=Enable)
+		lite::bitfield<24, 7>	flagsIrq;			//DMA0-DMA6 IRQ Flags (0=None, 1=IRQ)    (Write 1 to reset)
+		lite::bitfield<31, 1> masterFlagIrq;		//Chopping DMA Windows
 	};
 
 	struct StatusItem

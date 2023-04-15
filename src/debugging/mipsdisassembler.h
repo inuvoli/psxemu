@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "bitfield.h"
+#include "litelib.h"
 
 // Opcode, Label, Mnemonic
 typedef std::map<uint32_t, std::tuple<uint32_t, std::string, std::string>> AsmCode;
@@ -45,16 +45,16 @@ private:
 	{
 		uint32_t		word;
 
-		BitField<26, 6> op;		//opcode
-		BitField<21, 5> rs;		//rs index
-		BitField<16, 5> rt;		//rt index
-		BitField<11, 5> rd;		//rd index
-		BitField<6, 5>	shamt;	//shift amount
-		BitField<0, 6>	funct;	//function
-		BitField<0, 16> imm;	//immediate value
-		BitField<0, 26> tgt;	//target
-		BitField<0, 25> cofun;	//coprocessor function
-		BitField<25, 1>	cop;	//cop	
+		lite::bitfield<26, 6> op;		//opcode
+		lite::bitfield<21, 5> rs;		//rs index
+		lite::bitfield<16, 5> rt;		//rt index
+		lite::bitfield<11, 5> rd;		//rd index
+		lite::bitfield<6, 5>	shamt;	//shift amount
+		lite::bitfield<0, 6>	funct;	//function
+		lite::bitfield<0, 16> imm;	//immediate value
+		lite::bitfield<0, 26> tgt;	//target
+		lite::bitfield<0, 25> cofun;	//coprocessor function
+		lite::bitfield<25, 1>	cop;	//cop	
 	};
 
 	//Full set of CPU Instruction Dictionaries

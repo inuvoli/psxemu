@@ -378,11 +378,25 @@ bool psxemu::renderCpuWidget()
         ImGui::Text("%2d", i);
         ImGui::SameLine();
         ImGui::Text("%s = 0x%08x", cpuRegisterName[i].c_str() , pPsx->cpu->gpr[i]);
+        
         ImGui::SameLine();
         if (cop0RegisterName[i] == "")
             ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
         else
             ImGui::Text("%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
+        
+        ImGui::SameLine();
+        if (cop2RegisterName[i] == "")
+            ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i].c_str(), pPsx->cpu->cop2->reg.data[i]);
+        else
+            ImGui::Text("%8s = 0x%08x", cop2RegisterName[i].c_str(), pPsx->cpu->cop2->reg.data[i]);
+        
+        ImGui::SameLine();
+        if (cop2RegisterName[i+32] == "")
+            ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i+32].c_str(), pPsx->cpu->cop2->reg.ctrl[i]);
+        else
+            ImGui::Text("%8s = 0x%08x", cop2RegisterName[i+32].c_str(), pPsx->cpu->cop2->reg.ctrl[i]);
+        
         switch (i)
         {
         case 0:

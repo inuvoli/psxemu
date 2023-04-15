@@ -7,10 +7,10 @@
 #include <string>
 #include <memory>
 
-#include "renderer.h"
-#include "utils.h"
-#include "timers.h"
 #include "litelib.h"
+#include "renderer.h"
+#include "gte_utils.h"
+#include "timers.h"
 
 class Psx;
 
@@ -115,10 +115,6 @@ public:
 private:
 	void writeVRAM(uint32_t& data);
 	uint32_t readVRAM();
-
-	//Helper Function
-	void DrawVRAMRectangle();
-
 
 private:
 	//Link to Bus Object

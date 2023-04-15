@@ -1,3 +1,4 @@
+#include <loguru.hpp>
 #include "gpu.h"
 #include "psx.h"
 
@@ -583,6 +584,8 @@ bool GPU::clock()
 	};
 	auto gp0RunCommand = [&]()
 	{
+		bool bResult;
+
 		if (gp0CommandFifo)
 		{
 			//It is a Command stored on the FIFO
@@ -590,24 +593,31 @@ bool GPU::clock()
 			uint32_t tmp;
 			fifo.pop(tmp);
 			
-			//printf("Command GP0(%02xh)(F): %s (params: %d)\n", gp0Opcode, gp0InstrSet[gp0Opcode].mnemonic.c_str(), gp0InstrSet[gp0Opcode].parameters);
-			(this->*gp0InstrSet[gp0Opcode].operate)();
+			LOG_F(1, "GPU - %s (params: %d)", gp0InstrSet[gp0Opcode].mnemonic.c_str(), gp0InstrSet[gp0Opcode].parameters);
+			bResult = (this->*gp0InstrSet[gp0Opcode].operate)();
+			if (!bResult)
+				LOG_F(ERROR, "GPU - Unimplemented GP0 Command %s!", gp0InstrSet[gp0Opcode].mnemonic.c_str());
 		}
 		else
 		{
 			//It isn't a command stored on the FIFO
-			//Actual GP0 Command its already on gp0Command 
+			//Actual GP0 Command its already on gp0Command
 
-			//printf("Command GP0(%02xh)(I): %s\n", gp0Opcode, gp0InstrSet[gp0Opcode].mnemonic.c_str());
-			(this->*gp0InstrSet[gp0Opcode].operate)();
+			LOG_F(1, "GPU - %s", gp0InstrSet[gp0Opcode].mnemonic.c_str());
+			bResult = (this->*gp0InstrSet[gp0Opcode].operate)();
+			if (!bResult)
+				LOG_F(ERROR, "GPU - Unimplemented GP0 Command %s!", gp0InstrSet[gp0Opcode].mnemonic.c_str()); 
 		}
 	
 		return 0;
 	};
 	auto gp1RunCommand = [&]()
 	{
-		//printf("Command GP1(%02xh)(I): %s\n", gp1Opcode, gp1InstrSet[gp1Opcode].mnemonic.c_str());
-		(this->*gp1InstrSet[gp1Opcode].operate)();		//GP1 Command are always executed immediately
+		bool bResult;
+		LOG_F(1, "GPU - %s ", gp1InstrSet[gp1Opcode].mnemonic.c_str());
+		bResult = (this->*gp1InstrSet[gp1Opcode].operate)();		//GP1 Command are always executed immediately
+		if (!bResult)
+				LOG_F(ERROR, "GPU - Unimplemented GP1 Command %s!", gp1InstrSet[gp1Opcode].mnemonic.c_str()); 
 		return 0;
 	};
 
@@ -750,9 +760,7 @@ bool GPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 	};
 	auto gp0ReceiveRamData = [&](uint32_t word)
 	{
-		//printf("GPU - RAM to VRAM   : 0x%08x  (Clk: %lld) [%d, %d]\n", word, clockCounter, dmaDirection, gpuDataTransferActive);
 		writeVRAM(word);
-	
 		return 0;
 	};
 	
@@ -761,14 +769,18 @@ bool GPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 	case 0x1f801810:	//--------------------------GP0 Command
 		gp0DataLatch = data;						//Rendering and VRAM Access
 		if (dataWriteActive && (dmaDirection == 2 || dmaDirection == 0))
+		{
 			//dataWriteActive is set by GP0(A0h)
 			//Data Transfer could be either thru:
 			//	- CPU, GPUSTAT.29-30 (DMA Direction) = 0  "DMA Off"
 			//	- DMA, GPUSTAT.29-30 (DMA Direction) = 2  "DMA RAM to VRAM"
 			gp0ReceiveRamData(data);
+		}
 		else
+		{
 			gp0ReceiveCommand(data);
-
+		}
+			
 		break;
 	case 0x1f801814:	//--------------------------GP1 Command
 		gp1DataLatch = data;						//Display Control
@@ -776,7 +788,7 @@ bool GPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		break;
 
 	default:
-		printf("GPU - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x\n", addr, bytes, data);
+		LOG_F(ERROR, "GPU - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return false;
 	}
 	return true;
@@ -796,15 +808,13 @@ uint32_t GPU::readAddr(uint32_t addr, uint8_t bytes)
 			//	- CPU, GPUSTAT.29-30 (DMA Direction) = 0  "DMA Off"
 			//	- DMA, GPUSTAT.29-30 (DMA Direction) = 3  "DMA RAM to VRAM"
 			data = readVRAM();
-		//printf("GPU - GP0/1 Response: 0x%08x  (Clk: %ld) [%d, %d]\n", data, gpuClockTicks, dmaDirection, dataReadActive);
 		break;
 	case 0x1f801814:
 		data = gpuStat;			//--------------------------------------GPU Status Register
-		//printf("GPU - GPUSTAT Read  : 0x%08x  (Clk: %lld)\n", data, clockCounter);
 		break;
 
 	default:
-		printf("GPU - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
+		LOG_F(ERROR, "GPU - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
 		return 0x0;
 	}
 
@@ -870,9 +880,9 @@ bool GPU::gp0_Polygons()
 			{
 			case 0:	//COLOR
 				if (gourad || i==0) { decodeColor(param, vInfo.vertexColor); fifo.pop(param); break; }
-				else { decodeColor(gp0Command, vInfo.vertexColor); break;} //Solid Polygon use color stored on the command word for each vertex
+				else { decodeColor(gp0Command, vInfo.vertexColor);break;} //Solid Polygon use color stored on the command word for each vertex
 			case 1:	//POSITION
-				decodePosition(param, vInfo.vertexPosition); fifo.pop(param); break;
+				decodePosition(param, vInfo.vertexPosition); fifo.pop(param);break;
 			case 2: //TEXTURE
 				if (textured && i==0) { clutInfo = decodeTexture(param, vInfo.vertexTexCoords); fifo.pop(param); break; }
 				if (textured && i==1) { texPageInfo = decodeTexture(param, vInfo.vertexTexCoords); fifo.pop(param); break; }
@@ -941,7 +951,7 @@ bool GPU::gp0_CopyVRam2VRam()
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
-	return false;
+	return true;
 }
 
 bool GPU::gp0_CopyRam2VRam()
@@ -966,7 +976,7 @@ bool GPU::gp0_CopyRam2VRam()
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
-	return false;
+	return true;
 }
 
 bool GPU::gp0_CopyVRam2Ram()
@@ -991,7 +1001,7 @@ bool GPU::gp0_CopyVRam2Ram()
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
-	return false;
+	return true;
 }
 
 bool GPU::gp0_FillVRam()
@@ -1033,7 +1043,7 @@ bool GPU::gp0_ClearTextureCache()
 	//GP0(01h)
 	//Clear Texture Cache
 	
-	// TODO
+	// NOTHING TODO
 	
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
@@ -1431,9 +1441,7 @@ bool GPU::gp1_TextureDisable()
 }
 
 bool GPU::gp1_Unknown()
-{
-	printf("Unknown GP1 Command!\n");
-	
+{	
 	//Reset GPUSTAT Flag to receive next GP1 command
 	gp1_ResetStatus();
 
@@ -1536,19 +1544,4 @@ void GPU::getDebugInfo(GpuDebugInfo& info)
 		info.videoStandard = "PAL";
 		break;
 	}
-}
-
-void GPU::DrawVRAMRectangle()
-{	
-	// int x1 = (int)(vertexPolyInfo[0].texPageCoords.x + vertexPolyInfo[0].vertexTexCoords.x);
-	// int y1 = (int)(vertexPolyInfo[0].texPageCoords.y + vertexPolyInfo[0].vertexTexCoords.y);
-	// int x2 = (int)(vertexPolyInfo[0].texPageCoords.x + vertexPolyInfo[1].vertexTexCoords.x);
-	// int y2 = (int)(vertexPolyInfo[0].texPageCoords.y + vertexPolyInfo[2].vertexTexCoords.y);
-
-	float x1 = (vertexPolyInfo[0].texPageCoords.x + vertexPolyInfo[0].vertexTexCoords.x);
-	float y1 = (vertexPolyInfo[0].texPageCoords.y + vertexPolyInfo[0].vertexTexCoords.y);
-	float x2 = (vertexPolyInfo[0].texPageCoords.x + vertexPolyInfo[1].vertexTexCoords.x);
-	float y2 = (vertexPolyInfo[0].texPageCoords.y + vertexPolyInfo[2].vertexTexCoords.y);
-
-	printf("Rectangle (%f, %f), (%f, %f)\n", x1, y1, x2, y2);
 }

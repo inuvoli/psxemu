@@ -358,6 +358,7 @@ bool CPU::clock()
 	//and Program Counter must be set to branch new value, if not just step to the next instruction
 	if (branchDelaySlot)
 	{
+		//if (branchAddress == 0x4920746e) return false;
 		pc = branchAddress;
 		branchDelaySlot = false;
 	}
@@ -406,7 +407,7 @@ bool CPU::exception(uint32_t cause)
 	cop0::StatusRegister	statusReg;
 	cop0::CauseRegister		causeReg;
 	
-	LOG_F(2, "CPU - Received Exception [Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
+	LOG_F(2, "CPU - Received Exception [PC: 0x%08x, Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", pc, cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
 	
 	//Get Current values of Cause Register and Status Register
 	statusReg.word = cop0->reg[12];
@@ -441,7 +442,7 @@ bool CPU::exception(uint32_t cause)
 	cop0->reg[13] = causeReg.word;
 	cop0->reg[12] = statusReg.word;
 
-	LOG_F(2, "CPU - Throw Exception [Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
+	LOG_F(2, "CPU - Throw Exception [PC: 0x%08x, Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", pc, cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
 
 	return true;
 }
@@ -663,14 +664,14 @@ bool CPU::op_lui()
 bool CPU::op_cop0()
 {
 	if (!cop0->execute(currentOpcode.cofun))
-		exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+		//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
 
 bool CPU::op_cop1()
 {
-	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -678,14 +679,14 @@ bool CPU::op_cop1()
 bool CPU::op_cop2()
 {
 	if (!cop2->execute(currentOpcode.cofun))
-		exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+		//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
 
 bool CPU::op_cop3()
 {
-	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -844,7 +845,7 @@ bool CPU::op_lwc0()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -853,21 +854,27 @@ bool CPU::op_lwc1()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
 
 bool CPU::op_lwc2()
 {
-	return false;
+	//Checked 31/03/2023
+
+	//cop2->dataReg[currentOpcode.rt] = rdMem(currentOpcode.regA + currentOpcode.imm, 4);
+	cop2->reg.data[currentOpcode.rt] = rdMem(currentOpcode.regA + currentOpcode.imm, 4);
+	LOG_F(3, "CPU - lwc2 $%d, 0x%04x($%d)", (uint8_t)currentOpcode.rt, (int16_t)currentOpcode.imm, (uint8_t)currentOpcode.rs);
+
+	return true;
 }
 
 bool CPU::op_lwc3()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -876,7 +883,7 @@ bool CPU::op_swc0()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -885,21 +892,27 @@ bool CPU::op_swc1()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
 
 bool CPU::op_swc2()
 {
-	return false;
+	//Checked 31/03/2023
+
+	//wrMem(currentOpcode.regA + currentOpcode.imm, cop2->dataReg[currentOpcode.rt], 4);
+	wrMem(currentOpcode.regA + currentOpcode.imm, cop2->reg.data[currentOpcode.rt], 4);
+	LOG_F(3, "CPU - swc2 $%d, 0x%04x($%d)", (uint8_t)currentOpcode.rt, (int16_t)currentOpcode.imm, (uint8_t)currentOpcode.rs);
+		
+	return true;
 }
 
 bool CPU::op_swc3()
 {
 	//Checked 16/07/2021
 
-	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
 }
@@ -1189,8 +1202,7 @@ bool CPU::op_sltu()
 
 bool CPU::op_unknown()
 {
-	exception(static_cast<uint32_t>(cpu::exceptionCause::resinst));
-	
-	return true;
+	//exception(static_cast<uint32_t>(cpu::exceptionCause::resinst));
+	return false;
 }
 

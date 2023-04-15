@@ -6,7 +6,7 @@
 #include <array>
 #include <memory>
 
-#include "bitfield.h"
+#include "litelib.h"
 
 class Psx;
 
@@ -21,17 +21,17 @@ union CounterMode
 {
 	uint32_t		word;
 
-	BitField<0, 1>	syncEn;			//Syncronization Enable (0 = Free Run, 1 = Syncronize via Mode)
-	BitField<1, 2>	syncMode;		//Syncronyzation Mode
-	BitField<3, 1>	resetZero;		//0 = Reset to 0 after counter reach 0xffff, 1 = Reset to 0 after counter reach target
-	BitField<4, 1>	irqTarget;		//Enable IRQ when Counter reach Target
-	BitField<5, 1>	irqOverflow;	//Enable IRQ when Counter reach 0xffff
-	BitField<6, 1>	irqRepeat;		//Enable IRQ repeat. 0 = One Shot, 1 = Repeat
-	BitField<7, 1>	irqToggle;		//0 = Short Pulse of bit 10, 1 = Toggle bit10 on and off
-	BitField<8, 2>	clkSource;		//Depends on which Timer is used of the 3
-	BitField<10, 1>	irqRequest;		//Enable IRQ Request
-	BitField<11, 1> isTarget;		//Set to 1 if Counter has reached Target Value, Reset to 0 after Reading
-	BitField<12, 1> isOverflow;		//Set to 1 if Counter has reached 0xffff Value, Reset to 0 after Reading
+	lite::bitfield<0, 1>	syncEn;			//Syncronization Enable (0 = Free Run, 1 = Syncronize via Mode)
+	lite::bitfield<1, 2>	syncMode;		//Syncronyzation Mode
+	lite::bitfield<3, 1>	resetZero;		//0 = Reset to 0 after counter reach 0xffff, 1 = Reset to 0 after counter reach target
+	lite::bitfield<4, 1>	irqTarget;		//Enable IRQ when Counter reach Target
+	lite::bitfield<5, 1>	irqOverflow;	//Enable IRQ when Counter reach 0xffff
+	lite::bitfield<6, 1>	irqRepeat;		//Enable IRQ repeat. 0 = One Shot, 1 = Repeat
+	lite::bitfield<7, 1>	irqToggle;		//0 = Short Pulse of bit 10, 1 = Toggle bit10 on and off
+	lite::bitfield<8, 2>	clkSource;		//Depends on which Timer is used of the 3
+	lite::bitfield<10, 1>	irqRequest;		//Enable IRQ Request
+	lite::bitfield<11, 1> isTarget;		//Set to 1 if Counter has reached Target Value, Reset to 0 after Reading
+	lite::bitfield<12, 1> isOverflow;		//Set to 1 if Counter has reached 0xffff Value, Reset to 0 after Reading
 };
 
 struct TimerStatus

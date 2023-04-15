@@ -171,7 +171,7 @@ uint32_t Psx::rdMem(uint32_t vAddr, uint8_t bytes)
 	//Debug Bios TTY
 	if (memRangeTTY.contains(phAddr))  return tty->readAddr(phAddr, bytes);
 		
-	LOG_F(ERROR, "Unhandled Memory Read  - addr: 0x%08x (%d)", vAddr, bytes);
+	//LOG_F(ERROR, "Unhandled Memory Read  - addr: 0x%08x (%d)", vAddr, bytes);
 
 	return 0;	
 }
