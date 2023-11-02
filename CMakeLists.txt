@@ -16,11 +16,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${PROJECT_SOURCE_DIR}/bin)
 
-find_package(SDL2 REQUIRED)
+find_package(SDL2 CONFIG REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(OpenGL REQUIRED)
-find_package(glm REQUIRED)
-find_package(ZLIB)
+find_package(glm CONFIG REQUIRED)
+find_package(ZLIB REQUIRED)
 
 # Create a sources variable with a link to all cpp files to compile
 set(PSXEMU_SOURCES
@@ -95,4 +95,12 @@ target_include_directories(psxemu
 )
 
 # Set libraries to be included
-target_link_libraries(psxemu ${OPENGL_LIBRARIES} ${SDL2_LIBRARIES} ${GLEW_LIBRARIES})
+target_link_libraries(psxemu 
+						PRIVATE 
+							OpenGL::GL
+							glm::glm
+							GLEW::GLEW
+							ZLIB::ZLIB
+							$<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
+        					$<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+)
