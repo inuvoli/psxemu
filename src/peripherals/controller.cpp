@@ -14,7 +14,7 @@ Controller::~Controller()
 }
 
 //External Signals
-bool Controller::clock()
+bool Controller::execute()
 {
     return true;
 }

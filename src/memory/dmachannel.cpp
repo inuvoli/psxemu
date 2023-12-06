@@ -69,6 +69,7 @@ uint32_t DmaChannel::readAddr(uint32_t addr, uint8_t bytes)
 	// x = 0: DMA Base Address
 	// x = 4: DMA Block Control
 	// x = 8: DMA Channel Control
+	// x = c: DMA Channel Control Mirror
 	//
 	// The value of x is derived from the last 4 bit of addr
 
@@ -84,11 +85,12 @@ uint32_t DmaChannel::readAddr(uint32_t addr, uint8_t bytes)
 		data = chanBcr.word;
 		break;
 	case 0x8:
+	case 0xc:
 		data = chanChcr.word;
 		break;
 
 	default:
-		LOG_F(ERROR, "DMA Channel Register Get Unknown!");
+		LOG_F(ERROR, "DMA Channel Register Get Unknown! [addr: %08x]", addr);
 		break;
 	}
 

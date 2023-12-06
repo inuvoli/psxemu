@@ -30,13 +30,15 @@ inline void decodeColor(const uint32_t param, glm::vec3 &color)
 
 inline void decodePosition(const uint32_t param, glm::vec2 &position)
 {
-	position.x = (GLfloat)(param & 0x0000ffff);
-	position.y = (GLfloat)((param >> 16) & 0x0000ffff);
+	int16_t _x, _y;
+	_x = (int16_t)(param & 0x0000ffff);
+	_y = (int16_t)((param >> 16) & 0x0000ffff);
+	position.x = (GLfloat)_x;
+	position.y = (GLfloat)_y;
 }
 
 inline uint16_t decodeTexture(const uint32_t param, glm::vec2 &texCoords)
 {
-	
 	texCoords.x = (GLfloat)(param & 0x000000ff);			//U Coordinates
 	texCoords.y = (GLfloat)((param >> 8) & 0x000000ff); 	//V Coordinate
 

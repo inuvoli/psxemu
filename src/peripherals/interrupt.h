@@ -34,7 +34,7 @@ public:
     ~Interrupt();
 
     bool reset();
-    bool clock();
+    bool execute();
     bool set(uint32_t cause);
 
     bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes);

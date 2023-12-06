@@ -22,9 +22,9 @@ GPU::GPU()
 	verticalInterlace = false;
 	newScanline = false;
 	newFrameReady = false;
-	textureAllowDisable = false;
-	textureDisable = false;
-	texturePageColor = 0x00;
+	textureDisabled = false;
+	textureColorDepth = 0;
+	textureTransparencyMode = 0;
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
@@ -57,7 +57,6 @@ GPU::GPU()
 
 	//Alloc Memory for Vertex Info Buffer
 	vertexPolyInfo.reserve(6);
-	vertexRectInfo.reserve(4);
 	vertexLineInfo.reserve(255);
 	
 	//ReceiveCommand Status
@@ -427,9 +426,9 @@ bool GPU::reset()
 	verticalInterlace = false;
 	newScanline = false;
 	newFrameReady = false;
-	textureAllowDisable = false;
-	textureDisable = false;
-	texturePageColor = 0x00;
+	textureDisabled = false;
+	textureColorDepth = 0;
+	textureTransparencyMode = 0;
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
@@ -541,7 +540,7 @@ uint32_t GPU::readVRAM()
 //                               GPU Interface
 // 
 //-----------------------------------------------------------------------------------------------------
-bool GPU::clock()
+bool GPU::execute()
 {
 	auto updateVHBlank = [&](const unsigned int active_ticks, const unsigned int hblank_ticks, const unsigned int visible_scanlines, const unsigned int vblank_scanlines)
 	{
@@ -558,7 +557,7 @@ bool GPU::clock()
 		{
 			//Trigger hBlank signal
 			//Generate hBlank Clock 
-			psx->timers->clock(ClockSource::hBlank);
+			psx->timers->execute(ClockSource::hBlank);
 		}
 		if (vCount == visible_scanlines)
 		{
@@ -693,7 +692,7 @@ bool GPU::clock()
 	//Generate Dot Clock Signal
 	if (!(gpuClockTicks % dotClockRatio))
 	{
-		psx->timers->clock(ClockSource::Dot);
+		psx->timers->execute(ClockSource::Dot);
 	}
 	gpuClockTicks++;
 
@@ -748,7 +747,6 @@ bool GPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 	};
 	auto gp1ReceiveCommand = [&](uint32_t word)
 	{
-		//printf("GPU - GP1 Command   : 0x%08x  (Clk: %lld)\n", word, clockCounter);
 		//All GP1 Commands don't have parameters and don't use FIFO
 		recvCommand = true;
 		recvParameters = true;
@@ -828,30 +826,184 @@ uint32_t GPU::readAddr(uint32_t addr, uint8_t bytes)
 
 bool GPU::gp0_Lines()
 {
-	//TODO
+	// Parse Lines Render Command
+	// Bit Number   Value   Meaning
+	// 7-5          010     Rectangle render
+	// 4			1/0		gourad / flat shading
+	// 3          	1/0     polyline / single line
+	// 2            1/0     Unused
+	// 1            1/0     semi-transparent / opaque
+	// 0            1/0     Unused
+	bool		_gouraud = (gp0Opcode & 0x10) ? true : false;
+	bool		_polyline  = (gp0Opcode & 0x08) ? true : false;
+	bool		_transparent  = (gp0Opcode & 0x02) ? true : false;
+	uint32_t	_param;
+	glm::vec2	_position;
+	VertexInfo	_vInfo = {};
+
+	//Init Vertex Static Values
+	_vInfo.transparent = _transparent;
+	_vInfo.transMode = textureTransparencyMode;
+
+	_param = gp0Command;
+
+	if (_polyline)
+	{
+		//First Vertex
+		decodeColor(_param, _vInfo.vertexColor);
+		fifo.pop(_param);
+		decodePosition(_param, _vInfo.vertexPosition);
+		vertexLineInfo.push_back(_vInfo);
+
+		fifo.pop(_param);
+		while((_param & 0xf000f000) != 0x50005000)
+		{
+			//Other Vertex
+			decodeColor(_param, _vInfo.vertexColor);
+			fifo.pop(_param);
+			decodePosition(_param, _vInfo.vertexPosition);
+			vertexLineInfo.push_back(_vInfo);
+			fifo.pop(_param);
+		}
+	}
+	else
+	{
+		//First Vertex
+		decodeColor(_param, _vInfo.vertexColor);
+		fifo.pop(_param);
+		decodePosition(_param, _vInfo.vertexPosition);
+		vertexLineInfo.push_back(_vInfo);
+
+		//Second Vertex
+		fifo.pop(_param);
+		decodeColor(_param, _vInfo.vertexColor);
+		fifo.pop(_param);
+		decodePosition(_param, _vInfo.vertexPosition);
+		vertexLineInfo.push_back(_vInfo);
+	}	
+	
+	//Add Line vertex infos into Renderer Vertex DrawData structure
+	uint8_t _j = 0;
+	for (VertexInfo e : vertexLineInfo)
+	{
+		_j++;
+		LOG_F(2, "GPU - Line Vertex %d Info [x: %g, y: %g, c: [%g,%g,%g]", _j, e.vertexPosition.x, e.vertexPosition.y, e.vertexColor.r, e.vertexColor.g, e.vertexColor.b);
+	}
+	pRenderer->InsertLine(vertexLineInfo);
+	vertexLineInfo.clear();
 
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
-	fifo.flush();	//TEMPORARY!!!!!!!!!!!!!!!!!!!!!!!!
-
-	return false;
+	return true;
 }
 
 bool GPU::gp0_Rectangles()
 {
-	//TODO
+	// Parse Rectangles Render Command
+	// Bit Number   Value   Meaning
+	// 7-5          011     Rectangle render
+	// 4-3          ss     	Rectangle size (00 = variable, 01 = single pixel, 10 = 8x8 sprite, 11, 16x16 sprite
+	// 2            1/0     textured / untextured
+	// 1            1/0     semi-transparent / opaque
+	// 0            1/0     raw texture / modulation
+	
+	uint8_t		_rectangleSize = (gp0Opcode & 0x18) >> 3;
+	bool		_textured  = (gp0Opcode & 0x04) ? true : false;
+	bool		_transparent  = (gp0Opcode & 0x02) ? true : false;
+	bool		_rawtexture  = (gp0Opcode & 0x01) ? true : false;
+	uint32_t	_param;
+	glm::vec2	_size;
+
+	VertexInfo _vInfo = {};
+	VertexInfo _vInfoTemp = {};
+
+	//Parse all Rectangle Command Parameters from FIFO including initial command
+	_param = gp0Command;
+	decodeColor(_param, _vInfoTemp.vertexColor);			//Rectangle Color
+	
+	fifo.pop(_param);
+	decodePosition(_param, _vInfoTemp.vertexPosition);	//First Vertex Coordinates
+	if (_textured)										//Texture info, only for textured rectangles
+	{
+		fifo.pop(_param);
+		uint16_t _clutInfo = decodeTexture(_param, _vInfoTemp.vertexTexCoords);
+		decodeClut(_clutInfo, _vInfoTemp.clutTableCoords);
+	}
+
+	if (_rectangleSize == 0)								//Rectangle Size. Only for variable size rectangles
+	{
+		fifo.pop(_param);
+		decodePosition(_param, _size);
+	}
+
+	_vInfoTemp.textured = _textured;
+	_vInfoTemp.transparent = _transparent;
+	_vInfoTemp.texBlending = 0.0f;
+	_vInfoTemp.texColorDepth = (float)textureColorDepth;
+	_vInfoTemp.texPageCoords = texturePage;
+
+	//Set Rectangle size
+	switch (_rectangleSize)
+	{
+		case 0:			//Variable Size
+			//Nothing to do, _size already valued
+			break;
+		case 1:			//Single pixel
+			_size.x = 1;
+			_size.y = 1;
+			break;
+		case 2:			//8x8 Sprite
+			_size.x = 8;
+			_size.y = 8;
+			break;
+		case 3:			//16x16 Sprite
+			_size.x = 16;
+			_size.y = 16;
+			break;
+	};
+
+	//Add Current Vertex Info GPU Vertex Buffer
+	vertexPolyInfo.push_back(_vInfoTemp);		//First Vertex
+
+	_vInfo = _vInfoTemp;
+	_vInfo.vertexPosition.x += _size.x;
+	_vInfo.vertexTexCoords.x += _size.x;
+	vertexPolyInfo.push_back(_vInfo);		//Second Vertex
+	
+	_vInfo = _vInfoTemp;
+	_vInfo.vertexPosition.y += _size.y;
+	_vInfo.vertexTexCoords.y += _size.y;
+	vertexPolyInfo.push_back(_vInfo);		//Third Vertex
+
+	vertexPolyInfo.insert(vertexPolyInfo.end(), { vertexPolyInfo[1], vertexPolyInfo[2] });  //Fouth and Fifth vertex
+
+	_vInfo = _vInfoTemp;
+	_vInfo.vertexPosition.x += _size.x;
+	_vInfo.vertexTexCoords.x += _size.x;
+	_vInfo.vertexPosition.y += _size.y;
+	_vInfo.vertexTexCoords.y += _size.y;
+	vertexPolyInfo.push_back(_vInfo);		//Second Vertex
+
+	//Add Polygon vertex infos into Renderer Vertex DrawData structure
+	uint8_t _j = 0;
+	for (VertexInfo e : vertexPolyInfo)
+	{
+		_j++;
+		LOG_F(2, "GPU - Rectangle Vertex %d Info [x: %g, y: %g, c: [%g,%g,%g]", _j, e.vertexPosition.x, e.vertexPosition.y, e.vertexColor.r, e.vertexColor.g, e.vertexColor.b);
+	}
+	pRenderer->InsertPolygon(vertexPolyInfo);
+	vertexPolyInfo.clear();
 
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
-	fifo.flush();	//TEMPORARY!!!!!!!!!!!!!!!!!!!!!!!!
-
-	return false;
+	return true;
 }
 
 bool GPU::gp0_Polygons()
 {
+	//Parse Polygon Render Command
 	// Bit Number   Value   Meaning
 	// 7-5          001     Polygon render
 	// 4            1/0     gouraud / flat shading
@@ -915,6 +1067,13 @@ bool GPU::gp0_Polygons()
 	}
 
 	//Add Polygon vertex infos into Renderer Vertex DrawData structure
+	uint8_t _j = 0;
+	for (VertexInfo e : vertexPolyInfo)
+	{
+		_j++;
+		LOG_F(2, "GPU - Polygon Vertex %d Info [x: %g, y: %g, c: [%g,%g,%g]", _j, e.vertexPosition.x, e.vertexPosition.y, e.vertexColor.r, e.vertexColor.g, e.vertexColor.b);
+	}
+
 	pRenderer->InsertPolygon(vertexPolyInfo);
 	vertexPolyInfo.clear();
 
@@ -1083,24 +1242,27 @@ bool GPU::gp0_DrawMode()
 	//GPUSTAT.5-6 << GP0DATA.5-6								Semi Transparency (0 = B/2+F/2, 1 = B+F, 2 = B-F, 3 = B+F/4)
 	data = (gp0DataLatch & 0x000000060) >> 5;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000003 << 5)) | (data << 5);		//Set GPUSTAT.5-6 to data value
+	textureTransparencyMode = data;
 
 	//GPUSTAT.7-8 << GP0DATA.7-8								Texture page colors (0 = 4bit, 1 = 8bit, 2 = 15bit, 3 = reserved)
 	data = (gp0DataLatch & 0x00000180) >> 7;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000003 << 7)) | (data << 7);		//Set GPUSTAT.7-8 to data value
-	texturePageColor = data;
+	textureColorDepth = data;
 
 	//GPUSTAT.9 << GP0DATA.9									Dither 24bit to 15bit (0 = off, 1 = enabled)
 	data = (gp0DataLatch & 0x00000200) >> 9;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 9)) | (data << 9);		//Set GPUSTAT.9 to data value
+	textureDitherEnabled = (bool)data;
 
 	//GPUSTAT.10 << GP0DATA.10									Drawing to display area (0 = prohibited, 1 = allowed)
 	data = (gp0DataLatch & 0x00000400) >> 10;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 10)) | (data << 10);	//Set GPUSTAT.10 to data value
+	textureDrawingEnabled = (bool)data;
 
 	//GPUSTAT.15 << GP0DATA.11									Texture Disable (0 = normal, 1 = disable)
 	data = (gp0DataLatch & 0x00000800) >> 11;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 15)) | (data << 15);	//Set GPUSTAT.15 to data value
-	textureDisable = (bool)data;
+	texturePageYBase2 = data * 512;
 	
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
@@ -1240,7 +1402,6 @@ void GPU::gp0_ResetStatus()
 
 	//Reset Vertex Buffers
 	vertexPolyInfo.clear();
-	vertexRectInfo.clear();
 	vertexLineInfo.clear();
 }
 
@@ -1432,7 +1593,7 @@ bool GPU::gp1_TextureDisable()
 	data = (gp1Command & 0x00000001);							//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 15)) | (data << 15);	//Set GPUSTAT.15 to data value
 
-	textureAllowDisable = (bool)data;
+	textureDisabled = (bool)data;
 
 	//Reset GPUSTAT Flag to receive next GP1 command
 	gp1_ResetStatus();
@@ -1513,25 +1674,25 @@ void GPU::getDebugInfo(GpuDebugInfo& info)
 	info.displayStart = displayStart;
 	info.drawingArea = drawingArea;
 	info.drawingOffset = drawingOffset;
-	info.textureAllowDisable = (textureAllowDisable) ? "true" : "false";
-	info.textureDisable = (textureDisable) ? "true" : "false";
-	info.texturePage = texturePage;
+	info.textureDisabled = (textureDisabled) ? "true" : "false";
+	info.texturePage.x = (uint16_t)texturePage.x;
+	info.texturePage.y = (uint16_t)texturePage.y;
 	info.textureMask = textureMask;
 	info.textureOffset = textureOffset;
 
-	switch (texturePageColor)
+	switch (textureColorDepth)
 	{
 	case 0:
-		info.texturePageColor = "4 bit CLUT";
+		info.textureColorDepth = "4 bit CLUT";
 		break;
 	case 1:
-		info.texturePageColor = "8 bit CLUT";
+		info.textureColorDepth = "8 bit CLUT";
 		break;
 	case 2:
-		info.texturePageColor = "15 Bit ABGR (1555)";
+		info.textureColorDepth = "15 Bit ABGR (1555)";
 		break;
 	case 3:
-		info.texturePageColor = "Reserved";
+		info.textureColorDepth = "Reserved";
 		break;
 	}
 	

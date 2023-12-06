@@ -177,18 +177,10 @@ bool Cop2::cmd_nclip()
 	// [1,31,0] MAC0 = F[SX0*SY1+SX1*SY2+SX2*SY0-SX0*SY2-SX1*SY0-SX2*SY1] [1,43,0]
 
 	//Reset Flags
-	reg.flag.reset();
-
-	int64_t res;
-	res = (int64_t)(SX0*SY1+SX1*SY2+SX2*SY0-SX0*SY2-SX1*SY0-SX2*SY1);
-	MAC0 = (int32_t)res;
-
-	//Set Flags
-	reg.flag.mac0_oflow =(bool)checkOverflow(res, 31);
-	reg.flag.mac0_uflow =(bool)checkUnderflow(res, 31);
-
+	reg.registers.flag.reset();
+	
 	//Update Flag Checksum
-	reg.flag.update();
+	reg.registers.flag.update();
 
 	return true;
 }
@@ -250,12 +242,10 @@ bool Cop2::cmd_ncds()
 	// [0,8,0]   B0<-B1<-B2<- Lm_C3[MAC3]                             [1,27,4]
 
 	//Reset Flags
-	reg.flag.reset();
-
-
+	reg.registers.flag.reset();
 
 	//Update Flag Checksum
-	reg.flag.update();
+	reg.registers.flag.update();
 
 	return true;
 }
@@ -320,7 +310,7 @@ bool Cop2::cmd_avsz3()
 	//OTZ = (int32_t)MAC0 >> 12;
 	//LOG_F(WARNING, "avsz in [%08x, %08x, %08x, %08x]  out [%08x, %08x]", ZSF3, SZ1, SZ2, SZ3, MAC0, OTZ);
 
-	return false;
+	return true;
 }
 
 bool Cop2::cmd_avsz4()
@@ -334,7 +324,7 @@ bool Cop2::cmd_rtpt()
 	//RTPT - Perspective Transformation (triple)
 
 	//Reset flags
-	reg.flag.reset();
+	reg.registers.flag.reset();
 
 	//cop2r8     1xS16 IR0                   16bit Accumulator (Interpolate)
 	//cop2r9-11  3xS16 IR1,IR2,IR3           16bit Accumulator (Vector)
@@ -483,8 +473,8 @@ bool Cop2::cmd_rtpt()
 	// LOG_F(WARNING, "---------------");
 	
 	//Update Flag Checksum
-	reg.flag.update();
-	return false;
+	reg.registers.flag.update();
+	return true;
 }
 
 bool Cop2::cmd_gpf()

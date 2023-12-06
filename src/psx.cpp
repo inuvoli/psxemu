@@ -80,12 +80,13 @@ bool Psx::reset()
 	mem->reset();
 	timers->reset();
 	cdrom->reset();
+	tty->reset();
 	interrupt->reset();
 
 	return true;
 }
 
-bool Psx::clock()
+bool Psx::execute()
 {
 	//-------------------------------------------------------------------
 	// GPU Clock (PAL):  	53.203425 MHz
@@ -103,30 +104,30 @@ bool Psx::clock()
 
 	if (!(masterClock % 2))
 	{
-		cpu->clock();
-		dma->clock();
-		timers->clock(ClockSource::System);
+		cpu->execute();
+		dma->execute();
+		timers->execute(ClockSource::System);
 	}
 
 	if (!(masterClock % 1))
 	{
-		gpu->clock();
+		gpu->execute();
 	}
 
 	if (!(masterClock % 13))
 	{
-		timers->clock(ClockSource::System8);
+		timers->execute(ClockSource::System8);
 	}
 
 	if (!(masterClock % 13))
 	{
-		cdrom->clock(); //Temporary
-		controller->clock(); //Temporary
+		cdrom->execute(); //Temporary
+		controller->execute(); //Temporary
 	}
 
 	if (!(masterClock % 2))
 	{
-		interrupt->clock();
+		interrupt->execute();
 	}
 
 	masterClock++;

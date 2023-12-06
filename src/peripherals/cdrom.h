@@ -96,7 +96,7 @@ public:
 	~Cdrom();
 
 	bool reset();
-	bool clock();
+	bool execute();
 	bool loadImage(const std::string& fileName);
 
 	bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes);

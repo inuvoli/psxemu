@@ -27,7 +27,7 @@ public:
 	~Psx();
 		
 	bool reset();
-	bool clock();
+	bool execute();
 
 	//Memory Bus Access
 	uint32_t rdMem(uint32_t vAddr, uint8_t bytes = 4);

@@ -3,13 +3,25 @@
 
 Tty::Tty()
 {
+	buffer = {};
+	bufferA = {};
+	bufferB = {};
 
-};
+}
 
 Tty::~Tty()
 {
 
-};
+}
+
+bool Tty::reset()
+{
+	buffer = {};
+	bufferA = {};
+	bufferB = {};
+
+	return true;
+}
 
 bool Tty::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 {
@@ -21,8 +33,13 @@ bool Tty::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		break;
     case 0x1f802022:
 		break;
-    case 0x1f802023:
-        putchar((char)data);    //Write Char on stdout Channel A
+    case 0x1f802023:	//Write Char on stdout Channel A
+		buffer +=data;
+		if (data == '\n')
+		{
+			bufferA.emplace_back(buffer);
+			buffer = "";
+		}
 		break;
     case 0x1f802024:
 		break;
@@ -38,8 +55,13 @@ bool Tty::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		break;
     case 0x1f80202a:
 		break;
-    case 0x1f80202b:
-        putchar((char)data);    //Write Char on stdout Channel B
+    case 0x1f80202b:	//Write Char on stdout Channel B
+		buffer +=data;
+		if (data == '\n')
+		{
+			bufferB.emplace_back(buffer);
+			buffer = "";
+		}
 		break;
     case 0x1f80202c:
 		break;

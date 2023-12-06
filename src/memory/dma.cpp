@@ -58,7 +58,7 @@ bool Dma::reset()
 	return true;
 }
 
-bool Dma::clock()
+bool Dma::execute()
 {
 	//Check if DMA is already Running
 	if (isRunning)

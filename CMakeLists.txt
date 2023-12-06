@@ -74,6 +74,7 @@ add_executable(psxemu ${PSXEMU_SOURCES} ${IMGUI_SOURCES} ${LOGURU_SOURCES} ${LIB
 # when running g++ these will be included as -I/directory/path/
 target_include_directories(psxemu
     PRIVATE 
+		${PROJECT_SOURCE_DIR}/3rdparty
 		${PROJECT_SOURCE_DIR}/3rdparty/imgui
 		${PROJECT_SOURCE_DIR}/3rdparty/litelib
 		${PROJECT_SOURCE_DIR}/3rdparty/loguru

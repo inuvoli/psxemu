@@ -23,7 +23,7 @@ bool Interrupt::reset()
     return true;
 }
 
-bool Interrupt::clock()
+bool Interrupt::execute()
 {
     //Set value for Hardware Interupt Pin to CPU
     //PSX only use Hardware Interrupt INT0

@@ -12,6 +12,5 @@
 #include "bitfield.h"
 #include "fifo.h"
 #include "vectors.h"
-#include "fixedpoint.h"
 #include "matrix.h"
 

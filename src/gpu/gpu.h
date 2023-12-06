@@ -29,6 +29,7 @@ constexpr auto NTSC_ACTIVE_GPU_TICK = 2827;
 //GPU Constants
 constexpr auto VRAM_SIZE = 1024 * 512;
 constexpr auto MAX_POLYGON_PARAMS = 3;
+constexpr auto MAX_RECTANGLE_PARAMS = 4;
 
 enum class VideoMode { NTSC = 0x0, PAL = 0x1 };
 
@@ -43,10 +44,10 @@ struct GpuDebugInfo
 	lite::vec4t<uint16_t>		drawingArea;
 	lite::vec2t<uint16_t>		videoResolution;
 	std::string					videoStandard;
-	std::string					textureAllowDisable;
-	std::string					textureDisable;
+	std::string					textureDisabled;
+	uint16_t					texturePageYBase2;
 	lite::vec2t<uint16_t>		texturePage;
-	std::string					texturePageColor;
+	std::string					textureColorDepth;
 	lite::vec2t<uint8_t>		textureMask;
 	lite::vec2t<uint8_t>		textureOffset;
 };
@@ -92,7 +93,7 @@ public:
 	~GPU();
 
 	bool reset();
-	bool clock();
+	bool execute();
 
 	bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes = 4);
 	uint32_t readAddr(uint32_t addr, uint8_t bytes = 4);
@@ -134,13 +135,12 @@ private:
 
 	//Vertex Info
 	std::vector<VertexInfo> vertexPolyInfo;
-	std::vector<VertexInfo> vertexRectInfo;
 	std::vector<VertexInfo> vertexLineInfo;
 
 	//GPU Internal Status & Configurations
-	VideoMode			videoMode;
-	uint8_t				dotClockRatio;
-	bool				verticalInterlace;
+	VideoMode					videoMode;
+	uint8_t						dotClockRatio;
+	bool						verticalInterlace;
 	lite::vec2t<uint16_t>		videoResolution;
 	lite::vec2t<uint16_t>		displayStart;
 	lite::vec4t<uint16_t>		displayRange;
@@ -148,11 +148,16 @@ private:
 	lite::vec4t<uint16_t>		drawingArea;
 	lite::vec2t<uint8_t>		textureMask;
 	lite::vec2t<uint8_t>		textureOffset;
-	lite::vec2t<uint16_t>		texturePage;
-	uint8_t				texturePageColor;
-
-	bool				textureAllowDisable;
-	bool				textureDisable;
+	
+	// ------ Texpage settings, Updateted by GP0(E1h)
+	glm::vec2					texturePage;				//Texpage - set by GP0(E1h), Texture Page X = N*64, Y = N*256
+	uint8_t						textureTransparencyMode;	//Texpage - set by GP0(E1h), Transparency Mode (0=B/2+F/2, 1=B+F, 2=B-F, 3=B+F/4)
+	uint8_t						textureColorDepth;			//Texpage - set by GP0(E1h), Texture page colors (0=4bit, 1=8bit, 2=15bit, 3=Reserved)
+	bool						textureDitherEnabled;		//Texpage - set by GP0(E1h), Dither 24bit to 15bit (0=Off/strip LSBs, 1=Dither Enabled) 
+	bool						textureDrawingEnabled;		//Texpage - set by GP0(E1h), Drawing to display area (0=Prohibited, 1=Allowed)
+	uint						texturePageYBase2;			//Texpage - set by GP0(E1h), Texture page Y Base 2 (N*512) (only for 2MB VRAM)
+	
+	bool						textureDisabled;			//Debug Only - set by GP1(09h), Texture Disable (0=Normal, 1=Allow Disable via GP0(E1h).11)
 	
 	uint8_t				dmaDirection;			//Set by GP1(04h), Contains actual value for GPUSTAT.29-30 (0 = off, 1 = FIFO, 2 =  RAM to VRAM, 3 = VRAM to RAM)
 	bool				recvCommand;			//True if a GP0/GP1 command has been received

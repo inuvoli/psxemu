@@ -36,7 +36,7 @@ bool Timers::reset()
 	return true;
 }
 
-bool Timers::clock(ClockSource source)
+bool Timers::execute(ClockSource source)
 {
 	//Update Timers according to Clock Source
 

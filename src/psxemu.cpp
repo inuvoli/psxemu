@@ -81,14 +81,6 @@ bool psxemu::init(int wndWidth, int wndHeight, const std::string& biosFileName, 
         return false;
     }
     LOG_F(INFO, "PSXEMU Window Created...");
-
-    // pWindow2 = SDL_CreateWindow("PSX Debugger", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, wndWidth, wndHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
-    // if (pWindow == nullptr)
-    // {
-    //     LOG_F(ERROR, "Window could not be created! SDL_Error: %s", SDL_GetError());
-    //     return false;
-    // }
-    //LOG_F(INFO, (INFO, "DEBUGGER Window Created...");
      
     //Set window minimum size
     SDL_SetWindowMinimumSize(pWindow, wndWidth, wndHeight);
@@ -119,17 +111,27 @@ bool psxemu::init(int wndWidth, int wndHeight, const std::string& biosFileName, 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
            
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
 
+    // When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
+
     // Setup Platform/Renderer backends
     ImGui_ImplSDL2_InitForOpenGL(pWindow, glContext);
     ImGui_ImplOpenGL3_Init(glsl_version);
-     
-    //Init OpenGL Variables
-    glGenTextures(1, &vramTexture);
-
+        
     //Init OpenGL Debug Callback
     //glEnable(GL_DEBUG_OUTPUT);
     //glDebugMessageCallback(MessageCallback, 0);
@@ -139,7 +141,7 @@ bool psxemu::init(int wndWidth, int wndHeight, const std::string& biosFileName, 
     pPsx = std::make_shared<Psx>(biosFileName, gameFileName);
 
     //Init PSX Debugger
-    pDebugger = std::make_shared<Debugger>(pPsx);   
+    pDebugger = std::make_shared<debugger>(pPsx);   
 
     return true;
 }
@@ -148,7 +150,7 @@ bool psxemu::run()
 {
     while (isRunning)
     {
-        timerStart = SDL_GetPerformanceCounter();
+        uint64_t timerStart = SDL_GetPerformanceCounter();
 
         //Handle SDL Events
         handleEvents();
@@ -159,8 +161,9 @@ bool psxemu::run()
         //Render Screen
         render(pDebugger->getStepMode()); 
 
-        timerStop = SDL_GetPerformanceCounter();
-        framePerSecond = static_cast<uint16_t>(SDL_GetPerformanceFrequency() / (timerStop - timerStart));
+        uint64_t timerStop = SDL_GetPerformanceCounter();
+        uint16_t framePerSecond = static_cast<uint16_t>(SDL_GetPerformanceFrequency() / (timerStop - timerStart));
+        pDebugger->setFrameRate(framePerSecond);
     }
 
     return true;
@@ -204,7 +207,7 @@ bool psxemu::handleEvents()
         case SDL_KEYDOWN:
             switch (sdlEvent.key.keysym.sym)
             {
-            case SDLK_q:
+            case SDLK_x:
                 isRunning = false;
                 break;
             case SDLK_r:
@@ -222,38 +225,35 @@ bool psxemu::handleEvents()
             case SDLK_y:
                 pDebugger->setStepMode(StepMode::Frame);
                 break;
-            case SDLK_F1:
+            case SDLK_1:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Bios);
                 break;
-            case SDLK_F2:
+            case SDLK_2:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Ram);
                 break;
-            case SDLK_F3:
+            case SDLK_3:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Cpu);
                 break;
-            case SDLK_F4:
+            case SDLK_4:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Code);
                 break;
-            case SDLK_F5:
+            case SDLK_5:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Dma);
                 break;
-            case SDLK_F6:
+            case SDLK_6:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Timers);
                 break;
-            case SDLK_F7:
+            case SDLK_7:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Gpu);
                 break;
-            case SDLK_F8:
+            case SDLK_8:
+                pDebugger->toggleDebugModuleStatus(DebugModule::Spu);
+                break;
+            case SDLK_9:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Cdrom);
                 break;
-            //-------------------------------- Test
-            case SDLK_z:
-                pDebugger->setBreakpoint(0x00000001);
-                //pPsx->interrupt->set(static_cast<uint32_t>(interruptCause::cdrom));
-                break;
-            case SDLK_x:
-                pDebugger->setBreakpoint(0x00000000);
-                //pPsx->interrupt->set(static_cast<uint32_t>(interruptCause::cdrom));
+            case SDLK_0:
+                pDebugger->toggleDebugModuleStatus(DebugModule::Tty);
                 break;
             }
             break;
@@ -271,19 +271,19 @@ bool psxemu::update(StepMode stepMode)
             break;
 
         case StepMode::Manual:
-            pPsx->clock();
+            pPsx->execute();
             pDebugger->setStepMode(StepMode::Halt);
             break;
 
         case StepMode::Instruction:
-            pPsx->clock();
+            pPsx->execute();
             if (pDebugger->isBreakpoint()) pDebugger->setStepMode(StepMode::Halt);
             break;
 
         case StepMode::Frame:
             while (!pPsx->gpu->isFrameReady())
             {
-                pPsx->clock();
+                pPsx->execute();
                 if (pDebugger->isBreakpoint())
                 {
                     pDebugger->setStepMode(StepMode::Halt);
@@ -305,272 +305,13 @@ bool psxemu::render(StepMode stepMode)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     //Render Current PSX Frame
-    pPsx->gpu->pRenderer->RenderDrawData();
-
+    pPsx->gpu->pRenderer->RenderDrawData(); 
+ 
     //Render ImGUI Debug Widgets
-    renderWidgets();
+    pDebugger->render();
 
     //Swap OpenGL FrameBuffer
     SDL_GL_SwapWindow(pWindow);
     
     return true;
 }
-
-bool psxemu::renderWidgets()
-{
-    // Start the Dear ImGui frame
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplSDL2_NewFrame(pWindow);
-    
-    ImGui::NewFrame();
-    ImGui::SetNextWindowBgAlpha(0.35f);
-
-    renderFpsWidget();
-    if (pDebugger->getDebugModuleStatus(DebugModule::Bios))     renderBiosWidget();
-    if (pDebugger->getDebugModuleStatus(DebugModule::Ram))      renderRamWidget();
-    if (pDebugger->getDebugModuleStatus(DebugModule::Cpu))      renderCpuWidget();
-    if (pDebugger->getDebugModuleStatus(DebugModule::Code))     renderCodeWidget();
-    if (pDebugger->getDebugModuleStatus(DebugModule::Dma))      renderDmaWidget();
-    if (pDebugger->getDebugModuleStatus(DebugModule::Timers))   renderTimersWidget();
-    if (pDebugger->getDebugModuleStatus(DebugModule::Gpu))      renderGpuWidget();
-    if (pDebugger->getDebugModuleStatus(DebugModule::Spu))      renderSpuWidget();
-    if (pDebugger->getDebugModuleStatus(DebugModule::Cdrom))    renderCdromWidget();
-    
-    ImGui::Render();
-
-    //Render Debug Information
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    return true;
-}
-
-bool psxemu::renderFpsWidget()
-{
-    ImGui::Begin("FPS", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-    ImGui::SetWindowPos(ImVec2(0, 0));
-    ImGui::SetWindowSize(ImVec2(80, 30));
-    ImGui::Text("FPS: %3d", framePerSecond);
-    ImGui::End();
-
-    return true;
-};
-
-bool psxemu::renderBiosWidget()
-{
-    dbgRom.DrawWindow("BIOS", pPsx->bios->rom, BIOS_SIZE);
-    return true;
-};
-
-bool psxemu::renderRamWidget()
-{
-    dbgRam.DrawWindow("RAM", pPsx->mem->ram, RAM_SIZE);
-    return true;
-};
-
-bool psxemu::renderCpuWidget()
-{
-    InterruptDebugInfo interruptInfo;
-    pPsx->interrupt->getDebugInfo(interruptInfo);
-
-    ImGui::Begin("CPU Registers");
-    for (int i = 0; i < 32; i++)
-    {
-        ImGui::Text("%2d", i);
-        ImGui::SameLine();
-        ImGui::Text("%s = 0x%08x", cpuRegisterName[i].c_str() , pPsx->cpu->gpr[i]);
-        
-        ImGui::SameLine();
-        if (cop0RegisterName[i] == "")
-            ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
-        else
-            ImGui::Text("%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
-        
-        ImGui::SameLine();
-        if (cop2RegisterName[i] == "")
-            ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i].c_str(), pPsx->cpu->cop2->reg.data[i]);
-        else
-            ImGui::Text("%8s = 0x%08x", cop2RegisterName[i].c_str(), pPsx->cpu->cop2->reg.data[i]);
-        
-        ImGui::SameLine();
-        if (cop2RegisterName[i+32] == "")
-            ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i+32].c_str(), pPsx->cpu->cop2->reg.ctrl[i]);
-        else
-            ImGui::Text("%8s = 0x%08x", cop2RegisterName[i+32].c_str(), pPsx->cpu->cop2->reg.ctrl[i]);
-        
-        switch (i)
-        {
-        case 0:
-            ImGui::SameLine();
-            ImGui::TextColored(green_color, "pc = 0x%08x", pPsx->cpu->pc);
-            break;
-        case 1:
-            ImGui::SameLine();
-            ImGui::Text("hi = 0x%08x", pPsx->cpu->hi);
-            break;
-        case 2:
-            ImGui::SameLine();
-            ImGui::Text("lo = 0x%08x", pPsx->cpu->lo);
-            break;
-        case 4:
-            ImGui::SameLine();
-            ImGui::Text("Cache Reg   = 0x%08x", pPsx->cpu->cacheReg);
-            break;
-        case 5:
-            ImGui::SameLine();
-            ImGui::Text("Int. Status = 0x%08x", interruptInfo.i_stat);
-            break;
-        case 6:
-            ImGui::SameLine();
-            ImGui::Text("Int. Mask   = 0x%08x", interruptInfo.i_mask);
-            break;
-        case 8:
-            ImGui::SameLine();
-            ImGui::Text("POST = %d", pPsx->postStatus);
-            break;
-        }
-    }
-    ImGui::End();
-
-    return true;
-};
-
-bool psxemu::renderCodeWidget()
-{
-    ImGui::Begin("Assembler");
-    uint32_t addr = pPsx->cpu->pc;
-
-    //Debug on the fly software in RAM
-    //Check if code is already disassembled, if not disassemble starting from current Program Counter.
-    if (asmCode.find(addr) == asmCode.end() || std::get<2>(asmCode[addr]) == "")
-    {
-        AsmCode newDisassembledCode = mipsDisassembler.disassemble(pPsx->bios->rom, pPsx->mem->ram, addr);
-        for (auto& e : newDisassembledCode)
-            asmCode.insert_or_assign(e.first, e.second);
-    }
-    
-    addr -= (15 * 4);
-    for (int line = 0; line < 32; line++)
-    {
-        if (addr == pPsx->cpu->pc)
-        {
-            ImGui::TextColored(red_color, "0x%08x", addr);
-            ImGui::SameLine();
-            ImGui::TextColored(red_color, "0x%08x", std::get<0>(asmCode[addr]));
-            ImGui::SameLine();
-            ImGui::TextColored(red_color, "%s", std::get<1>(asmCode[addr]).c_str());
-            ImGui::SameLine();
-            ImGui::TextColored(red_color, "%s", std::get<2>(asmCode[addr]).c_str());
-        }
-        else
-        {
-            ImGui::TextColored(yellow_color, "0x%08x", addr);
-            ImGui::SameLine();
-            ImGui::TextColored(green_color, "0x%08x", std::get<0>(asmCode[addr]));
-            ImGui::SameLine();
-            ImGui::TextColored(grey_color, "%s", std::get<1>(asmCode[addr]).c_str());
-            ImGui::SameLine();
-            ImGui::TextColored(grey_color, "%s", std::get<2>(asmCode[addr]).c_str());
-        }
-        
-        addr += 4;
-    }
-    ImGui::End();
-
-    return true;
-};
-
-bool psxemu::renderDmaWidget()
-{
-    ImGui::Begin("DMA");
-            
-    for (int i = 0; i < DMA_CHANNEL_NUMBER; i++)
-    {
-        ImGui::Text("DMA%d:MADR 0x%08x  ", i, pPsx->dma->dmaChannel[i].chanMadr);
-        ImGui::SameLine();
-        ImGui::Text("DMA%d:BCR  0x%08x  ", i, pPsx->dma->dmaChannel[i].chanBcr.word);
-        ImGui::SameLine();
-        ImGui::Text("DMA%d:CHCR 0x%08x  ", i, pPsx->dma->dmaChannel[i].chanChcr.word);
-    }
-    ImGui::TextColored(green_color, "DPCR 0x%08x       ", pPsx->dma->dmaDpcr);
-    ImGui::SameLine();
-    ImGui::TextColored(green_color, "DICR 0x%08x  ", pPsx->dma->dmaDicr.word);
-
-    ImGui::End();
-
-    return true;
-};
-
-bool psxemu::renderTimersWidget()
-{
-    TimerDebugInfo timerinfo;
-    pPsx->timers->getDebugInfo(timerinfo);
-
-    ImGui::Begin("TIMERS");
-    for (int i = 0; i < TIMER_NUMBER; i++)
-    {
-        ImGui::Text("Timer %d: Value  0x%08x  ", i, timerinfo.timerStatus[i].counterValue);
-        ImGui::SameLine();
-        ImGui::Text("Timer %d: Mode   0x%08x  ", i, timerinfo.timerStatus[i].counterMode.word);
-        ImGui::SameLine();
-        ImGui::Text("Timer %d: Target 0x%08x  ", i, timerinfo.timerStatus[i].counterTarget);
-    }
-    ImGui::End();
-
-    return true;
-};
-
-bool psxemu::renderGpuWidget()
-{
-    GpuDebugInfo gpuinfo;
-    pPsx->gpu->getDebugInfo(gpuinfo);
-
-    ImGui::Begin("GPU");
-    ImGui::Text("GPUSTAT: Value  0x%08x  ", gpuinfo.gpuStat);
-    ImGui::Text("VideoMode     : %dx%d   (%s)", gpuinfo.videoResolution.x, gpuinfo.videoResolution.y, gpuinfo.videoStandard.c_str());
-    
-    ImGui::Text("Display Start : (%4d, %4d)\t\t\t\t\t\t", gpuinfo.displayStart.x, gpuinfo.displayStart.y);
-    ImGui::SameLine();
-    ImGui::Text("Texture Page           : (%4d, %4d)", gpuinfo.texturePage.x, gpuinfo.texturePage.y);
-
-    ImGui::Text("Display Range : (%4d, %4d) to (%4d, %4d)\t\t", gpuinfo.displayRange.x1, gpuinfo.displayRange.y1, gpuinfo.displayRange.x2, gpuinfo.displayRange.y2);
-    ImGui::SameLine();
-    ImGui::Text("Texture Page Color Mode: %s", gpuinfo.texturePageColor.c_str());
-
-    ImGui::Text("Drawing Offset: (%4d, %4d)\t\t\t\t\t\t", (int16_t)gpuinfo.drawingOffset.x, (int16_t)gpuinfo.drawingOffset.y);
-    ImGui::SameLine();
-    ImGui::Text("Texture Windows Mask   : (%4d, %4d)", gpuinfo.textureMask.x, gpuinfo.textureMask.y);
-
-    ImGui::Text("Drawing Area  : (%4d, %4d) to (%4d, %4d)\t\t", gpuinfo.drawingArea.x1, gpuinfo.drawingArea.y1, gpuinfo.drawingArea.x2, gpuinfo.drawingArea.y2);
-    ImGui::SameLine();
-    ImGui::Text("Texture Windows Offset : (%4d, %4d)", gpuinfo.textureOffset.x, gpuinfo.textureOffset.y); 
-    
-    glBindTexture(GL_TEXTURE_2D, vramTexture);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, (const void*)gpuinfo.vRam);
-            
-    ImGui::Image((void*)(intptr_t)vramTexture, ImVec2(1024, 512));
-    ImGui::End();
-
-    return true;      
-};
-
-bool psxemu::renderSpuWidget()
-{
-    return false;
-};
-
-bool psxemu::renderCdromWidget()
-{
-    CdromDebugInfo info;
-    pPsx->cdrom->getDebugInfo(info);
-
-    ImGui::Begin("CDROM");
-    ImGui::Text("Status Register:           Value  0x%02x  ", info.statusRegister);
-    ImGui::Text("Request Register:          Value  0x%02x  ", info.requestRegister);
-    ImGui::Text("Interrupt Enable Register: Value  0x%02x  ", info.interruptEnableRegister);
-    ImGui::Text("Interrupt Flag Register:   Value  0x%02x  ", info.interruptFlagRegister);
-    ImGui::End();
-    return false;
-};

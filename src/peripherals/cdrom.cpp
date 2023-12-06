@@ -354,7 +354,7 @@ bool Cdrom::reset()
 	return true;
 }
 
-bool Cdrom::clock()
+bool Cdrom::execute()
 {
 	bool bResult;
 	uint8_t interruptNum;

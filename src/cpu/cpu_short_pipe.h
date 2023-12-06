@@ -39,7 +39,7 @@ public:
 	~CPU();
 
 	bool reset();
-	bool clock();
+	bool execute();
 
 	//Cache & Memory Access
 	uint32_t rdInst(uint32_t vAddr, uint8_t bytes = 4);

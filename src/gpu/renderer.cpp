@@ -119,15 +119,9 @@ bool Renderer::InsertPolygon(std::vector<VertexInfo>& e)
     return true;
 }
 
-bool Renderer::InsertLine()
+bool Renderer::InsertLine(std::vector<VertexInfo>& e)
 {
-    //TODO
-    return false;
-}
-
-bool Renderer::InsertRectangle()
-{
-    //TODO
+    //TODO - Lines are not rendered yet
     return false;
 }
 

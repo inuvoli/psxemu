@@ -211,9 +211,10 @@ inline bool CPU::isOverflow(int32_t a, int32_t b)
 //-----------------------------------------------------------------------------------------------------------------------------------
 inline uint32_t CPU::rdInst(uint32_t vAddr, uint8_t bytes)
 {
+	//Exception not supported by PSX Bios
 	//Check if PC in unaligned
-	if ((bool)(vAddr % bytes))
-		exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
+	//if ((bool)(vAddr % bytes))
+	//	exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
 
 	//TODO: Instruction Cache Management
 
@@ -226,9 +227,10 @@ inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes)
 
 	statusReg.word = cop0->reg[12];
 
+	//Exception not supported by PSX Bios
 	//Check if vAddr in unaligned
-	if ((bool)(vAddr % bytes))
-		exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
+	//if ((bool)(vAddr % bytes))
+	//	exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
 
 	//Check if Cache is Isolated
 	if (statusReg.isc)
@@ -336,7 +338,7 @@ bool CPU::wrInstrCache(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 // Pipeline Implementation
 //
 //-----------------------------------------------------------------------------------------------------------------------------------
-bool CPU::clock()
+bool CPU::execute()
 {
 	bool bResult = true;
 
@@ -389,7 +391,7 @@ bool CPU::clock()
 			//SPECIAL opcode
 			bResult = (this->*functSet[currentOpcode.funct].operate)();
 			if (!bResult)
-				LOG_F(ERROR, "CPU - Unimplemented Function %s!", functSet[currentOpcode.funct].mnemonic.c_str());
+				LOG_F(ERROR, "CPU - Unimplemented Function %s! [%02x]", functSet[currentOpcode.funct].mnemonic.c_str(), currentOpcode.funct);
 		}
 		else
 		{
@@ -663,14 +665,16 @@ bool CPU::op_lui()
 
 bool CPU::op_cop0()
 {
-	if (!cop0->execute(currentOpcode.cofun))
-		//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
-
+	//Exception not supported by PSX Bios
+	//if (!cop0->execute(currentOpcode.cofun))
+	//	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+	cop0->execute(currentOpcode.cofun);
 	return true;
 }
 
 bool CPU::op_cop1()
 {
+	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
@@ -678,14 +682,16 @@ bool CPU::op_cop1()
 
 bool CPU::op_cop2()
 {
-	if (!cop2->execute(currentOpcode.cofun))
-		//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
-
+	//Exception not supported by PSX Bios
+	//if (!cop2->execute(currentOpcode.cofun))
+	//	exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
+	cop2->execute(currentOpcode.cofun);
 	return true;
 }
 
 bool CPU::op_cop3()
 {
+	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
@@ -816,6 +822,8 @@ bool CPU::op_sh()
 
 bool CPU::op_swl()
 {
+	// To Check
+
 	//Unaligned writing to memory is approximated with a 4 byte writing from LSB
 	//for both SWL and SWR. Both act like SW but starting from a potentially
 	//unaligned address.
@@ -833,6 +841,8 @@ bool CPU::op_sw()
 
 bool CPU::op_swr()
 {
+	//To Check
+
 	//Unaligned writing to memory is approximated with a 4 byte writing from LSB
 	//for both SWL and SWR. Both act like SW but starting from a potentially
 	//unaligned address.
@@ -844,7 +854,7 @@ bool CPU::op_swr()
 bool CPU::op_lwc0()
 {
 	//Checked 16/07/2021
-
+	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
@@ -853,7 +863,7 @@ bool CPU::op_lwc0()
 bool CPU::op_lwc1()
 {
 	//Checked 16/07/2021
-
+	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
@@ -863,9 +873,7 @@ bool CPU::op_lwc2()
 {
 	//Checked 31/03/2023
 
-	//cop2->dataReg[currentOpcode.rt] = rdMem(currentOpcode.regA + currentOpcode.imm, 4);
 	cop2->reg.data[currentOpcode.rt] = rdMem(currentOpcode.regA + currentOpcode.imm, 4);
-	LOG_F(3, "CPU - lwc2 $%d, 0x%04x($%d)", (uint8_t)currentOpcode.rt, (int16_t)currentOpcode.imm, (uint8_t)currentOpcode.rs);
 
 	return true;
 }
@@ -873,7 +881,7 @@ bool CPU::op_lwc2()
 bool CPU::op_lwc3()
 {
 	//Checked 16/07/2021
-
+	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
@@ -882,7 +890,7 @@ bool CPU::op_lwc3()
 bool CPU::op_swc0()
 {
 	//Checked 16/07/2021
-
+	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
@@ -891,7 +899,7 @@ bool CPU::op_swc0()
 bool CPU::op_swc1()
 {
 	//Checked 16/07/2021
-
+	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
@@ -901,9 +909,7 @@ bool CPU::op_swc2()
 {
 	//Checked 31/03/2023
 
-	//wrMem(currentOpcode.regA + currentOpcode.imm, cop2->dataReg[currentOpcode.rt], 4);
 	wrMem(currentOpcode.regA + currentOpcode.imm, cop2->reg.data[currentOpcode.rt], 4);
-	LOG_F(3, "CPU - swc2 $%d, 0x%04x($%d)", (uint8_t)currentOpcode.rt, (int16_t)currentOpcode.imm, (uint8_t)currentOpcode.rs);
 		
 	return true;
 }
@@ -911,7 +917,7 @@ bool CPU::op_swc2()
 bool CPU::op_swc3()
 {
 	//Checked 16/07/2021
-
+	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
 
 	return true;
@@ -994,7 +1000,8 @@ bool CPU::op_syscall()
 
 bool CPU::op_break()
 {
-	exception(static_cast<uint32_t>(cpu::exceptionCause::breakpoint));
+	//Exception not supported by PSX Bios
+	//exception(static_cast<uint32_t>(cpu::exceptionCause::breakpoint));
 
 	return true;
 }
@@ -1202,6 +1209,7 @@ bool CPU::op_sltu()
 
 bool CPU::op_unknown()
 {
+	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::resinst));
 	return false;
 }

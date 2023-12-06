@@ -15,13 +15,14 @@ namespace lite
         ~fifo();
 
         //Interface
-        bool push(const T& value);
-        bool push(const std::vector<T>& value);
-        bool pop(T& value);
-        size_t lenght();
-        void flush();
-        bool isfull();
-        bool isempty();
+        bool    push(const T& value);                  //push a record on the fifo
+        bool    push(const std::vector<T>& value);     //push a vector on the fifo
+        bool    pop(T& value);                         //pop a record from the fifo
+        size_t  lenght();                            //return fifo lenght in number od records
+        void    flush();                               //empty the fifo
+        bool    isfull();                              //check if the fifo is full
+        bool    isempty();                             //check if the fifo is empty
+        T       head();                                //return the first record on the fifo without pop it from the queue
 
     private:
         uint32_t readPtr;
@@ -115,6 +116,12 @@ namespace lite
     inline bool fifo<T, size>::isempty()
     {
         return (writePtr - readPtr) == 0;
+    };
+
+    template<typename T, size_t size>
+    inline T fifo<T, size>::head()
+    {
+        return data[readPtr % size];
     };
 };
 

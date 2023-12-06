@@ -7,21 +7,11 @@
 #include <algorithm>
 
 #include "litelib.h"
+#include "fpm/fixed.hpp"
 #include "glm/glm.hpp"
 
 static constexpr uint32_t GTE_CONTROL_REGISTER_NUMBER = 32;
 static constexpr uint32_t GTE_DATA_REGISTER_NUMBER = 32;
-
-//---Data Register Shortcut-----------------------------------------------------------------------------------
-#define SX0 reg.sxy0.y
-#define SY0 reg.sxy0.x
-#define SX1 reg.sxy1.y
-#define SY1 reg.sxy1.x
-#define SX2 reg.sxy2.y
-#define SY2 reg.sxy2.x
-
-#define MAC0 reg.mac0
-
 
 //---Control Register Shortcut-----------------------------------------------------------------------------------
 
@@ -90,10 +80,10 @@ namespace gte
         struct
         {
             //Data Registers
-            lite::vec4t<int16_t> v0;
-            lite::vec4t<int16_t> v1;
-            lite::vec4t<int16_t> v2;
-            lite::vec4t<uint8_t> rgbc;
+            lite::i16vec4 v0;
+            lite::i16vec4 v1;
+            lite::i16vec4 v2;
+            lite::ui8vec4 rgbc;
             uint16_t    otz;
             uint16_t    pad4;
             int16_t     ir1;
@@ -102,10 +92,10 @@ namespace gte
             uint16_t    pad6;
             int16_t     ir3;
             uint16_t    pad7;
-            lite::vec2t<int16_t> sxy0;
-            lite::vec2t<int16_t> sxy1;
-            lite::vec2t<int16_t> sxy2;
-            lite::vec2t<int16_t> sxyp;
+            lite::i16vec2 sxy0;
+            lite::i16vec2 sxy1;
+            lite::i16vec2 sxy2;
+            lite::i16vec2 sxyp;
             uint16_t    sz0;
             uint16_t    pad8;
             uint16_t    sz1;
@@ -114,9 +104,9 @@ namespace gte
             uint16_t    pad10;
             uint16_t    sz3;
             uint16_t    pad11;
-            lite::vec4t<uint8_t> rgb0;
-            lite::vec4t<uint8_t> rgb1;
-            lite::vec4t<uint8_t> rgb2;
+            lite::ui8vec4 rgb0;
+            lite::ui8vec4 rgb1;
+            lite::ui8vec4 rgb2;
             uint32_t    res1;
             int32_t     mac0;
             int32_t     mac1;
@@ -130,14 +120,14 @@ namespace gte
             //Control Registers
             int16_t     rtm[3][3];
             uint16_t    pad12;
-            lite::vec3t<int32_t> tr;
+            lite::i32vec3 tr;
             int16_t     lsm[3][3];
             uint16_t    pad13;
-            lite::vec3t<int32_t> rgb_bk;
+            lite::i32vec3 rgb_bk;
             int16_t     lcm[3][3];
             uint16_t    pad14;
-            lite::vec3t<int32_t> rgb_far;
-            lite::vec2t<int32_t> of;
+            lite::i32vec3 rgb_far;
+            lite::i32vec2 of;
             uint16_t    h;
             uint16_t    pad15;
             int16_t     dqa;
@@ -148,7 +138,7 @@ namespace gte
             int16_t     zsf4;
             uint16_t    pad18;
             gte::flags flag;    
-        };
+        } registers;
     #pragma pack(pop)    
     };
 }

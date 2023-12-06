@@ -36,8 +36,7 @@ class Renderer
         bool reset();
      
         bool InsertPolygon(std::vector<VertexInfo>& e);
-        bool InsertLine();
-        bool InsertRectangle();
+        bool InsertLine(std::vector<VertexInfo>& e);
         
         bool SetResolution(int16_t hRes, int16_t vRes);
 
