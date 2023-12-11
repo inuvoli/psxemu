@@ -4,6 +4,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <fstream>
+#include <iostream>
 
 #include "videolib.h"
 #include "psx.h"
@@ -35,6 +37,8 @@ public:
 
     void toggleDebugModuleStatus(DebugModule module);
     bool getDebugModuleStatus(DebugModule module);
+
+	void dumpRam();
 
     bool update();
     bool render();
@@ -86,7 +90,7 @@ private:
 
 	//Registers names
 	std::string cpuRegisterName[32] = { "zr", "at", "v0", "v1", "a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
- 										"t8", "t9", "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "k0", "k1", "gp", "sp", "fp", "ra"};
+ 										"s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra"};
 
 	std::string cop0RegisterName[32] = { "", "", "", "BPC", "", "BDA", "JDEST", "DCIC", "BadVaddr", "BDAM", "", "BPCM", "SR",
  										"Cause", "EPC", "PDId", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" };

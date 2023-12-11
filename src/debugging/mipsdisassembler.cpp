@@ -410,15 +410,15 @@ std::string MipsDisassembler::decodeOpcode(uint32_t data, bool& isJump)
 
 	strPos = asmLine.find("rs");
 	if (strPos != std::string::npos)
-		asmLine.replace(strPos, 2, "$" + cpuRegisterName[opcode.rs]);
+		asmLine.replace(strPos, 2, cpuRegisterName[opcode.rs]);
 
 	strPos = asmLine.find("rt");
 	if (strPos != std::string::npos)
-		asmLine.replace(strPos, 2, "$" + cpuRegisterName[opcode.rt]);
+		asmLine.replace(strPos, 2, cpuRegisterName[opcode.rt]);
 
 	strPos = asmLine.find("rd");
 	if (strPos != std::string::npos)
-		asmLine.replace(strPos, 2, "$" + cpuRegisterName[opcode.rd]);
+		asmLine.replace(strPos, 2, cpuRegisterName[opcode.rd]);
 
 	strPos = asmLine.find("imm");
 	if (strPos != std::string::npos)

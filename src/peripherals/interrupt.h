@@ -46,7 +46,7 @@ public:
     //Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
 
-     uint32_t    i_stat;     //Interrupt Status Register
+    uint32_t    i_stat;     //Interrupt Status Register
     uint32_t    i_mask;     //Interrupt Mask Register
 
 private:

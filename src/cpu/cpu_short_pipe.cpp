@@ -350,17 +350,10 @@ bool CPU::execute()
 	cpu::Instruction opcode;
 	opcode.word = rdInst(pc);
 
-	//TEMPORARY
-	if (pc == 0xa0) LOG_F(1, "CPU - Calling %s (%08x, %08x, %08x, %08x) [A(%02xh)]", function_A[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
-	if ((pc == 0xb0) & (gpr[9] != 0x3d)) LOG_F(1, "CPU - Calling %s (%08x, %08x, %08x, %08x) [B(%02xh)]", function_B[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
-	if (pc == 0xc0) LOG_F(1, "CPU - Calling %s (%08x, %08x, %08x, %08x) [C(%02xh)]", function_C[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
-	if (pc == 0xc0 && gpr[9] == 0x0b) exit(1);
-
 	//Check if branchDelaySlot is set, in that case we are executing the instruction in the Branch Delay Slot
 	//and Program Counter must be set to branch new value, if not just step to the next instruction
 	if (branchDelaySlot)
 	{
-		//if (branchAddress == 0x4920746e) return false;
 		pc = branchAddress;
 		branchDelaySlot = false;
 	}
@@ -525,6 +518,15 @@ bool CPU::op_j()
 	branchAddress = (pc & 0xf0000000) + (currentOpcode.tgt << 2);
 	branchDelaySlot = true;
 
+	//Debug -- Call Stack
+	callstackinfo tmp;
+	tmp.jumpaddr = branchAddress;
+	tmp.pc = pc - 4;
+	tmp.sp = gpr[29]; //stack pointer
+	tmp.ra = 0x0; //return address
+	tmp.func = "";
+	callStack.write(tmp);
+
 	return true;
 }
 
@@ -535,6 +537,20 @@ bool CPU::op_jal()
 	branchAddress = (pc & 0xf0000000) + (currentOpcode.tgt << 2);
 	branchDelaySlot = true;
 	gpr[31] = pc + 4;	//Return to the istruction after the delay slot
+
+	//Debug -- Call Stack
+	callstackinfo tmp;
+	tmp.jumpaddr = branchAddress;
+	tmp.pc = pc - 4;
+	tmp.sp = gpr[29]; //stack pointer
+	tmp.ra = gpr[31]; //return address
+
+	std::stringstream ss;
+	ss << "function_" << std::hex << tmp.jumpaddr;
+	tmp.func = ss.str();
+
+	callStack.write(tmp);
+
  
 	return true;
 }
@@ -973,9 +989,39 @@ bool CPU::op_srav()
 
 bool CPU::op_jr()
 {
-	//Foreard PC to fetch stage
+	//Foreward PC to fetch stage
 	branchAddress = currentOpcode.regA;
 	branchDelaySlot = true;
+
+	//Debug -- Call Stack
+	callstackinfo tmp;
+	tmp.jumpaddr = branchAddress;
+	tmp.pc = pc - 4;
+	tmp.sp = gpr[29]; //stack pointer
+	tmp.ra = 0x0; //return address
+	tmp.func = "";
+
+	//DEBUG - stdlib calls
+	//A Functions
+	if (pc == 0xac)
+	{
+		LOG_F(1, "CPU - %s (%08x, %08x, %08x, %08x) [A(%02xh)]", function_A[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
+		tmp.func = function_A[gpr[9]];
+	}
+	//B Functions
+	if (pc == 0xbc && gpr[9] != 0x3d) //exclude std_out_putchar B(3dh)
+	{
+		LOG_F(1, "CPU - %s (%08x, %08x, %08x, %08x) [B(%02xh)]", function_B[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
+		tmp.func = function_B[gpr[9]];
+	}
+	//C Functions
+	if (pc == 0xcc)
+	{
+		LOG_F(1, "CPU - %s (%08x, %08x, %08x, %08x) [C(%02xh)]", function_C[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
+		tmp.func = function_C[gpr[9]];
+	}
+	
+	callStack.write(tmp);
 
 	return true;
 }
@@ -986,6 +1032,19 @@ bool CPU::op_jalr()
 	branchAddress = currentOpcode.regA;
 	branchDelaySlot = true;
 	gpr[31] = pc + 4;
+
+	//Debug -- Call Stack
+	callstackinfo tmp;
+	tmp.jumpaddr = branchAddress;
+	tmp.pc = pc - 4;
+	tmp.sp = gpr[29]; //stack pointer
+	tmp.ra = gpr[31]; //return address
+
+	std::stringstream ss;
+	ss << "function_" << std::hex << tmp.jumpaddr;
+	tmp.func = ss.str();
+	
+	callStack.write(tmp);
 
 	return true;
 }

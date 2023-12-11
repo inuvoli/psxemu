@@ -1,11 +1,13 @@
 #include <loguru.hpp>
+
 #include "controller.h"
 #include "psx.h"
 
 //Cnstructor & Destructor
 Controller::Controller()
 {
-
+    joyStat = 0x00000005;
+    joyMode = 0x0000000d;
 }
 
 Controller::~Controller()
@@ -21,7 +23,10 @@ bool Controller::execute()
 
 bool Controller::reset()
 {
-    return false;
+    joyStat = 0x00000005;
+    joyMode = 0x0000000d;
+
+    return true;
 }
 
 //Internal Register Access
@@ -43,6 +48,27 @@ uint32_t Controller::readAddr(uint32_t addr, uint8_t bytes)
 
     switch (addr)
     {
+        case 0x1f801040:
+            uint8_t tmp;
+            if (rxfifo.pop(tmp))
+                data = tmp;
+            LOG_F(INFO, "CONTROLLER - Read Joy RX Data:   0x%08x", data);
+            break;
+
+        case 0x1f801044:
+            data = joyStat;
+            LOG_F(INFO, "CONTROLLER - Read Joy Stat:   0x%08x, [0x%08x]", data, psx->cpu->pc);
+            break;
+
+        case 0x1f801048:
+            data = joyMode;
+            LOG_F(INFO, "CONTROLLER - Read Joy Mode:   0x%08x", data);
+            break;
+
+        case 0x1f80104c:
+            LOG_F(INFO, "CONTROLLER - Read Unknoen register: 0x%08x", data);
+            break;
+
     default:
         LOG_F(ERROR, "CONTROLLER - Unknown Parameter Get addr: 0x%08x (%d)", addr, bytes);
         break;

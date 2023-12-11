@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "litelib.h" 
-#include "bitfield.h"
 
 #include "cpu_registers.h"
 #include "cop0.h"
@@ -16,6 +15,16 @@
 
 
 class Psx;
+
+//DebugInfo
+struct callstackinfo
+{
+	uint32_t		jumpaddr;
+	uint32_t		pc;
+	uint32_t		sp;
+	uint32_t		ra;
+	std::string		func;
+};
 
 struct decodedOpcode
 {
@@ -62,6 +71,9 @@ public:
 	uint32_t	gpr[32];			//CPU General Purpose Registers
 	uint32_t	cacheReg;			//Cache Control Register (mapped to 0xfffe0130)
 
+	//DEBUG - Call Stack
+	lite::circularbuffer<callstackinfo, 31>	callStack;
+	
 	//Coprocessors
 	std::shared_ptr<Cop0>	cop0;	//Coprocessor 0
 	std::shared_ptr<Cop2>	cop2;	//Coprocessor 2 (GTE)

@@ -6,7 +6,7 @@ debugger::debugger(std::shared_ptr<Psx> instance)
 {
     //TODO
     pPsx = instance;
-    breakPoint = 0xffffffff;
+    breakPoint = 0x800301c4;
     stepMode = StepMode::Halt;
 
     //Init OpenGL Variables
@@ -112,62 +112,115 @@ bool debugger::renderCpuWidget()
     pPsx->interrupt->getDebugInfo(interruptInfo);
 
     ImGui::Begin("CPU Registers");
-    for (int i = 0; i < 32; i++)
-    {
-        ImGui::Text("%2d", i);
-        ImGui::SameLine();
-        ImGui::Text("%s = 0x%08x", cpuRegisterName[i].c_str() , pPsx->cpu->gpr[i]);
-        
-        ImGui::SameLine();
-        if (cop0RegisterName[i] == "")
-            ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
-        else
-            ImGui::Text("%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
-        
-        ImGui::SameLine();
-        if (cop2RegisterName[i] == "")
-            ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i].c_str(), pPsx->cpu->cop2->reg.data[i]);
-        else
-            ImGui::Text("%8s = 0x%08x", cop2RegisterName[i].c_str(), pPsx->cpu->cop2->reg.data[i]);
-        
-        ImGui::SameLine();
-        if (cop2RegisterName[i+32] == "")
-            ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i+32].c_str(), pPsx->cpu->cop2->reg.ctrl[i]);
-        else
-            ImGui::Text("%8s = 0x%08x", cop2RegisterName[i+32].c_str(), pPsx->cpu->cop2->reg.ctrl[i]);
-        
-        switch (i)
-        {
-        case 0:
-            ImGui::SameLine();
-            ImGui::TextColored(green_color, "pc = 0x%08x", pPsx->cpu->pc);
-            break;
-        case 1:
-            ImGui::SameLine();
-            ImGui::Text("hi = 0x%08x", pPsx->cpu->hi);
-            break;
-        case 2:
-            ImGui::SameLine();
-            ImGui::Text("lo = 0x%08x", pPsx->cpu->lo);
-            break;
-        case 4:
-            ImGui::SameLine();
-            ImGui::Text("Cache Reg   = 0x%08x", pPsx->cpu->cacheReg);
-            break;
-        case 5:
-            ImGui::SameLine();
-            ImGui::Text("Int. Status = 0x%08x", interruptInfo.i_stat);
-            break;
-        case 6:
-            ImGui::SameLine();
-            ImGui::Text("Int. Mask   = 0x%08x", interruptInfo.i_mask);
-            break;
-        case 8:
-            ImGui::SameLine();
-            ImGui::Text("POST = %d", pPsx->postStatus);
-            break;
-        }
-    }
+        ImGui::BeginTabBar("#tabs");
+            if (ImGui::BeginTabItem("Raw"))
+            {
+                for (int i = 0; i < 32; i++)
+                {
+                    ImGui::Text("%2d", i);
+                    ImGui::SameLine();
+                    ImGui::Text("%s = 0x%08x", cpuRegisterName[i].c_str() , pPsx->cpu->gpr[i]);
+                    
+                    ImGui::SameLine();
+                    if (cop0RegisterName[i] == "")
+                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
+                    else
+                        ImGui::Text("%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
+                    
+                    ImGui::SameLine();
+                    if (cop2RegisterName[i] == "")
+                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i].c_str(), pPsx->cpu->cop2->reg.data[i]);
+                    else
+                        ImGui::Text("%8s = 0x%08x", cop2RegisterName[i].c_str(), pPsx->cpu->cop2->reg.data[i]);
+                    
+                    ImGui::SameLine();
+                    if (cop2RegisterName[i+32] == "")
+                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i+32].c_str(), pPsx->cpu->cop2->reg.ctrl[i]);
+                    else
+                        ImGui::Text("%8s = 0x%08x", cop2RegisterName[i+32].c_str(), pPsx->cpu->cop2->reg.ctrl[i]);
+                    
+                    switch (i)
+                    {
+                    case 0:
+                        ImGui::SameLine();
+                        ImGui::TextColored(green_color, "pc = 0x%08x", pPsx->cpu->pc);
+                        break;
+                    case 1:
+                        ImGui::SameLine();
+                        ImGui::Text("hi = 0x%08x", pPsx->cpu->hi);
+                        break;
+                    case 2:
+                        ImGui::SameLine();
+                        ImGui::Text("lo = 0x%08x", pPsx->cpu->lo);
+                        break;
+                    case 4:
+                        ImGui::SameLine();
+                        ImGui::Text("Cache Reg   = 0x%08x", pPsx->cpu->cacheReg);
+                        break;
+                    case 5:
+                        ImGui::SameLine();
+                        ImGui::Text("Int. Status = 0x%08x", interruptInfo.i_stat);
+                        break;
+                    case 6:
+                        ImGui::SameLine();
+                        ImGui::Text("Int. Mask   = 0x%08x", interruptInfo.i_mask);
+                        break;
+                    case 8:
+                        ImGui::SameLine();
+                        ImGui::Text("POST = %d", pPsx->postStatus);
+                        break;
+                    }
+                }
+            ImGui::EndTabItem();
+            }
+            if(ImGui::BeginTabItem("Call Stack"))
+            {
+                if (ImGui::BeginTable("Call Stack", 5, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
+                {
+                    ImGui::TableSetupColumn("Jump Address", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+                    ImGui::TableSetupColumn("Program Counter", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+                    ImGui::TableSetupColumn("Stack Pointer", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+                    ImGui::TableSetupColumn("Return Address", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+                    ImGui::TableSetupColumn("Function Name");
+                    
+                    ImGui::PushStyleColor(ImGuiCol_Text, green_color);
+                    ImGui::TableHeadersRow();
+                    ImGui::PopStyleColor();       
+                    
+                    for (int i = 0; i < pPsx->cpu->callStack.lenght() - 1; i++)
+                    {   
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        callstackinfo tmp = pPsx->cpu->callStack.inspect(i);
+                        ImGui::Text("0x%08x", tmp.jumpaddr); ImGui::TableNextColumn();
+                        ImGui::Text("0x%08x", tmp.pc); ImGui::TableNextColumn();
+                        ImGui::Text("0x%08x", tmp.sp); ImGui::TableNextColumn();
+                        if (tmp.ra == 0x0)
+                        {
+                            ImGui::TextColored(darkgrey_color, "0x%08x", tmp.ra);
+                            ImGui::TableNextColumn();
+                        }
+                        else
+                        {
+                            ImGui::Text("0x%08x", tmp.ra); ImGui::TableNextColumn();
+                        }
+                        ImGui::TextColored(grey_color, "%s", tmp.func.c_str());
+                    }
+                }
+                ImGui::EndTable();
+            ImGui::EndTabItem();
+            }
+            if(ImGui::BeginTabItem("COP0"))
+            {
+                //TODO
+            ImGui::EndTabItem();
+            }
+            if(ImGui::BeginTabItem("COP2"))
+            {
+                //TODO
+            ImGui::EndTabItem();
+            }    
+        ImGui::EndTabBar();
     ImGui::End();
 
     return true;
@@ -390,8 +443,28 @@ bool debugger::renderMenuBar()
             }
             ImGui::EndMenu();
         }
+
+        if (ImGui::BeginMenu("Debug"))
+        {
+            if (ImGui::MenuItem("Dump RAM..."))
+            {
+                dumpRam();
+            }
+            if (ImGui::MenuItem("Set Breakpoint"))
+            {
+
+            }
+            ImGui::EndMenu();
+        }
         ImGui::EndMainMenuBar();
     }
 
     return true;
+}
+
+void debugger::dumpRam()
+{
+    std::ofstream fs("ramdump.bin", std::ios::out | std::ios::binary);
+    fs.write(reinterpret_cast<const char*>(pPsx->mem->ram), 0x200000);
+    fs.close();
 }
