@@ -3,7 +3,7 @@
 #include "psxemu.h"
 
 constexpr auto DEFAULT_SCREEN_WIDTH = 1024;
-constexpr auto DEFAULT_SCREEN_HEIGHT = 768;psxtest_cpu.exe
+constexpr auto DEFAULT_SCREEN_HEIGHT = 768;
 
 int main(int argc, char* argv[])
 {
