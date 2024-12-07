@@ -3,7 +3,7 @@
 #include "psxemu.h"
 
 constexpr auto DEFAULT_SCREEN_WIDTH = 1024;
-constexpr auto DEFAULT_SCREEN_HEIGHT = 768;
+constexpr auto DEFAULT_SCREEN_HEIGHT = 768;psxtest_cpu.exe
 
 int main(int argc, char* argv[])
 {
@@ -14,7 +14,7 @@ int main(int argc, char* argv[])
     loguru::g_stderr_verbosity = loguru::Verbosity_INFO; 
     //loguru::add_file("debug.log", loguru::Truncate, 2);
     
-    if (!emu.init(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, "scph1001.bin", "data.img"))
+    if (!emu.init(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, "scph1001.bin", "", ""))
     {
         LOG_F(ERROR, "Failed to Initialize PSX Emulator!\n");
         return 0;

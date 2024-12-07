@@ -6,7 +6,7 @@ Psx::Psx()
 	//never used
 }
 
-Psx::Psx(const std::string& biosFileName, const std::string& gameFileName)
+Psx::Psx(const std::string& biosFileName, const std::string& gameFileName, const std::string& exeFileName)
 {
 	//Reset Master Clock
 	masterClock = 0;
@@ -51,6 +51,7 @@ Psx::Psx(const std::string& biosFileName, const std::string& gameFileName)
 	//Load Bios and Game images
 	bios->loadBios(biosFileName);
 	cdrom->loadImage(gameFileName);
+	mem->loadExe(exeFileName);
 }
 
 Psx::~Psx()
@@ -135,16 +136,6 @@ bool Psx::execute()
 	return true;
 }
 
-bool Psx::convertVirtualAddr(uint32_t vAddr, uint32_t& phAddr)
-{
-	uint32_t maskIndex;
-
-	//Mask Region MSBs and Check if Region is Cached
-	maskIndex = vAddr >> 29;
-	phAddr = vAddr & regionMask[maskIndex];
-	return cacheMask[maskIndex];
-}
-
 uint32_t Psx::rdMem(uint32_t vAddr, uint8_t bytes)
 {
 	uint32_t phAddr;
@@ -153,7 +144,7 @@ uint32_t Psx::rdMem(uint32_t vAddr, uint8_t bytes)
 
 	readingAddress = vAddr;
 
-	cache = convertVirtualAddr(vAddr, phAddr);
+	cache = utility::Virtual2PhisicalAddr(vAddr, phAddr);
 
 	//ROM Read Access (BIOS)
 	if (memRangeBIOS.contains(phAddr)) return bios->read(phAddr);
@@ -184,7 +175,7 @@ bool Psx::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 
 	writingAddress = vAddr;
 
-	cache = convertVirtualAddr(vAddr, phAddr);	
+	cache = utility::Virtual2PhisicalAddr(vAddr, phAddr);	
 	
 	//RAM Write Access
 	if (memRangeRAM.contains(phAddr))  return mem->write(phAddr, data, bytes);

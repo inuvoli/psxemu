@@ -23,7 +23,7 @@ class Psx
 {
 public:
 	Psx();
-	Psx(const std::string& biosFileName, const std::string& gameFileName);
+	Psx(const std::string& biosFileName, const std::string& gameFileName, const std::string& exeFileName);
 	~Psx();
 		
 	bool reset();
@@ -51,7 +51,7 @@ public:
 	std::shared_ptr<Tty> 		tty;
 	std::shared_ptr<Interrupt>	interrupt;
 
-	//Mater Clock: 372.5535MHz
+	//Master Clock: 372.5535MHz
 	uint64_t	masterClock;
 
 	//Temporary Debug
@@ -71,13 +71,6 @@ public:
 	uint32_t postStatus;		//0x1f802041
 
 private:
-	bool convertVirtualAddr(uint32_t vAddr, uint32_t& phAddr);
-
-private:
-	//Memory Conversion Helper
-	static constexpr uint32_t	regionMask[8] = { 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0x7fffffff, 0x1fffffff, 0xffffffff, 0xffffffff };
-	static constexpr bool		cacheMask[8] = { true, true, true, true, true, false, true, true };
-
 	//Memory Mapping
 	lite::range memRangeRAM =  lite::range(0x00000000, 0x200000);
 	lite::range memRangeEXP1 = lite::range(0x1f000000, 0x800000);

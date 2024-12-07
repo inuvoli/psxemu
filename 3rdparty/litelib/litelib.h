@@ -14,4 +14,5 @@
 #include "vectors.h"
 #include "matrix.h"
 #include "circularbuffer.h"
+#include "utility.h"
 

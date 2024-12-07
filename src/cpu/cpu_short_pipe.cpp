@@ -346,6 +346,16 @@ bool CPU::execute()
 	if (dmaTakeOnBus)
 		return true;
 
+	if (pc == 0xbfc06ff0 && psx->mem->exeInfo.isPresent)
+	{
+		LOG_F(INFO, "Jumping to PSX EXE");
+		pc = psx->mem->exeInfo.regPCValue;
+		gpr[28] = psx->mem->exeInfo.reg28Value;
+		gpr[29] = psx->mem->exeInfo.reg29Value;
+		gpr[30] = psx->mem->exeInfo.reg30Value;
+		
+	}
+
 	//Fetch Instruction from current PC and increment it
 	cpu::Instruction opcode;
 	opcode.word = rdInst(pc);
