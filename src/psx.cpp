@@ -3,11 +3,6 @@
 
 Psx::Psx()
 {
-	//never used
-}
-
-Psx::Psx(const std::string& biosFileName, const std::string& gameFileName)
-{
 	//Reset Master Clock
 	masterClock = 0;
 
@@ -49,8 +44,19 @@ Psx::Psx(const std::string& biosFileName, const std::string& gameFileName)
 	postStatus = 0x0;
 
 	//Load Bios and Game images
-	bios->loadBios(biosFileName);
-	cdrom->loadImage(gameFileName);
+	bios->loadBios(commandline::instance().getBiosFileName());
+	cdrom->loadImage(commandline::instance().getBinFileName());
+
+	//Load Test Exe in Memory if present
+	std::string filename = commandline::instance().getExeFileName();
+	if (filename != "")
+	{
+		exefile		testProgram;
+		if (testProgram.loadExe(filename, mem->ram))
+		{
+			testProgram.setRegisters(&(cpu->pc), cpu->gpr);
+		}
+	}
 }
 
 Psx::~Psx()

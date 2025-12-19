@@ -77,7 +77,7 @@ namespace cpu
 		bool		aluToReg;
 	};
 
-	enum class exceptionCause
+	enum class exceptionCause : uint32_t
 	{
 		interrupt = 0x00,
 		addrerrload = 0x04,

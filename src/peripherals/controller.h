@@ -25,6 +25,12 @@ private:
     //Joy Mode Register
     uint32_t    joyMode;
 
+    //Joy Control Register
+    uint16_t    joyCntr;
+
     //Joy RX FIFO
 	lite::fifo<uint8_t, 8>	rxfifo;   
+
+    //Joy TX Data
+    uint32_t    txData;
 };

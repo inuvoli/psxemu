@@ -9,7 +9,7 @@
 #include "GL/glew.h"
 #include "glm/glm.hpp"
 
-constexpr auto maxVertices = 1024 * 512;
+constexpr auto maxVertices = 1024 * 512 * 10;
 
 struct VertexInfo
 {

@@ -150,7 +150,7 @@ bool Renderer::NewFrameReady()
     //Unbind Array Buffer 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    //Store Number the number of Vertex copied on the Vertex Buffer Object and Empty DrawData Structure
+    //Store the number of Vertex copied on the Vertex Buffer Object and Empty DrawData Structure
     drawDataVertexNumber = (int)drawData.size();
     drawData.clear();
 
@@ -166,6 +166,7 @@ bool Renderer::RenderDrawData()
     glBindTexture(GL_TEXTURE_RECTANGLE, textureId);
     //Draw all Triangles
     glDrawArrays(GL_TRIANGLES, 0, drawDataVertexNumber);
+    //glDrawArrays(GL_POINTS, 0, drawDataVertexNumber);
     //Unbind Vertex Buffer Object
     glBindVertexArray(0);
     //Unbind VideoRam as a Texture

@@ -155,7 +155,7 @@ private:
 	uint8_t						textureColorDepth;			//Texpage - set by GP0(E1h), Texture page colors (0=4bit, 1=8bit, 2=15bit, 3=Reserved)
 	bool						textureDitherEnabled;		//Texpage - set by GP0(E1h), Dither 24bit to 15bit (0=Off/strip LSBs, 1=Dither Enabled) 
 	bool						textureDrawingEnabled;		//Texpage - set by GP0(E1h), Drawing to display area (0=Prohibited, 1=Allowed)
-	uint						texturePageYBase2;			//Texpage - set by GP0(E1h), Texture page Y Base 2 (N*512) (only for 2MB VRAM)
+	uint16_t					texturePageYBase2;			//Texpage - set by GP0(E1h), Texture page Y Base 2 (N*512) (only for 2MB VRAM)
 	
 	bool						textureDisabled;			//Debug Only - set by GP1(09h), Texture Disable (0=Normal, 1=Allow Disable via GP0(E1h).11)
 	
@@ -216,6 +216,7 @@ private:
 	bool gp0_Polygons();
 	bool gp0_Lines();
 	bool gp0_Rectangles();
+	bool gp0_Points();
 	bool gp0_CopyVRam2VRam();
 	bool gp0_CopyRam2VRam();
 	bool gp0_CopyVRam2Ram();

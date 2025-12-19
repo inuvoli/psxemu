@@ -4,6 +4,10 @@
 #include <vector>
 #include <string>
 
+#include <iostream>
+#include <string>
+#include <fstream>
+
 class Psx;
 
 class Tty
@@ -27,4 +31,6 @@ public:
 private:
     //Link to PSP Object
 	Psx* psx;
+
+    std::ofstream ofs;
 };

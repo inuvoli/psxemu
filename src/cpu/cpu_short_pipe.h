@@ -97,8 +97,6 @@ public:
 	void link(Psx* instance) { psx = instance; }
 
 private:
-	//Helper functions
-	bool isOverflow(int32_t a, int32_t b);
 
 	//CPU Instructions
 	bool op_bxx();

@@ -40,7 +40,7 @@ psxemu::~psxemu()
     SDL_Quit();
 }
 
-bool psxemu::init(int wndWidth, int wndHeight, const std::string& biosFileName, const std::string& gameFileName)
+bool psxemu::init(int wndWidth, int wndHeight)
 {
     //Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) < 0)
@@ -138,7 +138,7 @@ bool psxemu::init(int wndWidth, int wndHeight, const std::string& biosFileName, 
 
     //Init PSX Emulator Object
     isRunning = true;
-    pPsx = std::make_shared<Psx>(biosFileName, gameFileName);
+    pPsx = std::make_shared<Psx>();
 
     //Init PSX Debugger
     pDebugger = std::make_shared<debugger>(pPsx);   
@@ -254,6 +254,12 @@ bool psxemu::handleEvents()
                 break;
             case SDLK_0:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Tty);
+                break;
+            case SDLK_m:
+                exefile testProgram;
+                std::memset(pPsx->cpu->gpr, 0x00, sizeof(uint32_t) * 32);
+                testProgram.loadExe("psxtest_cpu.exe", pPsx->mem->ram);
+                testProgram.setRegisters(&(pPsx->cpu->pc), pPsx->cpu->gpr);
                 break;
             }
             break;

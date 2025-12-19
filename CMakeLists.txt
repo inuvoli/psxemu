@@ -1,7 +1,7 @@
 # Set the minimum version of CMake that can be used
 # To find the cmake version run
 # $ cmake --version
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.31)
 
 # Set the project name
 project (psxemu VERSION 0.1)
@@ -28,6 +28,7 @@ set(PSXEMU_SOURCES
 	src/memory/dma.cpp
 	src/memory/dmachannel.cpp
 	src/memory/memory.cpp
+	src/memory/exefile.cpp
     src/peripherals/cdrom.cpp
 	src/peripherals/controller.cpp
 	src/peripherals/interrupt.cpp
@@ -45,6 +46,7 @@ set(PSXEMU_SOURCES
 	src/main.cpp
 	src/psx.cpp
 	src/psxemu.cpp
+	src/commandline.cpp
 )
 
 # IMGUI cpp files

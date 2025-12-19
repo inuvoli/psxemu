@@ -50,7 +50,7 @@ namespace cop0
 		lite::bitfield<22, 1>	bev;	//Boot Exception Vector (0 = RAM, 1 = ROM)
 		lite::bitfield<25, 1>	re;		//Reverse Endianess (0 = normal endianess, 1 = 0 reversed endianess)
 		lite::bitfield<28, 1>	cu0;	//COP0 Enable
-		lite::bitfield<29, 1> cu1;	//COP1 Enable
+		lite::bitfield<29, 1>   cu1;	//COP1 Enable
 		lite::bitfield<30, 1>	cu2;	//COP2 Enable
 		lite::bitfield<31, 1>	cu3;	//COP3 Enable
 

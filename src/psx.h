@@ -18,12 +18,13 @@
 #include "tty.h"
 #include "interrupt.h"
 #include "controller.h"
+#include "commandline.h"
+#include "exefile.h"
 
 class Psx
 {
 public:
 	Psx();
-	Psx(const std::string& biosFileName, const std::string& gameFileName);
 	~Psx();
 		
 	bool reset();
@@ -51,7 +52,7 @@ public:
 	std::shared_ptr<Tty> 		tty;
 	std::shared_ptr<Interrupt>	interrupt;
 
-	//Mater Clock: 372.5535MHz
+	//Master Clock: 372.5535MHz
 	uint64_t	masterClock;
 
 	//Temporary Debug

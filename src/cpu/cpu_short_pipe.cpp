@@ -190,22 +190,6 @@ bool CPU::reset()
 
 //-----------------------------------------------------------------------------------------------------------------------------------
 //
-// Helper Functions
-//
-//-----------------------------------------------------------------------------------------------------------------------------------
-inline bool CPU::isOverflow(int32_t a, int32_t b)
-{
-	int32_t result;
-	result = a + b;
-	if (a > 0 && b > 0 && result < 0)
-		return true;
-	if (a < 0 && b < 0 && result > 0)
-		return true;
-	return false;
-}
-
-//-----------------------------------------------------------------------------------------------------------------------------------
-//
 // Cache and Memory Access Functions
 //
 //-----------------------------------------------------------------------------------------------------------------------------------
@@ -213,8 +197,8 @@ inline uint32_t CPU::rdInst(uint32_t vAddr, uint8_t bytes)
 {
 	//Exception not supported by PSX Bios
 	//Check if PC in unaligned
-	//if ((bool)(vAddr % bytes))
-	//	exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
+	if ((bool)(vAddr % bytes))
+		exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
 
 	//TODO: Instruction Cache Management
 
@@ -227,10 +211,9 @@ inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes)
 
 	statusReg.word = cop0->reg[12];
 
-	//Exception not supported by PSX Bios
 	//Check if vAddr in unaligned
-	//if ((bool)(vAddr % bytes))
-	//	exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
+	if ((bool)(vAddr % bytes))
+		exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
 
 	//Check if Cache is Isolated
 	if (statusReg.isc)
@@ -346,7 +329,7 @@ bool CPU::execute()
 	if (dmaTakeOnBus)
 		return true;
 
-	//Fetch Instruction from current PC and increment it
+	//Fetch Instruction from current PC
 	cpu::Instruction opcode;
 	opcode.word = rdInst(pc);
 
@@ -425,7 +408,7 @@ bool CPU::exception(uint32_t cause)
 	}
 	
 	//Set Exception Code in CAUSE Register
-	causeReg.excode = cause;
+	causeReg.excode = (uint8_t)cause;
 		
 	//Jump to exception handler
 	if (statusReg.bev)
@@ -477,10 +460,38 @@ bool CPU::op_bxx()
 	switch (currentOpcode.rt)
 	{
 	case 0x00:
+	case 0x02:
+	case 0x04:
+	case 0x06:
+	case 0x08:
+	case 0x0a:
+	case 0x0c:
+	case 0x0e:
+	case 0x12:
+	case 0x14:
+	case 0x16:
+	case 0x18:
+	case 0x1a:
+	case 0x1c:
+	case 0x1e:
 		//BLTZ
 		branch = ((int32_t)currentOpcode.regA < 0);
 		break;
 	case 0x01:
+	case 0x03:
+	case 0x05:
+	case 0x07:
+	case 0x09:
+	case 0x0b:
+	case 0x0d:
+	case 0x0f:
+	case 0x13:
+	case 0x15:
+	case 0x17:
+	case 0x19:
+	case 0x1b:
+	case 0x1d:
+	case 0x1f:
 		//BGEZ
 		branch = ((int32_t)currentOpcode.regA >= 0);
 		break;
@@ -496,7 +507,7 @@ bool CPU::op_bxx()
 		break;
 	default:
 		branch = false;
-		LOG_F(ERROR, "CPU - Unknown Branch Instruction\n");
+		LOG_F(ERROR, "CPU - Unknown Branch Instruction [%d]\n", currentOpcode.rt);
 		return false;
 	}
 
@@ -609,16 +620,20 @@ bool CPU::op_bgtz()
 
 bool CPU::op_addi()
 {
-	//Check for integer overflow
-	bool overflow = isOverflow((int32_t)currentOpcode.regA, (int32_t)currentOpcode.imm);
-	
-	if (!overflow && currentOpcode.rt != 0)
-		gpr[currentOpcode.rt] = currentOpcode.regA + currentOpcode.imm;
-			
-	if (overflow)
+	uint32_t value = currentOpcode.regA;
+	uint32_t imm = currentOpcode.imm;
+    uint32_t result = value + imm;
+
+    if (!((value ^ imm) & 0x80000000) && ((result ^ value) & 0x80000000))
 	{
-		exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
-	}
+        exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
+		return true;
+    }
+	else
+	{
+		if (currentOpcode.rt !=0)
+        	gpr[currentOpcode.rt] = result;
+    }
 
 	return true;
 }
@@ -715,16 +730,36 @@ bool CPU::op_cop3()
 
 bool CPU::op_lb()
 {
+	// if (currentOpcode.rt != 0)
+	// 	gpr[currentOpcode.rt] = (uint32_t)(int8_t)rdMem(currentOpcode.regA + currentOpcode.imm, 1);
+
+	// return true;
+
+	uint32_t imm = currentOpcode.imm;;
+    uint32_t address = currentOpcode.regA + imm;
+    
+    uint32_t value = (int8_t)rdMem(address, 1);
 	if (currentOpcode.rt != 0)
-		gpr[currentOpcode.rt] = (uint32_t)(int8_t)rdMem(currentOpcode.regA + currentOpcode.imm, 1);
+		gpr[currentOpcode.rt] = value;
 
 	return true;
 }
 
 bool CPU::op_lh()
 {
+	uint32_t imm = currentOpcode.imm;;
+    uint32_t address = currentOpcode.regA + imm;
+    
+	if (address % 2 != 0)
+	{
+		cop0->reg[8] = address;	//Bad Virtual Address
+        exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
+        return true;
+    }
+    
+	uint32_t value = (int16_t)rdMem(address, 2);
 	if (currentOpcode.rt != 0)
-		gpr[currentOpcode.rt] = (uint32_t)(int16_t)rdMem(currentOpcode.regA + currentOpcode.imm, 2);
+		gpr[currentOpcode.rt] = value;
 
 	return true;
 }
@@ -765,8 +800,18 @@ bool CPU::op_lwl()
 
 bool CPU::op_lw()
 {
+	uint32_t imm = currentOpcode.imm;
+
+    uint32_t address = currentOpcode.regA + imm;
+    if (address % 4 != 0)
+	{
+		cop0->reg[8] = address;	//Bad Virtual Address
+        exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
+        return true;
+    }
+    uint32_t value = (uint32_t)rdMem(address, 4);
 	if (currentOpcode.rt != 0)
-		gpr[currentOpcode.rt] = rdMem(currentOpcode.regA + currentOpcode.imm, 4);
+		gpr[currentOpcode.rt] = value;
 
 	return true;
 }
@@ -781,8 +826,18 @@ bool CPU::op_lbu()
 
 bool CPU::op_lhu()
 {
+	uint32_t imm = currentOpcode.imm;;
+
+    uint32_t address = currentOpcode.regA + imm;
+    if (address % 2 != 0)
+	{
+		cop0->reg[8] = address;	//Bad Virtual Address
+        exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
+        return true;
+    }
+    uint32_t value = (uint16_t)rdMem(address, 2);
 	if (currentOpcode.rt != 0)
-		gpr[currentOpcode.rt] = rdMem(currentOpcode.regA + currentOpcode.imm, 2);
+		gpr[currentOpcode.rt] = value;
 
 	return true;
 }
@@ -831,39 +886,103 @@ bool CPU::op_sb()
 
 bool CPU::op_sh()
 {
-	wrMem(currentOpcode.regA + currentOpcode.imm, currentOpcode.regB, 2);
-	
+	uint32_t imm = currentOpcode.imm;
+    
+    uint32_t address = currentOpcode.regA + imm;
+    if (address % 2 != 0) {
+        cop0->reg[8] = address;
+        exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrstore));
+        return true;
+    }
+
+    uint32_t value = currentOpcode.regB;
+	wrMem(address, value, 2);
+
 	return true;
 }
 
 bool CPU::op_swl()
 {
-	// To Check
 
-	//Unaligned writing to memory is approximated with a 4 byte writing from LSB
-	//for both SWL and SWR. Both act like SW but starting from a potentially
-	//unaligned address.
-	wrMem(currentOpcode.regA + currentOpcode.imm - 0x03, currentOpcode.regB, 4, false);
+	uint32_t imm = currentOpcode.imm;    
+    uint32_t address = currentOpcode.regA + imm;
+    uint32_t value = currentOpcode.regB;
+    uint32_t alignedAddress = address & 0xfffffffc;
+	uint32_t currentMemoryValue = (uint32_t)rdMem(alignedAddress);
+
+    uint32_t memoryValue;
+    switch (address & 3)
+	{
+        case 0:
+	
+            memoryValue = (currentMemoryValue & 0xffffff00) | (value >> 24);
+            break;
+    
+        case 1:
+            memoryValue = (currentMemoryValue & 0xffff0000) | (value >> 16);
+            break;
+        
+		case 2: 
+            memoryValue = (currentMemoryValue & 0xff000000) | (value >> 8);
+            break;
+
+        case 3:
+            memoryValue = (currentMemoryValue & 0x00000000) | (value >> 0);
+            break;
+    }
+
+	wrMem(alignedAddress, memoryValue);
 
 	return true;
 }
 
 bool CPU::op_sw()
 {
-	wrMem(currentOpcode.regA + currentOpcode.imm, currentOpcode.regB, 4);
+	uint32_t imm = currentOpcode.imm;
+    
+    uint32_t address = currentOpcode.regA + imm;
+    if (address % 4 != 0) {
+        cop0->reg[8] = address;
+        exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrstore));
+        return true;
+    }
+
+    uint32_t value = currentOpcode.regB;
+	wrMem(address, value, 4);
 
 	return true;
 }
 
 bool CPU::op_swr()
 {
-	//To Check
+	uint32_t imm = currentOpcode.imm;
+    uint32_t address = currentOpcode.regA + imm;
+    uint32_t value = currentOpcode.regB;
+    uint32_t alignedAddress = address & 0xfffffffc;
+	uint32_t currentMemoryValue = (uint32_t)rdMem(alignedAddress);
 
-	//Unaligned writing to memory is approximated with a 4 byte writing from LSB
-	//for both SWL and SWR. Both act like SW but starting from a potentially
-	//unaligned address.
-	wrMem(currentOpcode.regA + currentOpcode.imm, currentOpcode.regB, 4, false);
-		
+    uint32_t memoryValue;
+    switch (address & 3) {
+        case 0: {
+            memoryValue = (currentMemoryValue & 0x00000000) | (value << 0);
+            break;
+        }
+        case 1: {
+            memoryValue = (currentMemoryValue & 0x000000ff) | (value << 8);
+            break;
+        }
+        case 2: {
+            memoryValue = (currentMemoryValue & 0x0000ffff) | (value << 16);
+            break;
+        }
+        case 3: {
+            memoryValue = (currentMemoryValue & 0x00ffffff) | (value << 24);
+            break;
+        }
+    }
+
+    wrMem(alignedAddress, memoryValue);
+
 	return true;
 }
 
@@ -1028,10 +1147,18 @@ bool CPU::op_jr()
 
 bool CPU::op_jalr()
 {
-	//Forward PC to fetch stage
-	branchAddress = currentOpcode.regA;
-	branchDelaySlot = true;
-	gpr[31] = pc + 4;
+    branchAddress = currentOpcode.regA;
+
+	if (currentOpcode.rd != 0)
+		gpr[currentOpcode.rd] = pc + 4;
+
+    if (branchAddress % 2 != 0) {
+        cop0->reg[8] = branchAddress;
+        exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
+        return true;
+    }
+
+    branchDelaySlot = true;
 
 	//Debug -- Call Stack
 	callstackinfo tmp;
@@ -1060,7 +1187,7 @@ bool CPU::op_syscall()
 bool CPU::op_break()
 {
 	//Exception not supported by PSX Bios
-	//exception(static_cast<uint32_t>(cpu::exceptionCause::breakpoint));
+	exception(static_cast<uint32_t>(cpu::exceptionCause::breakpoint));
 
 	return true;
 }
@@ -1123,67 +1250,69 @@ bool CPU::op_multu()
 
 bool CPU::op_div()
 {
-	int32_t n, d;
+    int32_t n = currentOpcode.regA;
+    int32_t d = currentOpcode.regB;
 
-	n = currentOpcode.regA;
-	d = currentOpcode.regB;
-
-	//Special Cases
-	if (d == 0)
+    if (d == 0)
 	{
-		hi = n;
-		if (n >= 0)
-			lo = 0xffffffff;
+        hi = (uint32_t)n;
+        if (n >= 0)
+		{
+            lo = 0xffffffff;
+        } 
 		else
-			lo = 0x00000001;
-	}
-	else if (n == 0x80000000 && d == 0xffffffff)
+		{
+            lo = 0x1;
+        }
+    }
+	else if (((uint32_t)n) == 0x80000000 && ((uint32_t)d) == 0xffffffff)
 	{
-		hi = 0x00000000;
-		lo = 0x80000000;
-	}
+        hi = 0;
+        lo = 0x80000000;
+    } 
 	else
 	{
-		hi = n % d;
-		lo = n / d;
-	}
+        hi = ((uint32_t)(n % d));
+        lo = ((uint32_t)(n / d));
+    }
 
 	return true;
 }
 
 bool CPU::op_divu()
 {
-	int32_t n, d;
+    uint32_t n = currentOpcode.regA;
+    uint32_t d = currentOpcode.regB;
 
-	n = currentOpcode.regA;
-	d = currentOpcode.regB;
-
-	//Special Cases
-	if (d == 0)
+    if (d == 0)
 	{
-		hi = n;
-		lo = 0xffffffff;	
-	}
+        hi = n;
+        lo = 0xffffffff;
+    }
 	else
 	{
-		hi = n % d;
-		lo = n / d;
-	}
+        hi = n % d;
+        lo = n / d;
+    }
 
 	return true;
 }
 
 bool CPU::op_add()
 {
-	 
-	//Check for integer overflow
-	bool overflow = isOverflow((int32_t)currentOpcode.regA, (int32_t)currentOpcode.regB);
-
-	if (!overflow && currentOpcode.rd != 0)
-		gpr[currentOpcode.rd] = (int32_t)currentOpcode.regA + (int32_t)currentOpcode.regB;
-	
-	if (overflow)
-		exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
+	uint32_t s = currentOpcode.regA;
+    uint32_t t = currentOpcode.regB;
+    uint32_t result = s + t;
+    if (!((s ^ t) & 0x80000000) && ((result ^ s) & 0x80000000))
+	{
+        exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
+        return true;
+    } 
+	else 
+	{
+		if (currentOpcode.rd !=0)
+        	gpr[currentOpcode.rd] = result;
+    }
 
 	return true;
 }
@@ -1198,15 +1327,20 @@ bool CPU::op_addu()
 
 bool CPU::op_sub()
 {
-	//Check for integer overflow
-	bool overflow = isOverflow((int32_t)currentOpcode.regA, (int32_t)currentOpcode.regB);
+	uint32_t s = currentOpcode.regA;
+    uint32_t t = currentOpcode.regB;
+    uint32_t result = s - t;
+    if (((s ^ t) & 0x80000000) && ((result ^ s) & 0x80000000))
+	{
+        exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
+        return true;
+    } 
+	else 
+	{
+		if (currentOpcode.rd !=0)
+        	gpr[currentOpcode.rd] = result;
+    }
 
-	if (!overflow && currentOpcode.rd != 0)
-		gpr[currentOpcode.rd] = (int32_t)currentOpcode.regA - (int32_t)currentOpcode.regB;
-
-	if (overflow)
-		exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
-	
 	return true;
 }
 

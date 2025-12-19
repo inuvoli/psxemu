@@ -1,3 +1,4 @@
+#include "loguru.hpp"
 #include "tty.h"
 #include "psx.h"
 
@@ -7,11 +8,13 @@ Tty::Tty()
 	bufferA = {};
 	bufferB = {};
 
+	ofs.open("ttydump.log");
+
 }
 
 Tty::~Tty()
 {
-
+	ofs.close();
 }
 
 bool Tty::reset()
@@ -40,6 +43,8 @@ bool Tty::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 			bufferA.emplace_back(buffer);
 			buffer = "";
 		}
+		ofs << static_cast<char>(data);
+		ofs.flush();
 		break;
     case 0x1f802024:
 		break;
@@ -72,10 +77,10 @@ bool Tty::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
     case 0x1f80202f:
 		break;
 	default:
-		printf("TTY - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x\n", addr, bytes, data);
+		LOG_F(ERROR, "TTY - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return false;
 	}
-    //printf("TTY - Parameter Set addr: 0x%08x (%d), data: 0x%08x\n", addr, bytes, data);
+    LOG_F(3, "TTY - Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
 
 	return true;
 }

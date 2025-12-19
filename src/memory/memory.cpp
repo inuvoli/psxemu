@@ -27,7 +27,7 @@ uint32_t Memory::read(uint32_t phAddr, uint8_t bytes)
 		
 	for (int i = 0; i < bytes; i++)
 	{
-		data += (ram[phAddr + i] << (8 * i));
+		data |= (((uint32_t)ram[phAddr + i]) << (8 * i));
 	}
 
 	return data;

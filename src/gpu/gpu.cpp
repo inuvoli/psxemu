@@ -178,14 +178,14 @@ GPU::GPU()
 		{"Textured Rectangle, variable size, opaque, raw texture", &GPU::gp0_Rectangles, 3, true, false},
 		{"Textured Rectangle, variable size, semi-transparent, texture blending", &GPU::gp0_Rectangles, 3, true, false},
 		{"Textured Rectangle, variable size, semi-transparent, raw texture", &GPU::gp0_Rectangles, 3, true, false},
-		{"Monocrome Rectangle, 1x1, opaque", &GPU::gp0_Rectangles, 1, true, false},
+		{"Monocrome Rectangle, 1x1, opaque", &GPU::gp0_Points, 1, true, false},
 		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"Monocrome Rectangle, 1x1, semi-transparent", &GPU::gp0_Rectangles, 1, true, false},
+		{"Monocrome Rectangle, 1x1, semi-transparent", &GPU::gp0_Points, 1, true, false},
 		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"Textured Rectangle, 1x1, opaque, texture blending", &GPU::gp0_Rectangles, 2, true, false},
-		{"Textured Rectangle, 1x1, opaque, raw texture", &GPU::gp0_Rectangles, 2, true, false},
-		{"Textured Rectangle, 1x1, semi-transparent, texture blending", &GPU::gp0_Rectangles, 2, true, false},
-		{"Textured Rectangle, 1x1, semi-transparent, raw texture", &GPU::gp0_Rectangles, 2, true, false},
+		{"Textured Rectangle, 1x1, opaque, texture blending", &GPU::gp0_Points, 2, true, false},
+		{"Textured Rectangle, 1x1, opaque, raw texture", &GPU::gp0_Points, 2, true, false},
+		{"Textured Rectangle, 1x1, semi-transparent, texture blending", &GPU::gp0_Points, 2, true, false},
+		{"Textured Rectangle, 1x1, semi-transparent, raw texture", &GPU::gp0_Points, 2, true, false},
 		{"Monocrome Rectangle, 8x8, opaque", &GPU::gp0_Rectangles, 1, true, false},
 		{"", &GPU::gp0_NoOperation, 0, false, false},
 		{"Monocrome Rectangle, 8x8, semi-transparent", &GPU::gp0_Rectangles, 1, true, false},
@@ -838,7 +838,6 @@ bool GPU::gp0_Lines()
 	bool		_polyline  = (gp0Opcode & 0x08) ? true : false;
 	bool		_transparent  = (gp0Opcode & 0x02) ? true : false;
 	uint32_t	_param;
-	glm::vec2	_position;
 	VertexInfo	_vInfo = {};
 
 	//Init Vertex Static Values
@@ -992,6 +991,55 @@ bool GPU::gp0_Rectangles()
 		_j++;
 		LOG_F(2, "GPU - Rectangle Vertex %d Info [x: %g, y: %g, c: [%g,%g,%g]", _j, e.vertexPosition.x, e.vertexPosition.y, e.vertexColor.r, e.vertexColor.g, e.vertexColor.b);
 	}
+	pRenderer->InsertPolygon(vertexPolyInfo);
+	vertexPolyInfo.clear();
+
+	//Reset GPUSTAT Flag to receive next GP0 command
+	gp0_ResetStatus();
+
+	return true;
+}
+
+bool GPU::gp0_Points()
+{
+	// Parse Point Render Command (is a special case for Rectangles)
+	// Bit Number   Value   Meaning
+	// 7-5          011     Rectangle render
+	// 4-3          ss     	Rectangle size (00 = variable, 01 = single pixel, 10 = 8x8 sprite, 11, 16x16 sprite
+	// 2            1/0     textured / untextured
+	// 1            1/0     semi-transparent / opaque
+	// 0            1/0     raw texture / modulation
+	
+	bool		_textured  = (gp0Opcode & 0x04) ? true : false;
+	bool		_transparent  = (gp0Opcode & 0x02) ? true : false;
+	bool		_rawtexture  = (gp0Opcode & 0x01) ? true : false;
+	uint32_t	_param;
+	VertexInfo _vInfo = {};
+
+	//Parse all Rectangle Command Parameters from FIFO including initial command
+	_param = gp0Command;
+	decodeColor(_param, _vInfo.vertexColor);			//Rectangle Color
+	
+	fifo.pop(_param);
+	decodePosition(_param, _vInfo.vertexPosition);	//First Vertex Coordinates
+	if (_textured)										//Texture info, only for textured rectangles
+	{
+		fifo.pop(_param);
+		uint16_t _clutInfo = decodeTexture(_param, _vInfo.vertexTexCoords);
+		decodeClut(_clutInfo, _vInfo.clutTableCoords);
+	}
+
+	_vInfo.textured = _textured;
+	_vInfo.transparent = _transparent;
+	_vInfo.texBlending = 0.0f;
+	_vInfo.texColorDepth = (float)textureColorDepth;
+	_vInfo.texPageCoords = texturePage;
+
+	//Add Current Vertex Info GPU Vertex Buffer
+	vertexPolyInfo.push_back(_vInfo);		//First Vertex
+	LOG_F(2, "GPU - Point Vertex Info [x: %g, y: %g, c: [%f,%f,%f]", _vInfo.vertexPosition.x, _vInfo.vertexPosition.y, _vInfo.vertexColor.r, _vInfo.vertexColor.g, _vInfo.vertexColor.b);
+	
+	//Add Polygon vertex infos into Renderer Vertex DrawData structure
 	pRenderer->InsertPolygon(vertexPolyInfo);
 	vertexPolyInfo.clear();
 
@@ -1232,12 +1280,12 @@ bool GPU::gp0_DrawMode()
 	//GPUSTAT.0-3 << GP0DATA.0-3								Texture page X Base (N x 64) in halfwords
 	data = gp0DataLatch & 0x0000000f;							//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x0000000f)) | (data);				//Set GPUSTAT.0-3 to data value
-	texturePage.x = data * 64;
+	texturePage.x = static_cast<float>(data * 64);
 
 	//GPUSTAT.4 << GP0DATA.4									Texture page Y Base (N x 256) in halfwords
 	data = (gp0DataLatch & 0x00000010) >> 4;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 4)) | (data << 4);		//Set GPUSTAT.4 to data value
-	texturePage.y = data * 256;
+	texturePage.y = static_cast<float>(data * 256);
 
 	//GPUSTAT.5-6 << GP0DATA.5-6								Semi Transparency (0 = B/2+F/2, 1 = B+F, 2 = B-F, 3 = B+F/4)
 	data = (gp0DataLatch & 0x000000060) >> 5;					//Extract bit value from GP0 Command

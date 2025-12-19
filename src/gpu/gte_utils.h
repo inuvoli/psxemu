@@ -23,9 +23,9 @@ inline uint16_t rgb24torgb15(uint32_t data, uint8_t alpha = 0x00)
 
 inline void decodeColor(const uint32_t param, glm::vec3 &color)
 {
-	color.x = (GLfloat)(param & 0x000000ff);			//RED
-	color.y = (GLfloat)((param >> 8) & 0x000000ff);		//GREEN
-	color.z = (GLfloat)((param >> 16) & 0x000000ff);	//BLUE
+	color.r = (GLfloat)(param & 0x000000ff);			//RED
+	color.g = (GLfloat)((param >> 8) & 0x000000ff);		//GREEN
+	color.b = (GLfloat)((param >> 16) & 0x000000ff);	//BLUE
 }
 
 inline void decodePosition(const uint32_t param, glm::vec2 &position)

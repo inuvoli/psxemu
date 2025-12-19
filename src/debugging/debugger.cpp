@@ -6,7 +6,7 @@ debugger::debugger(std::shared_ptr<Psx> instance)
 {
     //TODO
     pPsx = instance;
-    breakPoint = 0x800301c4;
+    breakPoint = 0xffffffff;
     stepMode = StepMode::Halt;
 
     //Init OpenGL Variables
