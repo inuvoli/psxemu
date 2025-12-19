@@ -42,7 +42,8 @@ bool debugger::render()
 {
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplSDL2_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+
     ImGui::NewFrame();
 
     renderMenuBar();

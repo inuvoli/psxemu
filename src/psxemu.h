@@ -37,9 +37,9 @@ private:
 	SDL_GLContext		glContext;
 	SDL_AudioDeviceID	sdlAudioDevice;
 
-	//Controllers
-	SDL_GameController* pControllerA;
-	SDL_GameController* pControllerB;
+	//Gamepads
+	SDL_Gamepad* pGamepadA;
+	SDL_Gamepad* pGamepadB;
 		
 	//Debugger
 	std::shared_ptr<debugger>	pDebugger;

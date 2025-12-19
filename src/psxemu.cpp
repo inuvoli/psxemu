@@ -23,8 +23,8 @@ MessageCallback( GLenum source,
 
 psxemu::psxemu()
 {
-	pControllerA = nullptr;
-	pControllerB = nullptr; 
+	pGamepadA = nullptr;
+	pGamepadB = nullptr; 
     pWindow = nullptr;
 }
 
@@ -32,10 +32,10 @@ psxemu::~psxemu()
 {
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
 
-    SDL_GL_DeleteContext(glContext);
+    SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(pWindow);
     SDL_Quit();
 }
@@ -43,23 +43,26 @@ psxemu::~psxemu()
 bool psxemu::init(int wndWidth, int wndHeight)
 {
     //Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) < 0)
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
     {
         LOG_F(ERROR, "SDL could not initialize! SDL_Error: %s", SDL_GetError());
         return false;
     }
-    
-    LOG_F(INFO, "SDL Initialized...");
-        
-    //Create Controller
-    LOG_F(INFO, "Scanning Controllers....detected [%d]", SDL_NumJoysticks());
 
-    for (int i = 0; i < SDL_NumJoysticks(); i++)
+    LOG_F(INFO, "SDL Initialized...");
+
+    //Create Gamepads
+    int GamepadsIDs;
+    SDL_GetGamepads(&GamepadsIDs);
+    LOG_F(INFO, "Scanning Gamepads....detected [%d]", GamepadsIDs);
+
+
+    for (int i = 0; i < GamepadsIDs; i++)
     {
-        if (SDL_IsGameController(i))
+        if (SDL_IsGamepad(i))
         {
-            LOG_F(INFO, "Configuring Controller [%d]", i + 1);
-            pControllerA = SDL_GameControllerOpen(i);
+            LOG_F(INFO, "Configuring Gamepad [%d]", i + 1);
+            pGamepadA = SDL_OpenGamepad(i);
         }
 
     }
@@ -74,7 +77,7 @@ bool psxemu::init(int wndWidth, int wndHeight)
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    pWindow = SDL_CreateWindow("PSXEmu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, wndWidth, wndHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    pWindow = SDL_CreateWindow("PSXemu", wndWidth, wndHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (pWindow == nullptr)
     {
         LOG_F(ERROR, "Window could not be created! SDL_Error: %s", SDL_GetError());
@@ -129,7 +132,7 @@ bool psxemu::init(int wndWidth, int wndHeight)
     }
 
     // Setup Platform/Renderer backends
-    ImGui_ImplSDL2_InitForOpenGL(pWindow, glContext);
+    ImGui_ImplSDL3_InitForOpenGL(pWindow, glContext);
     ImGui_ImplOpenGL3_Init(glsl_version);
         
     //Init OpenGL Debug Callback
@@ -180,49 +183,44 @@ bool psxemu::handleEvents()
     int wndHeight;
 
     //Handle events on queue
-    while (SDL_PollEvent(&sdlEvent) != 0)
+    while (SDL_PollEvent(&sdlEvent))
     {
         //Forward Events to ImGui
-        ImGui_ImplSDL2_ProcessEvent(&sdlEvent);
+        ImGui_ImplSDL3_ProcessEvent(&sdlEvent);
 
         switch (sdlEvent.type)
         {
-        case SDL_QUIT:  //User requests quit
+        case SDL_EVENT_QUIT:  //User requests quit
             isRunning = false;
             break;
 
-        case SDL_WINDOWEVENT:
-            switch (sdlEvent.window.event)
-            {
-            case SDL_WINDOWEVENT_RESIZED:
-                wndWidth = sdlEvent.window.data1;
-                wndHeight = sdlEvent.window.data2;
-                wndWidth = wndHeight * 4 / 3;
-                SDL_SetWindowSize(pWindow, wndWidth, wndHeight);
-                glViewport(0, 0, wndWidth, wndHeight);
-                break;
-            }
+        case SDL_EVENT_WINDOW_RESIZED:
+            wndWidth = sdlEvent.window.data1;
+            wndHeight = sdlEvent.window.data2;
+            wndWidth = wndHeight * 4 / 3;
+            SDL_SetWindowSize(pWindow, wndWidth, wndHeight);
+            glViewport(0, 0, wndWidth, wndHeight);
             break;
-        
-        case SDL_KEYDOWN:
-            switch (sdlEvent.key.keysym.sym)
+    
+        case SDL_EVENT_KEY_DOWN:
+            switch (sdlEvent.key.key)
             {
-            case SDLK_x:
+            case SDLK_X:
                 isRunning = false;
                 break;
-            case SDLK_r:
+            case SDLK_R:
                 pPsx->reset();
                 break;
             case SDLK_SPACE:
                 pDebugger->setStepMode(StepMode::Manual);
                 break;
-            case SDLK_p:
+            case SDLK_P:
                 pDebugger->setStepMode(StepMode::Halt);
                 break;
-            case SDLK_i:
+            case SDLK_I:
                 pDebugger->setStepMode(StepMode::Instruction);
                 break;
-            case SDLK_y:
+            case SDLK_Y:
                 pDebugger->setStepMode(StepMode::Frame);
                 break;
             case SDLK_1:
@@ -255,7 +253,7 @@ bool psxemu::handleEvents()
             case SDLK_0:
                 pDebugger->toggleDebugModuleStatus(DebugModule::Tty);
                 break;
-            case SDLK_m:
+            case SDLK_M:
                 exefile testProgram;
                 std::memset(pPsx->cpu->gpr, 0x00, sizeof(uint32_t) * 32);
                 testProgram.loadExe("psxtest_cpu.exe", pPsx->mem->ram);

@@ -16,7 +16,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${PROJECT_SOURCE_DIR}/bin)
 
-find_package(SDL2 CONFIG REQUIRED)
+find_package(SDL3 CONFIG REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -54,7 +54,7 @@ set(IMGUI_SOURCES
 	3rdparty/imgui/imgui.cpp
 	3rdparty/imgui/imgui_draw.cpp
 	3rdparty/imgui/imgui_impl_opengl3.cpp
-	3rdparty/imgui/imgui_impl_sdl2.cpp
+	3rdparty/imgui/imgui_impl_sdl3.cpp
 	3rdparty/imgui/imgui_tables.cpp
 	3rdparty/imgui/imgui_widgets.cpp
 )
@@ -104,6 +104,5 @@ target_link_libraries(psxemu
 							glm::glm
 							GLEW::GLEW
 							ZLIB::ZLIB
-							$<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
-        					$<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+							SDL3::SDL3
 )
