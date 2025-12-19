@@ -18,7 +18,7 @@ namespace lite
         bool    push(const T& value);                  //push a record on the fifo
         bool    push(const std::vector<T>& value);     //push a vector on the fifo
         bool    pop(T& value);                         //pop a record from the fifo
-        size_t  lenght();                            //return fifo lenght in number od records
+        size_t  lenght();                              //return fifo lenght in number od records
         void    flush();                               //empty the fifo
         bool    isfull();                              //check if the fifo is full
         bool    isempty();                             //check if the fifo is empty
