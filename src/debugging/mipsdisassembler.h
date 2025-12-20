@@ -30,6 +30,10 @@ public:
 	//  - stopAddr: stopping disassemble address on the binary cointainer
 	AsmCode disassemble(const uint8_t* rom, const uint8_t* ram, uint32_t startAddr, uint32_t stopAddr);
 
+	//Helper Function for Debug Callstack
+	// Check if the given instruction at pc is a Jump instruction
+	bool isJumpInstruction(const uint8_t* rom, const uint8_t* ram, uint32_t pc);
+
 private:
 	//Translate Virtual Address to Phisical Address and check if it is in ROM or RAM
 	std::pair<uint32_t, bool> decodeAddress(uint32_t vAddr);

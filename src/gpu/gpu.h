@@ -10,7 +10,6 @@
 #include "litelib.h"
 #include "renderer.h"
 #include "gte_utils.h"
-#include "timers.h"
 
 class Psx;
 
@@ -32,25 +31,6 @@ constexpr auto MAX_POLYGON_PARAMS = 3;
 constexpr auto MAX_RECTANGLE_PARAMS = 4;
 
 enum class VideoMode { NTSC = 0x0, PAL = 0x1 };
-
-//GPU Debug Status
-struct GpuDebugInfo
-{
-	uint32_t					gpuStat;
-	void*						vRam;
-	lite::vec2t<uint16_t>		displayStart;
-	lite::vec4t<uint16_t>		displayRange;
-	lite::vec2t<uint16_t>		drawingOffset;
-	lite::vec4t<uint16_t>		drawingArea;
-	lite::vec2t<uint16_t>		videoResolution;
-	std::string					videoStandard;
-	std::string					textureDisabled;
-	uint16_t					texturePageYBase2;
-	lite::vec2t<uint16_t>		texturePage;
-	std::string					textureColorDepth;
-	lite::vec2t<uint8_t>		textureMask;
-	lite::vec2t<uint8_t>		textureOffset;
-};
 
 union GPUSTAT
 {
@@ -103,8 +83,32 @@ public:
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
 
-	//Debug Info
-	void getDebugInfo(GpuDebugInfo& info);
+#ifdef DEBUGGER_ENABLED
+    //Getter & Setters
+	uint32_t getGPUStat() const { return gpuStat; }
+	lite::vec2t<uint16_t> getVideoResolution() const { return videoResolution; }
+	lite::vec2t<uint16_t> getDisplayStart() const { return displayStart; }
+	lite::vec4t<uint16_t> getDisplayRange() const { return displayRange; }
+	lite::vec4t<uint16_t> getDrawingArea() const { return drawingArea; }
+	lite::vec2t<uint16_t> getDrawingOffset() const { return drawingOffset; }
+	std::string getVideoStandard() const { return (videoMode == VideoMode::NTSC) ? "NTSC" : "PAL"; }
+	std::string getTextureDisabled() const { return textureDisabled ? "True" : "False"; }
+	uint16_t getTexturePageYBase2() const { return texturePageYBase2; }
+	lite::vec2t<uint16_t> getTexturePage() const { return texturePage; }
+	std::string getTextureColorDepth() const 
+	{ 
+		switch (textureColorDepth)
+		{
+			case 0: return "4bit CLUT";
+			case 1: return "8bit CLUT";
+			case 2: return "15bit ABGR (1.5.5.5)";
+			default: return "Reserved";
+		}
+	}
+	lite::vec2t<uint8_t> getTextureMask() const { return textureMask; }
+	lite::vec2t<uint8_t> getTextureOffset() const { return textureOffset; }
+	void* getVRAM() const { return (void*)vRam; }	
+#endif
 
 public:
 	bool hBlank;
@@ -112,6 +116,8 @@ public:
 
 	//OpenGL Renderer
 	std::shared_ptr<Renderer>	pRenderer;
+
+
 
 private:
 	void writeVRAM(uint32_t& data);
@@ -150,7 +156,7 @@ private:
 	lite::vec2t<uint8_t>		textureOffset;
 	
 	// ------ Texpage settings, Updateted by GP0(E1h)
-	glm::vec2					texturePage;				//Texpage - set by GP0(E1h), Texture Page X = N*64, Y = N*256
+	lite::vec2t<uint16_t>		texturePage;				//Texpage - set by GP0(E1h), Texture Page X = N*64, Y = N*256
 	uint8_t						textureTransparencyMode;	//Texpage - set by GP0(E1h), Transparency Mode (0=B/2+F/2, 1=B+F, 2=B-F, 3=B+F/4)
 	uint8_t						textureColorDepth;			//Texpage - set by GP0(E1h), Texture page colors (0=4bit, 1=8bit, 2=15bit, 3=Reserved)
 	bool						textureDitherEnabled;		//Texpage - set by GP0(E1h), Dither 24bit to 15bit (0=Off/strip LSBs, 1=Dither Enabled) 

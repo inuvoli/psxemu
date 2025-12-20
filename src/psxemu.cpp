@@ -143,9 +143,6 @@ bool psxemu::init(int wndWidth, int wndHeight)
     isRunning = true;
     pPsx = std::make_shared<Psx>();
 
-    //Init PSX Debugger
-    pDebugger = std::make_shared<debugger>(pPsx);   
-
     return true;
 }
 
@@ -159,14 +156,14 @@ bool psxemu::run()
         handleEvents();
 
         //Update Emulator Status
-        update(pDebugger->getStepMode());
+        update(debugger::instance().getStepMode());
 
         //Render Screen
-        render(pDebugger->getStepMode()); 
+        render(debugger::instance().getStepMode());
 
         uint64_t timerStop = SDL_GetPerformanceCounter();
         uint16_t framePerSecond = static_cast<uint16_t>(SDL_GetPerformanceFrequency() / (timerStop - timerStart));
-        pDebugger->setFrameRate(framePerSecond);
+        debugger::instance().setFrameRate(framePerSecond);
     }
 
     return true;
@@ -212,52 +209,46 @@ bool psxemu::handleEvents()
                 pPsx->reset();
                 break;
             case SDLK_SPACE:
-                pDebugger->setStepMode(StepMode::Manual);
+                debugger::instance().setStepMode(StepMode::Manual);
                 break;
             case SDLK_P:
-                pDebugger->setStepMode(StepMode::Halt);
+                debugger::instance().setStepMode(StepMode::Halt);
                 break;
             case SDLK_I:
-                pDebugger->setStepMode(StepMode::Instruction);
+                debugger::instance().setStepMode(StepMode::Instruction);
                 break;
             case SDLK_Y:
-                pDebugger->setStepMode(StepMode::Frame);
+                debugger::instance().setStepMode(StepMode::Frame);
                 break;
             case SDLK_1:
-                pDebugger->toggleDebugModuleStatus(DebugModule::Bios);
+                debugger::instance().toggleDebugModuleStatus(DebugModule::Bios);
                 break;
             case SDLK_2:
-                pDebugger->toggleDebugModuleStatus(DebugModule::Ram);
+                debugger::instance().toggleDebugModuleStatus(DebugModule::Ram);
                 break;
             case SDLK_3:
-                pDebugger->toggleDebugModuleStatus(DebugModule::Cpu);
+                debugger::instance().toggleDebugModuleStatus(DebugModule::Cpu);
                 break;
             case SDLK_4:
-                pDebugger->toggleDebugModuleStatus(DebugModule::Code);
+                debugger::instance().toggleDebugModuleStatus(DebugModule::Code);
                 break;
             case SDLK_5:
-                pDebugger->toggleDebugModuleStatus(DebugModule::Dma);
+                debugger::instance().toggleDebugModuleStatus(DebugModule::Dma);
                 break;
             case SDLK_6:
-                pDebugger->toggleDebugModuleStatus(DebugModule::Timers);
+                debugger::instance().toggleDebugModuleStatus(DebugModule::Timers);
                 break;
             case SDLK_7:
-                pDebugger->toggleDebugModuleStatus(DebugModule::Gpu);
+                debugger::instance().toggleDebugModuleStatus(DebugModule::Gpu);
                 break;
             case SDLK_8:
-                pDebugger->toggleDebugModuleStatus(DebugModule::Spu);
+                debugger::instance().toggleDebugModuleStatus(DebugModule::Spu);
                 break;
             case SDLK_9:
-                pDebugger->toggleDebugModuleStatus(DebugModule::Cdrom);
+                debugger::instance().toggleDebugModuleStatus(DebugModule::Cdrom);
                 break;
             case SDLK_0:
-                pDebugger->toggleDebugModuleStatus(DebugModule::Tty);
-                break;
-            case SDLK_M:
-                exefile testProgram;
-                std::memset(pPsx->cpu->gpr, 0x00, sizeof(uint32_t) * 32);
-                testProgram.loadExe("psxtest_cpu.exe", pPsx->mem->ram);
-                testProgram.setRegisters(&(pPsx->cpu->pc), pPsx->cpu->gpr);
+                debugger::instance().toggleDebugModuleStatus(DebugModule::Tty);
                 break;
             }
             break;
@@ -268,7 +259,12 @@ bool psxemu::handleEvents()
 }
 
 bool psxemu::update(StepMode stepMode)
-{  
+{
+#ifndef DEBUGGER_ENABLED
+    //Run PSX Emulator in Normal mode
+    pPsx->execute();
+#else
+    //Run PSX Emulator in Debug mode  
     switch(stepMode)
     {
         case StepMode::Halt:
@@ -276,30 +272,30 @@ bool psxemu::update(StepMode stepMode)
 
         case StepMode::Manual:
             pPsx->execute();
-            pDebugger->setStepMode(StepMode::Halt);
+            debugger::instance().setStepMode(StepMode::Halt);
             break;
 
         case StepMode::Instruction:
             pPsx->execute();
-            if (pDebugger->isBreakpoint()) pDebugger->setStepMode(StepMode::Halt);
+            if (debugger::instance().isBreakpoint()) debugger::instance().setStepMode(StepMode::Halt);
             break;
 
         case StepMode::Frame:
             while (!pPsx->gpu->isFrameReady())
             {
                 pPsx->execute();
-                if (pDebugger->isBreakpoint())
+                if (debugger::instance().isBreakpoint())
                 {
-                    pDebugger->setStepMode(StepMode::Halt);
+                    debugger::instance().setStepMode(StepMode::Halt);
                     break;
                 }
             }
             break;
     }
-
     //Update Debug Info
-    pDebugger->update();
-    
+    debugger::instance().update();
+#endif
+
     return true;
 }
 
@@ -311,9 +307,11 @@ bool psxemu::render(StepMode stepMode)
     //Render Current PSX Frame
     pPsx->gpu->pRenderer->RenderDrawData(); 
  
+#ifdef DEBUGGER_ENABLED
     //Render ImGUI Debug Widgets
-    pDebugger->render();
-
+    debugger::instance().render();
+#endif
+ 
     //Swap OpenGL FrameBuffer
     SDL_GL_SwapWindow(pWindow);
     

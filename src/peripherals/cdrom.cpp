@@ -306,16 +306,18 @@ bool Cdrom::loadImage(const std::string& fileName)
 	LOG_F(INFO, "PSP Game (%s) Loading...", fileName.c_str());
 
 	if (cdImage.openImage(fileName))
+	{
 		LOG_F(INFO, "PSP Game Loaded");
+		statusCode.shellopen = 0;
+		statusCode.spindlemotor = 1;
+	}
 	else
 	{
 		LOG_F(ERROR, "PSP Game Not Found");
+		statusCode.shellopen = 1;
+		statusCode.spindlemotor = 0;
 		return false;
 	}
-
-	//TEMPORARY!!!!! Va messo da un'altra parte.
-	statusCode.shellopen = 0;
-	statusCode.spindlemotor = 1;
 
 	return true;
 }
@@ -762,19 +764,4 @@ bool Cdrom::cmd_crash() { return false; };
 //-----------------------------------------------------------------------------------------------
 //Sub Functions
 //-----------------------------------------------------------------------------------------------
-
-
-
-//-----------------------------------------------------------------------------------------------
-//Debug Info
-//-----------------------------------------------------------------------------------------------
-
-void Cdrom::getDebugInfo(CdromDebugInfo& info)
-{
-	info.statusRegister = statusRegister.byte;
-	info.requestRegister = requestRegister.byte;
-	info.interruptEnableRegister = interruptEnableRegister;
-	info.interruptFlagRegister = interruptFlagRegister;
-}
-
 

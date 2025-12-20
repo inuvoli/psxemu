@@ -1,3 +1,4 @@
+#include <loguru.hpp>
 #include "mipsdisassembler.h"
 
 MipsDisassembler::MipsDisassembler()
@@ -166,12 +167,12 @@ AsmCode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, ui
 
 		if (res.second)
 		{
-			//Address in in ROM
+			//Address is in ROM
 			opcode = rom[res.first] + (rom[res.first + 1] << 8) + (rom[res.first + 2] << 16) + (rom[res.first + 3] << 24);
 		}
 		else
 		{
-			//Address in in RAM
+			//Address is in RAM
 			opcode = ram[res.first] + (ram[res.first + 1] << 8) + (ram[res.first + 2] << 16) + (ram[res.first + 3] << 24);
 		}
 		
@@ -206,7 +207,7 @@ AsmCode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, ui
 
 		if (res.second)
 		{
-			//Address in in ROM
+			//Address is in ROM
 			opcode = rom[res.first] + (rom[res.first + 1] << 8) + (rom[res.first + 2] << 16) + (rom[res.first + 3] << 24);
 		}
 		else
@@ -220,7 +221,7 @@ AsmCode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, ui
 		asmCode.insert(std::make_pair(currentAddr, std::make_tuple(opcode, asmLabel, asmLine)));
 
 		//Check if the last decoded instruction is a Jump instruction
-		//Decode alsa the instruction in the Branch Delay Slot
+		//Decode also the instruction in the Branch Delay Slot
 		if (lastOpcode) break;
 		if (isJump) lastOpcode = true;
 		
@@ -231,6 +232,35 @@ AsmCode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, ui
 	return asmCode;
 }
 
+bool MipsDisassembler::isJumpInstruction(const uint8_t* rom, const uint8_t* ram, uint32_t pc)
+{
+	uint32_t opcode;
+	bool	isJump;
+
+	auto res = decodeAddress(pc);
+
+	if (res.second)
+	{
+		//Address is in ROM
+		opcode = rom[res.first] + (rom[res.first + 1] << 8) + (rom[res.first + 2] << 16) + (rom[res.first + 3] << 24);
+	}
+	else
+	{
+		//Address in in RAM
+		opcode = ram[res.first] + (ram[res.first + 1] << 8) + (ram[res.first + 2] << 16) + (ram[res.first + 3] << 24);
+	}
+
+	decodeOpcode(opcode, isJump);
+
+	if (isJump)
+		LOG_F(INFO, "MIPS Disassembler - Instruction at 0x%08x is a Jump Instruction", pc);
+
+    return isJump;
+}
+
+//-----------------------------------------------------------------------------------------------------------------------------------
+// Private Helper Functions
+//-----------------------------------------------------------------------------------------------------------------------------------
 std::pair<uint32_t, bool> MipsDisassembler::decodeAddress(uint32_t vAddr)
 {
 	uint32_t phAddr = vAddr & regionMask[vAddr >> 29];

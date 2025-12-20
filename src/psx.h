@@ -5,9 +5,12 @@
 #include <memory>
 
 #include "litelib.h"
+#include "debugger.h"
+#include "commandline.h"
 
-//#include "cpu_full_pipe.h"
 #include "cpu_short_pipe.h"
+#include "cpu_full_pipe.h"
+#include "cpu.h"
 #include "gpu.h"
 #include "spu.h"
 #include "memory.h"
@@ -18,7 +21,6 @@
 #include "tty.h"
 #include "interrupt.h"
 #include "controller.h"
-#include "commandline.h"
 #include "exefile.h"
 
 class Psx
@@ -51,6 +53,12 @@ public:
 	std::shared_ptr<Controller> controller;
 	std::shared_ptr<Tty> 		tty;
 	std::shared_ptr<Interrupt>	interrupt;
+
+	//Executable File
+	std::shared_ptr<exefile>	exeFile;
+
+	//Data Bus Status
+	bool		dataBusBusy;
 
 	//Master Clock: 372.5535MHz
 	uint64_t	masterClock;

@@ -119,7 +119,7 @@ bool Dma::execute()
 			LOG_F(1, "DMA - Active Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d, MemoryAddr %08x, Increment %d, FromMemory %d, Chopping %d", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize, runningAddr, runningIncrement, runningFromRam, (bool)dmaChannel[runningChannel].chanChcr.chopEnable);
 			
 			//Stop CPU access to Address Bus
-			psx->cpu->dmaTakeOnBus = true;
+			psx->dataBusBusy = true;
 		}	
 	}
 	return true;
@@ -367,7 +367,8 @@ bool Dma::dmaStop()
 	runningSize = 0;
 	runningAddr = 0x00000000;
 
-	psx->cpu->dmaTakeOnBus = false;
+	//Release CPU access to Address Bus
+	psx->dataBusBusy = false;
 
 	//Set DMA Channel Completion Interrupt Flag, Update DICR and Activate Interrupt if DICR.31 goes from 0 to 1
 	if (dmaDicr.enableIrq & (1UL << runningChannel))

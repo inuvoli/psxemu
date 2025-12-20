@@ -78,15 +78,6 @@ namespace cdrom
 	enum {INT1 = 1, INT2 = 2, INT3 = 3, INT5 = 5};
 };
 
-
-struct CdromDebugInfo
-{
-	uint8_t		statusRegister;
-	uint8_t		requestRegister;
-	uint8_t		interruptEnableRegister;
-	uint8_t		interruptFlagRegister;
-};
-
 class Psx;
 
 class Cdrom
@@ -101,12 +92,17 @@ public:
 
 	bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes);
 	uint32_t readAddr(uint32_t addr, uint8_t bytes);
-
-	//Debug Info
-	void getDebugInfo(CdromDebugInfo& info);
-
+	
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
+
+#ifdef DEBUGGER_ENABLED
+    //Getter & Setters
+    uint8_t getStatusRegister() const { return statusRegister.byte; }
+	uint8_t getRequestRegister() const { return requestRegister.byte; }
+	uint8_t getInterruptEnableRegister() const { return interruptEnableRegister; }
+	uint8_t getInterruptFlagRegister() const { return interruptFlagRegister; }	
+#endif
 
 private:
 	//Link to Bus Object

@@ -14,7 +14,6 @@ Controller::Controller()
 
 Controller::~Controller()
 {
-
 }
 
 //External Signals

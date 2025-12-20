@@ -571,16 +571,3 @@ void Timers::updateInterrupt(uint8_t timerNumber)
 		throwInterrupt = false;
 	}
 }
-
-//-----------------------------------------------------------------------------------------------------
-// 
-//                               DEBUG Status
-// 
-//-----------------------------------------------------------------------------------------------------
-void Timers::getDebugInfo(TimerDebugInfo& info)
-{
-	info.timerStatus[0] = timerStatus[0];
-	info.timerStatus[1] = timerStatus[1];
-	info.timerStatus[2] = timerStatus[2];
-}
-

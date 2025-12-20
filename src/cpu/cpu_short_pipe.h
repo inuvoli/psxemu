@@ -8,82 +8,60 @@
 #include <memory>
 
 #include "litelib.h" 
-
-#include "cpu_registers.h"
-#include "cop0.h"
-#include "cop2.h"
-
-
-class Psx;
-
-//DebugInfo
-struct callstackinfo
-{
-	uint32_t		jumpaddr;
-	uint32_t		pc;
-	uint32_t		sp;
-	uint32_t		ra;
-	std::string		func;
-};
+#include "cpu.h"
 
 struct decodedOpcode
 {
 	uint32_t	regA;	//Content of rs (aka base)
 	uint32_t	regB;	//Content of rt
 	uint32_t	imm;	//32bit Sign extendend immediate value
-	uint8_t		rs;
-	uint8_t		rd;
-	uint8_t		rt;
-	uint8_t		op;
-	uint8_t		funct;
-	uint32_t	tgt;
-	uint8_t		shamt;
-	uint32_t	cofun;
+	uint8_t		rs;		//5-bit source register specifier
+	uint8_t		rd;		//5-bit destination register specifier
+	uint8_t		rt;		//5-bit target (source/destinatio) register specifier or branch condition
+	uint8_t		op;		//6-bit operation code
+	uint8_t		funct;	//6-bit function field
+	uint32_t	tgt;	//26-bit target address
+	uint8_t		shamt;	//5-bit shift amount
+	uint32_t	cofun;	//26-bit coprocessor function
 };
 
-class CPU
+class CpuShort : public CPU
 {
 public:
-	CPU();
-	~CPU();
+	CpuShort();
+	~CpuShort() override;
 
-	bool reset();
-	bool execute();
+	bool reset() override;
+	bool execute() override;
 
 	//Cache & Memory Access
-	uint32_t rdInst(uint32_t vAddr, uint8_t bytes = 4);
-	uint32_t rdMem(uint32_t vAddr, uint8_t bytes = 4);
-	bool	 wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes = 4, bool checkalign = true);
-	uint32_t rdDataCache(uint32_t vAddr, uint8_t bytes);
-	bool	 wrDataCache(uint32_t vAddr, uint32_t& data, uint8_t bytes);
-	uint32_t rdInstrCache(uint32_t vAddr, uint8_t bytes);
-	bool	 wrInstrCache(uint32_t vAddr, uint32_t& data, uint8_t bytes);
+	uint32_t rdInst(uint32_t vAddr, uint8_t bytes = 4) override;
+	uint32_t rdMem(uint32_t vAddr, uint8_t bytes = 4) override;
+	bool	 wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes = 4, bool checkalign = true) override;
+	uint32_t rdDataCache(uint32_t vAddr, uint8_t bytes) override;
+	bool	 wrDataCache(uint32_t vAddr, uint32_t& data, uint8_t bytes) override;
+	uint32_t rdInstrCache(uint32_t vAddr, uint8_t bytes) override;
+	bool	 wrInstrCache(uint32_t vAddr, uint32_t& data, uint8_t bytes) override;
 
 	//Pipeline Fase Functions
-	bool exception(uint32_t cause);
-	bool interrupt(uint8_t status);
+	bool exception(uint32_t cause) override;
+	bool interrupt(uint8_t status) override;
 
-public:
-	//CPU Internal Registers
-	uint32_t	pc;					//Program Counter
-	uint32_t	hi;					//HI Register, used for Mult and Div
-	uint32_t	lo;					//LO Register, used for Mult and Div
-	uint32_t	gpr[32];			//CPU General Purpose Registers
-	uint32_t	cacheReg;			//Cache Control Register (mapped to 0xfffe0130)
-
-	//DEBUG - Call Stack
-	lite::circularbuffer<callstackinfo, 31>	callStack;
+	// Basic register accessors
+	uint32_t get_pc() const override;
+	void     set_pc(uint32_t value) override;
+	uint32_t get_hi() const override;
+	void     set_hi(uint32_t value) override;
+	uint32_t get_lo() const override;
+	void     set_lo(uint32_t value) override;
+	uint32_t get_gpr(uint8_t regNumber) const override;
+	void	 set_gpr(uint8_t regNumber, uint32_t value) override;
 	
-	//Coprocessors
-	std::shared_ptr<Cop0>	cop0;	//Coprocessor 0
-	std::shared_ptr<Cop2>	cop2;	//Coprocessor 2 (GTE)
-
 	//Pipeline Registers and Status
 	decodedOpcode	currentOpcode;
 	bool			branchDelaySlot;
 	uint32_t		branchAddress;
 	bool			stallPipeline;
-	bool			dmaTakeOnBus;
 
 	//Instruction & Data Cache
 	uint8_t		iCache[ICACHE_SIZE];
@@ -94,10 +72,9 @@ public:
 	bool dCacheEnabled;
 	
 	//Connect to PSX Instance
-	void link(Psx* instance) { psx = instance; }
+	void link(Psx* instance);
 
 private:
-
 	//CPU Instructions
 	bool op_bxx();
 	bool op_j();
@@ -173,14 +150,11 @@ private:
 	bool op_unknown();
 
 private:
-	//Link to Bus Object
-	Psx* psx;
-
 	//Full set of CPU Instruction Dictionaries
 	struct INSTR
 	{
 		std::string mnemonic;
-		bool(CPU::* operate)() = nullptr;
+		bool(CpuShort::* operate)() = nullptr;
 	};
 
 	std::vector<INSTR> instrSet;		//Full Instruction Set

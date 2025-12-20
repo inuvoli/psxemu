@@ -3,22 +3,29 @@
 #include <cstdio>
 #include <vector>
 
-#include "device.h"
 #include "fifo.h"
 
-class Controller : public Idevice
+class Psx;
+
+class Controller
 {
 public:
     Controller();
     ~Controller();
 
-    bool execute() override;
-    bool reset() override;
+    bool execute();
+    bool reset();
 
-    bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes) override;
-	uint32_t readAddr(uint32_t addr, uint8_t bytes) override;
+    bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes);
+	uint32_t readAddr(uint32_t addr, uint8_t bytes);
+
+    //Connect to PSX Instance
+	void link(Psx* instance) { psx = instance; }
 
 private:
+    //Link to PSP Object
+	Psx* psx;
+
     //Joy Status Register
     uint32_t    joyStat;
 

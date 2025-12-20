@@ -33,6 +33,7 @@ set(PSXEMU_SOURCES
 	src/peripherals/controller.cpp
 	src/peripherals/interrupt.cpp
 	src/cpu/cpu_short_pipe.cpp
+	src/cpu/cpu_full_pipe.cpp
 	src/cpu/cop0.cpp
 	src/cpu/cop2.cpp
 	src/gpu/gpu.cpp

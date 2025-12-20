@@ -84,8 +84,3 @@ uint32_t Interrupt::readAddr(uint32_t addr, uint8_t bytes)
     return data;
 }
 
-void Interrupt::getDebugInfo(InterruptDebugInfo& info)
-{
-    info.i_mask = i_mask;
-    info.i_stat = i_stat;
-}

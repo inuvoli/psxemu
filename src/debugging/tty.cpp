@@ -26,6 +26,19 @@ bool Tty::reset()
 	return true;
 }
 
+bool Tty::writeTTYChar(char c)
+{
+	buffer += c;
+	if (c == '\n')
+	{
+		bufferA.emplace_back(buffer);
+		buffer = "";
+	}
+	ofs << c;
+	ofs.flush();
+	return true;
+}
+
 bool Tty::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 {
 	switch (addr)
@@ -127,8 +140,6 @@ uint32_t Tty::readAddr(uint32_t addr, uint8_t bytes)
 		printf("TTY - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
 		return 0;
 	}
-	
-    //printf("TTY - Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
 	return data;
 }
 

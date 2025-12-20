@@ -1,9 +1,8 @@
 #include <loguru.hpp>
 #include "cpu_short_pipe.h"
 #include "psx.h"
-#include "functions_name.h"
 
-CPU::CPU()
+CpuShort::CpuShort()
 {
 	//Init CPU Registers
 	pc = 0xbfc00000;
@@ -19,153 +18,159 @@ CPU::CPU()
 	//Init Pipeline Registers and Status
 	std::memset(&currentOpcode, 0x00, sizeof(decodedOpcode));
 	stallPipeline = false;
-	dmaTakeOnBus = false;
 	branchDelaySlot = false;
 	branchAddress = 0x00000000;
 
 	//Init Instruction & Function Dictionaries
 	instrSet =
 	{
-		{"special", &CPU::op_unknown},
-		{"bxx rs, imm", &CPU::op_bxx},
-		{"j tgt", &CPU::op_j},
-		{"jal tgt", &CPU::op_jal},
-		{"beq rs, rt, imm", &CPU::op_beq},
-		{"bne rs, rt, imm", &CPU::op_bne},
-		{"blez rs, imm", &CPU::op_blez},
-		{"bgtz rs, imm", &CPU::op_bgtz},
-		{"addi rt, rs, imm", &CPU::op_addi},
-		{"addiu rt, rs, imm", &CPU::op_addiu},
-		{"slti rt, rs, imm", &CPU::op_slti},
-		{"sltiu rt, rs, imm", &CPU::op_sltiu},
-		{"andi rt, rs, imm", &CPU::op_andi},
-		{"ori rt, rs, imm", &CPU::op_ori},
-		{"xori rt, rs, imm", &CPU::op_xori},
-		{"lui rt, imm", &CPU::op_lui},
-		{"cop0 cofun", &CPU::op_cop0},
-		{"cop1 cofun", &CPU::op_cop1},
-		{"cop2 cofun", &CPU::op_cop2},
-		{"cop3 cofun", &CPU::op_cop3},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"lb rt, imm(rs)", &CPU::op_lb},
-		{"lh rt, imm(rs)", &CPU::op_lh},
-		{"lwl rt, imm(rs)", &CPU::op_lwl},
-		{"lw rt, imm(rs)", &CPU::op_lw},
-		{"lbu rt, imm(rs)", &CPU::op_lbu},
-		{"lhu rt, imm(rs)", &CPU::op_lhu},
-		{"lwr rt, imm(rs)", &CPU::op_lwr},
-		{"invalid operation", &CPU::op_unknown},
-		{"sb rt, imm(rs)", &CPU::op_sb},
-		{"sh rt, imm(rs)", &CPU::op_sh},
-		{"swl rt, imm(rs)", &CPU::op_swl},
-		{"sw rt, imm(rs)", &CPU::op_sw},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"swr rt, imm(rs)", &CPU::op_swr},
-		{"invalid operation", &CPU::op_unknown},
-		{"lwc0 rt, imm(rs)", &CPU::op_lwc0},
-		{"lwc1 rt, imm(rs)", &CPU::op_lwc1},
-		{"lwc2 rt, imm(rs)", &CPU::op_lwc2},
-		{"lwc3 rt, imm(rs)", &CPU::op_lwc3},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"swc0 rt, imm(rs)", &CPU::op_swc0},
-		{"swc1 rt, imm(rs)", &CPU::op_swc1},
-		{"swc2 rt, imm(rs)", &CPU::op_swc2},
-		{"swc3 rt, imm(rs)", &CPU::op_swc3},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown}
+		{"special", &CpuShort::op_unknown},
+		{"bxx rs, imm", &CpuShort::op_bxx},
+		{"j tgt", &CpuShort::op_j},
+		{"jal tgt", &CpuShort::op_jal},
+		{"beq rs, rt, imm", &CpuShort::op_beq},
+		{"bne rs, rt, imm", &CpuShort::op_bne},
+		{"blez rs, imm", &CpuShort::op_blez},
+		{"bgtz rs, imm", &CpuShort::op_bgtz},
+		{"addi rt, rs, imm", &CpuShort::op_addi},
+		{"addiu rt, rs, imm", &CpuShort::op_addiu},
+		{"slti rt, rs, imm", &CpuShort::op_slti},
+		{"sltiu rt, rs, imm", &CpuShort::op_sltiu},
+		{"andi rt, rs, imm", &CpuShort::op_andi},
+		{"ori rt, rs, imm", &CpuShort::op_ori},
+		{"xori rt, rs, imm", &CpuShort::op_xori},
+		{"lui rt, imm", &CpuShort::op_lui},
+		{"cop0 cofun", &CpuShort::op_cop0},
+		{"cop1 cofun", &CpuShort::op_cop1},
+		{"cop2 cofun", &CpuShort::op_cop2},
+		{"cop3 cofun", &CpuShort::op_cop3},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"lb rt, imm(rs)", &CpuShort::op_lb},
+		{"lh rt, imm(rs)", &CpuShort::op_lh},
+		{"lwl rt, imm(rs)", &CpuShort::op_lwl},
+		{"lw rt, imm(rs)", &CpuShort::op_lw},
+		{"lbu rt, imm(rs)", &CpuShort::op_lbu},
+		{"lhu rt, imm(rs)", &CpuShort::op_lhu},
+		{"lwr rt, imm(rs)", &CpuShort::op_lwr},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"sb rt, imm(rs)", &CpuShort::op_sb},
+		{"sh rt, imm(rs)", &CpuShort::op_sh},
+		{"swl rt, imm(rs)", &CpuShort::op_swl},
+		{"sw rt, imm(rs)", &CpuShort::op_sw},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"swr rt, imm(rs)", &CpuShort::op_swr},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"lwc0 rt, imm(rs)", &CpuShort::op_lwc0},
+		{"lwc1 rt, imm(rs)", &CpuShort::op_lwc1},
+		{"lwc2 rt, imm(rs)", &CpuShort::op_lwc2},
+		{"lwc3 rt, imm(rs)", &CpuShort::op_lwc3},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"swc0 rt, imm(rs)", &CpuShort::op_swc0},
+		{"swc1 rt, imm(rs)", &CpuShort::op_swc1},
+		{"swc2 rt, imm(rs)", &CpuShort::op_swc2},
+		{"swc3 rt, imm(rs)", &CpuShort::op_swc3},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown}
 	};
 
 	functSet =
 	{
-		{"sll rd, rt, shamt", &CPU::op_sll},
-		{"invalid operation", &CPU::op_unknown},
-		{"srl rd, rt, shamt", &CPU::op_srl},
-		{"sra rd,rt, shamt", &CPU::op_sra},
-		{"sllv rd, rt, rs", &CPU::op_sllv},
-		{"invalid operation", &CPU::op_unknown},
-		{"srlv rd, rt, rs", &CPU::op_srlv},
-		{"srav rd, rt, rs", &CPU::op_srav},
-		{"jr rs", &CPU::op_jr},
-		{"jalr rd, rs", &CPU::op_jalr},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"syscall", &CPU::op_syscall},
-		{"break", &CPU::op_break},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"mfhi rd", &CPU::op_mfhi},
-		{"mthi rs", &CPU::op_mthi},
-		{"mflo rd", &CPU::op_mflo},
-		{"mtlo rs", &CPU::op_mtlo},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"mult rs, rt", &CPU::op_mult},
-		{"multu rs, rt", &CPU::op_multu},
-		{"div rs, rt", &CPU::op_div},
-		{"divu rs, rt", &CPU::op_divu},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"add rd, rs, rt", &CPU::op_add},
-		{"addu rd, rs, rt", &CPU::op_addu},
-		{"sub rd, rs, rt", &CPU::op_sub},
-		{"subu rd, rs, rt", &CPU::op_subu},
-		{"and rd, rs, rt", &CPU::op_and},
-		{"or rd, rs, rt", &CPU::op_or},
-		{"xor rd, rs, rt", &CPU::op_xor},
-		{"nor rd, rs, rt", &CPU::op_nor},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"slt rd, rs, rt", &CPU::op_slt},
-		{"sltu rd, rs, rt", &CPU::op_sltu},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown},
-		{"invalid operation", &CPU::op_unknown}
+		{"sll rd, rt, shamt", &CpuShort::op_sll},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"srl rd, rt, shamt", &CpuShort::op_srl},
+		{"sra rd,rt, shamt", &CpuShort::op_sra},
+		{"sllv rd, rt, rs", &CpuShort::op_sllv},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"srlv rd, rt, rs", &CpuShort::op_srlv},
+		{"srav rd, rt, rs", &CpuShort::op_srav},
+		{"jr rs", &CpuShort::op_jr},
+		{"jalr rd, rs", &CpuShort::op_jalr},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"syscall", &CpuShort::op_syscall},
+		{"break", &CpuShort::op_break},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"mfhi rd", &CpuShort::op_mfhi},
+		{"mthi rs", &CpuShort::op_mthi},
+		{"mflo rd", &CpuShort::op_mflo},
+		{"mtlo rs", &CpuShort::op_mtlo},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"mult rs, rt", &CpuShort::op_mult},
+		{"multu rs, rt", &CpuShort::op_multu},
+		{"div rs, rt", &CpuShort::op_div},
+		{"divu rs, rt", &CpuShort::op_divu},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"add rd, rs, rt", &CpuShort::op_add},
+		{"addu rd, rs, rt", &CpuShort::op_addu},
+		{"sub rd, rs, rt", &CpuShort::op_sub},
+		{"subu rd, rs, rt", &CpuShort::op_subu},
+		{"and rd, rs, rt", &CpuShort::op_and},
+		{"or rd, rs, rt", &CpuShort::op_or},
+		{"xor rd, rs, rt", &CpuShort::op_xor},
+		{"nor rd, rs, rt", &CpuShort::op_nor},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"slt rd, rs, rt", &CpuShort::op_slt},
+		{"sltu rd, rs, rt", &CpuShort::op_sltu},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown},
+		{"invalid operation", &CpuShort::op_unknown}
 	};
 }
 
-CPU::~CPU()
+CpuShort::~CpuShort()
 {
 }
 
-bool CPU::reset()
+void CpuShort::link(Psx *instance)
+{
+	psx = instance;
+}
+
+bool CpuShort::reset()
 {
 	//Init CPU Registers
 	pc = 0xbfc00000;
@@ -181,7 +186,6 @@ bool CPU::reset()
 	//Init Pipeline Registers and Status
 	std::memset(&currentOpcode, 0x00, sizeof(decodedOpcode));
 	stallPipeline = false;
-	dmaTakeOnBus = false;
 	branchDelaySlot = false;
 	branchAddress = 0x00000000;
 	
@@ -193,7 +197,7 @@ bool CPU::reset()
 // Cache and Memory Access Functions
 //
 //-----------------------------------------------------------------------------------------------------------------------------------
-inline uint32_t CPU::rdInst(uint32_t vAddr, uint8_t bytes)
+inline uint32_t CpuShort::rdInst(uint32_t vAddr, uint8_t bytes)
 {
 	//Exception not supported by PSX Bios
 	//Check if PC in unaligned
@@ -205,7 +209,7 @@ inline uint32_t CPU::rdInst(uint32_t vAddr, uint8_t bytes)
 	return psx->rdMem(vAddr, bytes);
 }
 
-inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes)
+inline uint32_t CpuShort::rdMem(uint32_t vAddr, uint8_t bytes)
 {
 	cop0::StatusRegister statusReg;
 
@@ -230,7 +234,7 @@ inline uint32_t CPU::rdMem(uint32_t vAddr, uint8_t bytes)
 	return psx->rdMem(vAddr, bytes);
 }
 
-inline bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool checkalign)
+inline bool CpuShort::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool checkalign)
 {
 	cop0::StatusRegister statusReg;
 
@@ -264,7 +268,7 @@ inline bool CPU::wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes, bool check
 	return psx->wrMem(vAddr, data, bytes);
 }
 
-uint32_t CPU::rdDataCache(uint32_t vAddr, uint8_t bytes)
+uint32_t CpuShort::rdDataCache(uint32_t vAddr, uint8_t bytes)
 {
 	uint32_t data = 0;
 	uint32_t addr = vAddr & 0x000003ff;
@@ -286,7 +290,7 @@ uint32_t CPU::rdDataCache(uint32_t vAddr, uint8_t bytes)
 	return data;
 }
 
-bool CPU::wrDataCache(uint32_t vAddr, uint32_t& data, uint8_t bytes)
+bool CpuShort::wrDataCache(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 {
 	uint32_t addr = vAddr & 0x000003ff;
 
@@ -306,12 +310,12 @@ bool CPU::wrDataCache(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 	}
 }
 
-uint32_t CPU::rdInstrCache(uint32_t vAddr, uint8_t bytes)
+uint32_t CpuShort::rdInstrCache(uint32_t vAddr, uint8_t bytes)
 {
 	return uint32_t();
 }
 
-bool CPU::wrInstrCache(uint32_t vAddr, uint32_t& data, uint8_t bytes)
+bool CpuShort::wrInstrCache(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 {
 	return false;
 }
@@ -321,13 +325,13 @@ bool CPU::wrInstrCache(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 // Pipeline Implementation
 //
 //-----------------------------------------------------------------------------------------------------------------------------------
-bool CPU::execute()
+bool CpuShort::execute()
 {
 	bool bResult = true;
 
-	//Stop CPU if DMA is Running
-	if (dmaTakeOnBus)
-		return true;
+	//Stall CPU if databus is busy
+	if (psx->dataBusBusy)
+		return true;	
 
 	//Fetch Instruction from current PC
 	cpu::Instruction opcode;
@@ -344,7 +348,20 @@ bool CPU::execute()
 	{
 		pc += 4;
 	}
-	
+
+	//Check for Shell Execution
+	if (pc == 0x80030000)
+	{
+		LOG_F(INFO, "CPU - Shell Execution Detected, loading EXE if present...");
+		std::string fileName = commandline::instance().getExeFileName();
+		if (!fileName.empty())
+		{
+			psx->exeFile->loadExe(fileName, psx->mem->ram);
+			psx->exeFile->setRegisters(&pc, gpr);
+			LOG_F(INFO, "CPU - EXE Loaded, jumping to 0x%08x", pc);	
+		}
+	}
+
 	//Skip all evaluation if currentOpcode is NOP
 	if (opcode.word != 0x00000000)
 	{
@@ -352,15 +369,15 @@ bool CPU::execute()
 		currentOpcode.op = opcode.op;
 		currentOpcode.funct = opcode.funct;
 		currentOpcode.rd = (uint8_t)opcode.rd;
-		currentOpcode.rt = opcode.rt;
-		currentOpcode.rs = opcode.rs;
+		currentOpcode.rt = (uint8_t)opcode.rt;
+		currentOpcode.rs = (uint8_t)opcode.rs;
 		currentOpcode.regA = gpr[currentOpcode.rs];
 		currentOpcode.regB = gpr[currentOpcode.rt];
 		currentOpcode.tgt = opcode.tgt;
 		currentOpcode.shamt = (uint8_t)opcode.shamt;
-		currentOpcode.cofun = opcode.cofun;
+		currentOpcode.cofun = (uint32_t)opcode.cofun;
 		currentOpcode.imm = (uint32_t)(int16_t)opcode.imm; //Sign Extended
-
+	
 		//Execute Current Instruction
 		if (currentOpcode.op == 0x00)
 		{
@@ -380,7 +397,7 @@ bool CPU::execute()
 	return bResult;	
 }
 
-bool CPU::exception(uint32_t cause)
+bool CpuShort::exception(uint32_t cause)
 {
 	cop0::StatusRegister	statusReg;
 	cop0::CauseRegister		causeReg;
@@ -408,8 +425,8 @@ bool CPU::exception(uint32_t cause)
 	}
 	
 	//Set Exception Code in CAUSE Register
-	causeReg.excode = (uint8_t)cause;
-		
+	causeReg.excode = static_cast<uint8_t>(cause & 0x1f);
+
 	//Jump to exception handler
 	if (statusReg.bev)
 		pc = 0xbfc00180;
@@ -425,7 +442,7 @@ bool CPU::exception(uint32_t cause)
 	return true;
 }
 
-bool CPU::interrupt(uint8_t status)
+bool CpuShort::interrupt(uint8_t status)
 {
 	cop0::StatusRegister	statusReg;
 	cop0::CauseRegister		causeReg;
@@ -453,7 +470,7 @@ bool CPU::interrupt(uint8_t status)
 // Opcode Implementation
 //
 //-----------------------------------------------------------------------------------------------------------------------------------
-bool CPU::op_bxx()
+bool CpuShort::op_bxx()
 {
 	bool branch = false;
 
@@ -522,51 +539,28 @@ bool CPU::op_bxx()
 	return true;
 }
 
-bool CPU::op_j()
+bool CpuShort::op_j()
 {
 	//Set branchAddress
 	//New PC is evaluated starting from PC of the instruction in the delay slot
 	branchAddress = (pc & 0xf0000000) + (currentOpcode.tgt << 2);
 	branchDelaySlot = true;
 
-	//Debug -- Call Stack
-	callstackinfo tmp;
-	tmp.jumpaddr = branchAddress;
-	tmp.pc = pc - 4;
-	tmp.sp = gpr[29]; //stack pointer
-	tmp.ra = 0x0; //return address
-	tmp.func = "";
-	callStack.write(tmp);
-
 	return true;
 }
 
-bool CPU::op_jal()
+bool CpuShort::op_jal()
 {
 	//Set branchAddress
 	//New PC is evaluated starting from PC of the instruction in the delay slot
 	branchAddress = (pc & 0xf0000000) + (currentOpcode.tgt << 2);
 	branchDelaySlot = true;
 	gpr[31] = pc + 4;	//Return to the istruction after the delay slot
-
-	//Debug -- Call Stack
-	callstackinfo tmp;
-	tmp.jumpaddr = branchAddress;
-	tmp.pc = pc - 4;
-	tmp.sp = gpr[29]; //stack pointer
-	tmp.ra = gpr[31]; //return address
-
-	std::stringstream ss;
-	ss << "function_" << std::hex << tmp.jumpaddr;
-	tmp.func = ss.str();
-
-	callStack.write(tmp);
-
  
 	return true;
 }
 
-bool CPU::op_beq()
+bool CpuShort::op_beq()
 {
 	//Set branchAddress if Branch is triggered
 	//New PC is evaluated starting from PC of the instruction in the delay slot
@@ -579,7 +573,7 @@ bool CPU::op_beq()
 	return true;
 }
 
-bool CPU::op_bne()
+bool CpuShort::op_bne()
 {
 	//Set branchAddress if Branch is triggered
 	//New PC is evaluated starting from PC of the instruction in the delay slot
@@ -592,7 +586,7 @@ bool CPU::op_bne()
 	return true;
 }
 
-bool CPU::op_blez()
+bool CpuShort::op_blez()
 {
 	//Set branchAddress if Branch is triggered
 	//New PC is evaluated starting from PC of the instruction in the delay slot
@@ -605,7 +599,7 @@ bool CPU::op_blez()
 	return true;
 }
 
-bool CPU::op_bgtz()
+bool CpuShort::op_bgtz()
 {
 	//Set branchAddress if Branch is triggered
 	//New PC is evaluated starting from PC of the instruction in the delay slot
@@ -618,7 +612,7 @@ bool CPU::op_bgtz()
 	return true;
 }
 
-bool CPU::op_addi()
+bool CpuShort::op_addi()
 {
 	uint32_t value = currentOpcode.regA;
 	uint32_t imm = currentOpcode.imm;
@@ -638,7 +632,7 @@ bool CPU::op_addi()
 	return true;
 }
 
-bool CPU::op_addiu()
+bool CpuShort::op_addiu()
 {
 	if (currentOpcode.rt != 0)
 		gpr[currentOpcode.rt] = currentOpcode.regA + currentOpcode.imm;
@@ -646,7 +640,7 @@ bool CPU::op_addiu()
 	return true;
 }
 
-bool CPU::op_slti()
+bool CpuShort::op_slti()
 {
 	if (currentOpcode.rt != 0)
 		gpr[currentOpcode.rt] = ((int32_t)currentOpcode.regA < (int32_t)currentOpcode.imm) ? 0x00000001 : 0x00000000;
@@ -654,7 +648,7 @@ bool CPU::op_slti()
 	return true;
 }
 
-bool CPU::op_sltiu()
+bool CpuShort::op_sltiu()
 {
 	if (currentOpcode.rt != 0)
 		gpr[currentOpcode.rt] = ((uint32_t)currentOpcode.regA < (uint32_t)currentOpcode.imm) ? 0x00000001 : 0x00000000;
@@ -662,7 +656,7 @@ bool CPU::op_sltiu()
 	return true;
 }
 
-bool CPU::op_andi()
+bool CpuShort::op_andi()
 {
 	if (currentOpcode.rt != 0)
 		gpr[currentOpcode.rt] = currentOpcode.regA & (0x0000ffff & currentOpcode.imm); //imm is zero extended
@@ -670,7 +664,7 @@ bool CPU::op_andi()
 	return true;
 }
 
-bool CPU::op_ori()
+bool CpuShort::op_ori()
 {
 	if (currentOpcode.rt != 0)
 		gpr[currentOpcode.rt] = currentOpcode.regA | (0x0000ffff & currentOpcode.imm); //imm is zero extended
@@ -678,7 +672,7 @@ bool CPU::op_ori()
 	return true;
 }
 
-bool CPU::op_xori()
+bool CpuShort::op_xori()
 {
 	if (currentOpcode.rt != 0)
 		gpr[currentOpcode.rt] = currentOpcode.regA ^ (0x0000ffff & currentOpcode.imm); //imm is zero extended
@@ -686,7 +680,7 @@ bool CPU::op_xori()
 	return true;
 }
 
-bool CPU::op_lui()
+bool CpuShort::op_lui()
 {
 	if (currentOpcode.rt != 0)
 		gpr[currentOpcode.rt] = currentOpcode.imm << 16;
@@ -694,7 +688,7 @@ bool CPU::op_lui()
 	return true;
 }
 
-bool CPU::op_cop0()
+bool CpuShort::op_cop0()
 {
 	//Exception not supported by PSX Bios
 	//if (!cop0->execute(currentOpcode.cofun))
@@ -703,7 +697,7 @@ bool CPU::op_cop0()
 	return true;
 }
 
-bool CPU::op_cop1()
+bool CpuShort::op_cop1()
 {
 	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
@@ -711,7 +705,7 @@ bool CPU::op_cop1()
 	return true;
 }
 
-bool CPU::op_cop2()
+bool CpuShort::op_cop2()
 {
 	//Exception not supported by PSX Bios
 	//if (!cop2->execute(currentOpcode.cofun))
@@ -720,7 +714,7 @@ bool CPU::op_cop2()
 	return true;
 }
 
-bool CPU::op_cop3()
+bool CpuShort::op_cop3()
 {
 	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::copunusable));
@@ -728,7 +722,7 @@ bool CPU::op_cop3()
 	return true;
 }
 
-bool CPU::op_lb()
+bool CpuShort::op_lb()
 {
 	// if (currentOpcode.rt != 0)
 	// 	gpr[currentOpcode.rt] = (uint32_t)(int8_t)rdMem(currentOpcode.regA + currentOpcode.imm, 1);
@@ -745,7 +739,7 @@ bool CPU::op_lb()
 	return true;
 }
 
-bool CPU::op_lh()
+bool CpuShort::op_lh()
 {
 	uint32_t imm = currentOpcode.imm;;
     uint32_t address = currentOpcode.regA + imm;
@@ -764,7 +758,7 @@ bool CPU::op_lh()
 	return true;
 }
 
-bool CPU::op_lwl()
+bool CpuShort::op_lwl()
 {
 	//Unaligned reading from memory
 	//LWL point to the MSB in memory and overwrite offset+1 byte on rt starting from the left
@@ -798,7 +792,7 @@ bool CPU::op_lwl()
 	return true;
 }
 
-bool CPU::op_lw()
+bool CpuShort::op_lw()
 {
 	uint32_t imm = currentOpcode.imm;
 
@@ -816,7 +810,7 @@ bool CPU::op_lw()
 	return true;
 }
 
-bool CPU::op_lbu()
+bool CpuShort::op_lbu()
 {
 	if (currentOpcode.rt != 0)
 		gpr[currentOpcode.rt] = rdMem(currentOpcode.regA + currentOpcode.imm, 1);
@@ -824,7 +818,7 @@ bool CPU::op_lbu()
 	return true;
 }
 
-bool CPU::op_lhu()
+bool CpuShort::op_lhu()
 {
 	uint32_t imm = currentOpcode.imm;;
 
@@ -842,7 +836,7 @@ bool CPU::op_lhu()
 	return true;
 }
 
-bool CPU::op_lwr()
+bool CpuShort::op_lwr()
 {
 	//Unaligned reading from memory
 	//LWR point to the LSB in memory and overwrite offset-4 byte on rt starting from the right
@@ -876,7 +870,7 @@ bool CPU::op_lwr()
 	return true;
 }
 
-bool CPU::op_sb()
+bool CpuShort::op_sb()
 {
 	//Checked 05/07/2021
 	wrMem(currentOpcode.regA + currentOpcode.imm, currentOpcode.regB, 1);
@@ -884,7 +878,7 @@ bool CPU::op_sb()
 	return true;
 }
 
-bool CPU::op_sh()
+bool CpuShort::op_sh()
 {
 	uint32_t imm = currentOpcode.imm;
     
@@ -901,7 +895,7 @@ bool CPU::op_sh()
 	return true;
 }
 
-bool CPU::op_swl()
+bool CpuShort::op_swl()
 {
 
 	uint32_t imm = currentOpcode.imm;    
@@ -936,7 +930,7 @@ bool CPU::op_swl()
 	return true;
 }
 
-bool CPU::op_sw()
+bool CpuShort::op_sw()
 {
 	uint32_t imm = currentOpcode.imm;
     
@@ -953,7 +947,7 @@ bool CPU::op_sw()
 	return true;
 }
 
-bool CPU::op_swr()
+bool CpuShort::op_swr()
 {
 	uint32_t imm = currentOpcode.imm;
     uint32_t address = currentOpcode.regA + imm;
@@ -986,7 +980,7 @@ bool CPU::op_swr()
 	return true;
 }
 
-bool CPU::op_lwc0()
+bool CpuShort::op_lwc0()
 {
 	//Checked 16/07/2021
 	//Exception not supported by PSX Bios
@@ -995,7 +989,7 @@ bool CPU::op_lwc0()
 	return true;
 }
 
-bool CPU::op_lwc1()
+bool CpuShort::op_lwc1()
 {
 	//Checked 16/07/2021
 	//Exception not supported by PSX Bios
@@ -1004,7 +998,7 @@ bool CPU::op_lwc1()
 	return true;
 }
 
-bool CPU::op_lwc2()
+bool CpuShort::op_lwc2()
 {
 	//Checked 31/03/2023
 
@@ -1013,7 +1007,7 @@ bool CPU::op_lwc2()
 	return true;
 }
 
-bool CPU::op_lwc3()
+bool CpuShort::op_lwc3()
 {
 	//Checked 16/07/2021
 	//Exception not supported by PSX Bios
@@ -1022,7 +1016,7 @@ bool CPU::op_lwc3()
 	return true;
 }
 
-bool CPU::op_swc0()
+bool CpuShort::op_swc0()
 {
 	//Checked 16/07/2021
 	//Exception not supported by PSX Bios
@@ -1031,7 +1025,7 @@ bool CPU::op_swc0()
 	return true;
 }
 
-bool CPU::op_swc1()
+bool CpuShort::op_swc1()
 {
 	//Checked 16/07/2021
 	//Exception not supported by PSX Bios
@@ -1040,7 +1034,7 @@ bool CPU::op_swc1()
 	return true;
 }
 
-bool CPU::op_swc2()
+bool CpuShort::op_swc2()
 {
 	//Checked 31/03/2023
 
@@ -1049,7 +1043,7 @@ bool CPU::op_swc2()
 	return true;
 }
 
-bool CPU::op_swc3()
+bool CpuShort::op_swc3()
 {
 	//Checked 16/07/2021
 	//Exception not supported by PSX Bios
@@ -1058,7 +1052,7 @@ bool CPU::op_swc3()
 	return true;
 }
 
-bool CPU::op_sll()
+bool CpuShort::op_sll()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = currentOpcode.regB << currentOpcode.shamt;
@@ -1066,7 +1060,7 @@ bool CPU::op_sll()
 	return true;
 }
 
-bool CPU::op_srl()
+bool CpuShort::op_srl()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = currentOpcode.regB >> currentOpcode.shamt;
@@ -1074,7 +1068,7 @@ bool CPU::op_srl()
 	return true;
 }
 
-bool CPU::op_sra()
+bool CpuShort::op_sra()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = (int32_t)currentOpcode.regB >> currentOpcode.shamt;
@@ -1082,7 +1076,7 @@ bool CPU::op_sra()
 	return true;
 }
 
-bool CPU::op_sllv()
+bool CpuShort::op_sllv()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = currentOpcode.regB << (currentOpcode.regA & 0x0000001f);
@@ -1090,7 +1084,7 @@ bool CPU::op_sllv()
 	return true;
 }
 
-bool CPU::op_srlv()
+bool CpuShort::op_srlv()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = currentOpcode.regB >> (currentOpcode.regA & 0x0000001f);
@@ -1098,7 +1092,7 @@ bool CPU::op_srlv()
 	return true;
 }
 
-bool CPU::op_srav()
+bool CpuShort::op_srav()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = (int32_t)currentOpcode.regB >> (currentOpcode.regA & 0x0000001f);
@@ -1106,52 +1100,22 @@ bool CPU::op_srav()
 	return true;
 }
 
-bool CPU::op_jr()
+bool CpuShort::op_jr()
 {
-	//Foreward PC to fetch stage
+	//Forward PC to fetch stage
 	branchAddress = currentOpcode.regA;
 	branchDelaySlot = true;
-
-	//Debug -- Call Stack
-	callstackinfo tmp;
-	tmp.jumpaddr = branchAddress;
-	tmp.pc = pc - 4;
-	tmp.sp = gpr[29]; //stack pointer
-	tmp.ra = 0x0; //return address
-	tmp.func = "";
-
-	//DEBUG - stdlib calls
-	//A Functions
-	if (pc == 0xac)
-	{
-		LOG_F(1, "CPU - %s (%08x, %08x, %08x, %08x) [A(%02xh)]", function_A[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
-		tmp.func = function_A[gpr[9]];
-	}
-	//B Functions
-	if (pc == 0xbc && gpr[9] != 0x3d) //exclude std_out_putchar B(3dh)
-	{
-		LOG_F(1, "CPU - %s (%08x, %08x, %08x, %08x) [B(%02xh)]", function_B[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
-		tmp.func = function_B[gpr[9]];
-	}
-	//C Functions
-	if (pc == 0xcc)
-	{
-		LOG_F(1, "CPU - %s (%08x, %08x, %08x, %08x) [C(%02xh)]", function_C[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
-		tmp.func = function_C[gpr[9]];
-	}
-	
-	callStack.write(tmp);
 
 	return true;
 }
 
-bool CPU::op_jalr()
+bool CpuShort::op_jalr()
 {
     branchAddress = currentOpcode.regA;
 
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = pc + 4;
-
+	
     if (branchAddress % 2 != 0) {
         cop0->reg[8] = branchAddress;
         exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
@@ -1160,31 +1124,17 @@ bool CPU::op_jalr()
 
     branchDelaySlot = true;
 
-	//Debug -- Call Stack
-	callstackinfo tmp;
-	tmp.jumpaddr = branchAddress;
-	tmp.pc = pc - 4;
-	tmp.sp = gpr[29]; //stack pointer
-	tmp.ra = gpr[31]; //return address
-
-	std::stringstream ss;
-	ss << "function_" << std::hex << tmp.jumpaddr;
-	tmp.func = ss.str();
-	
-	callStack.write(tmp);
-
 	return true;
 }
 
-bool CPU::op_syscall()
+bool CpuShort::op_syscall()
 {
-	LOG_F(1, "CPU - Calling %s [SYS(%02xh)]", function_SYS[gpr[4] & 0x0000000f].c_str(), gpr[4]);
 	exception(static_cast<uint32_t>(cpu::exceptionCause::syscall));
 
 	return true;
 }
 
-bool CPU::op_break()
+bool CpuShort::op_break()
 {
 	//Exception not supported by PSX Bios
 	exception(static_cast<uint32_t>(cpu::exceptionCause::breakpoint));
@@ -1192,7 +1142,7 @@ bool CPU::op_break()
 	return true;
 }
 
-bool CPU::op_mfhi()
+bool CpuShort::op_mfhi()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = hi;
@@ -1200,14 +1150,14 @@ bool CPU::op_mfhi()
 	return true;
 }
 
-bool CPU::op_mthi()
+bool CpuShort::op_mthi()
 {
 	hi = currentOpcode.regA;
 
 	return true;
 }
 
-bool CPU::op_mflo()
+bool CpuShort::op_mflo()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = lo;
@@ -1215,14 +1165,14 @@ bool CPU::op_mflo()
 	return true;
 }
 
-bool CPU::op_mtlo()
+bool CpuShort::op_mtlo()
 {
 	lo = currentOpcode.regA;
 
 	return true;
 }
 
-bool CPU::op_mult()
+bool CpuShort::op_mult()
 {
 	int64_t a, b, r;
 
@@ -1235,7 +1185,7 @@ bool CPU::op_mult()
 	return true;
 }
 
-bool CPU::op_multu()
+bool CpuShort::op_multu()
 {
 	uint64_t a, b, r;
 
@@ -1248,7 +1198,7 @@ bool CPU::op_multu()
 	return true;
 }
 
-bool CPU::op_div()
+bool CpuShort::op_div()
 {
     int32_t n = currentOpcode.regA;
     int32_t d = currentOpcode.regB;
@@ -1279,7 +1229,7 @@ bool CPU::op_div()
 	return true;
 }
 
-bool CPU::op_divu()
+bool CpuShort::op_divu()
 {
     uint32_t n = currentOpcode.regA;
     uint32_t d = currentOpcode.regB;
@@ -1298,26 +1248,27 @@ bool CPU::op_divu()
 	return true;
 }
 
-bool CPU::op_add()
+bool CpuShort::op_add()
 {
-	uint32_t s = currentOpcode.regA;
-    uint32_t t = currentOpcode.regB;
-    uint32_t result = s + t;
-    if (!((s ^ t) & 0x80000000) && ((result ^ s) & 0x80000000))
-	{
+	int32_t s = (int32_t)currentOpcode.regA;
+    int32_t t = (int32_t)currentOpcode.regB;
+    int32_t result = s + t;
+
+    if ((s > 0 && t > 0 && result < 0) || (s < 0 && t < 0 && result >= 0))
+    {
         exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
         return true;
-    } 
-	else 
-	{
-		if (currentOpcode.rd !=0)
-        	gpr[currentOpcode.rd] = result;
+    }
+    else
+    {
+        if (currentOpcode.rd != 0)
+            gpr[currentOpcode.rd] = (uint32_t)result;
     }
 
-	return true;
+    return true;
 }
 
-bool CPU::op_addu()
+bool CpuShort::op_addu()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = (uint32_t)currentOpcode.regA + (uint32_t)currentOpcode.regB;
@@ -1325,26 +1276,28 @@ bool CPU::op_addu()
 	return true;
 }
 
-bool CPU::op_sub()
+bool CpuShort::op_sub()
 {
 	uint32_t s = currentOpcode.regA;
     uint32_t t = currentOpcode.regB;
     uint32_t result = s - t;
-    if (((s ^ t) & 0x80000000) && ((result ^ s) & 0x80000000))
-	{
+
+    // Two's-complement overflow if carries out of bits 30 and 31 differ:
+    if ((((s ^ t) & (s ^ result)) & 0x80000000U) != 0)
+    {
         exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
         return true;
-    } 
-	else 
-	{
-		if (currentOpcode.rd !=0)
-        	gpr[currentOpcode.rd] = result;
+    }
+    else
+    {
+        if (currentOpcode.rd != 0)
+            gpr[currentOpcode.rd] = result;
     }
 
-	return true;
+    return true;
 }
 
-bool CPU::op_subu()
+bool CpuShort::op_subu()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = (uint32_t)currentOpcode.regA - (uint32_t)currentOpcode.regB;
@@ -1352,7 +1305,7 @@ bool CPU::op_subu()
 	return true;
 }
 
-bool CPU::op_and()
+bool CpuShort::op_and()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = currentOpcode.regA & currentOpcode.regB;
@@ -1360,7 +1313,7 @@ bool CPU::op_and()
 	return true;
 }
 
-bool CPU::op_or()
+bool CpuShort::op_or()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = currentOpcode.regA | currentOpcode.regB;
@@ -1368,7 +1321,7 @@ bool CPU::op_or()
 	return true;
 }
 
-bool CPU::op_xor()
+bool CpuShort::op_xor()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = currentOpcode.regA ^ currentOpcode.regB;
@@ -1376,7 +1329,7 @@ bool CPU::op_xor()
 	return true;
 }
 
-bool CPU::op_nor()
+bool CpuShort::op_nor()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = ~(currentOpcode.regA | currentOpcode.regB);
@@ -1384,7 +1337,7 @@ bool CPU::op_nor()
 	return true;
 }
 
-bool CPU::op_slt()
+bool CpuShort::op_slt()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = ((int32_t)currentOpcode.regA < (int32_t)currentOpcode.regB) ? 0x00000001 : 0x00000000;
@@ -1392,7 +1345,7 @@ bool CPU::op_slt()
 	return true;
 }
 
-bool CPU::op_sltu()
+bool CpuShort::op_sltu()
 {
 	if (currentOpcode.rd != 0)
 		gpr[currentOpcode.rd] = ((uint32_t)currentOpcode.regA < (uint32_t)currentOpcode.regB) ? 0x00000001 : 0x00000000;
@@ -1400,10 +1353,52 @@ bool CPU::op_sltu()
 	return true;
 }
 
-bool CPU::op_unknown()
+bool CpuShort::op_unknown()
 {
 	//Exception not supported by PSX Bios
 	//exception(static_cast<uint32_t>(cpu::exceptionCause::resinst));
 	return false;
 }
 
+//-----------------------------------------------------------------------------------------------------------------------------------
+// Setters and Getters
+//-----------------------------------------------------------------------------------------------------------------------------------
+uint32_t CpuShort::get_pc() const
+{
+    return pc;
+}
+
+void CpuShort::set_pc(uint32_t value)
+{
+}
+
+uint32_t CpuShort::get_hi() const
+{
+    return hi;
+}
+
+void CpuShort::set_hi(uint32_t value)
+{
+	hi = value;
+}
+
+uint32_t CpuShort::get_lo() const
+{
+    return lo;
+}
+
+void CpuShort::set_lo(uint32_t value)
+{
+	lo = value;
+}
+
+uint32_t CpuShort::get_gpr(uint8_t regNum) const
+{
+    return gpr[regNum];
+}
+
+void CpuShort::set_gpr(uint8_t regNum, uint32_t value)
+{
+	if (regNum != 0)
+		gpr[regNum] = value;
+}

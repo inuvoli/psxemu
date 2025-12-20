@@ -6,7 +6,8 @@ Psx::Psx()
 	//Reset Master Clock
 	masterClock = 0;
 
-	cpu = std::make_shared<CPU>();
+	cpu = std::make_shared<CpuShort>();
+	//cpu = std::make_shared<CpuFull>();
 	gpu = std::make_shared<GPU>();
 	spu = std::make_shared<SPU>();
 	mem = std::make_shared<Memory>();
@@ -17,6 +18,7 @@ Psx::Psx()
 	controller = std::make_shared<Controller>();
 	tty = std::make_shared<Tty>();
 	interrupt = std::make_shared<Interrupt>();
+	exeFile = std::make_shared<exefile>();
 
 	//Link Hardware Devices
 	cpu->link(this);
@@ -30,6 +32,14 @@ Psx::Psx()
 	controller->link(this);
 	tty->link(this);
 	interrupt->link(this);
+
+#ifdef DEBUGGER_ENABLED
+    //Init PSX Debugger
+    debugger::instance().link(this);
+#endif
+
+	//Data Bus Status
+	dataBusBusy = false;
 
 	//Reset Internal Parameters
 	exp1BaseAddr = 0x0;
@@ -46,17 +56,6 @@ Psx::Psx()
 	//Load Bios and Game images
 	bios->loadBios(commandline::instance().getBiosFileName());
 	cdrom->loadImage(commandline::instance().getBinFileName());
-
-	//Load Test Exe in Memory if present
-	std::string filename = commandline::instance().getExeFileName();
-	if (filename != "")
-	{
-		exefile		testProgram;
-		if (testProgram.loadExe(filename, mem->ram))
-		{
-			testProgram.setRegisters(&(cpu->pc), cpu->gpr);
-		}
-	}
 }
 
 Psx::~Psx()
@@ -88,6 +87,9 @@ bool Psx::reset()
 	cdrom->reset();
 	tty->reset();
 	interrupt->reset();
+
+	//Data Bus Status
+	dataBusBusy = false;
 
 	return true;
 }

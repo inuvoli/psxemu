@@ -42,8 +42,8 @@ namespace cop0
 		lite::bitfield<8, 2>	imsw;	//Sotfware Interrupt Mask
 		lite::bitfield<10, 6>	imhw;	//Hardware Interrupt Mask
 		lite::bitfield<16, 1>	isc;	//Isolate Cache
-		lite::bitfield<17, 1>	swc;	//Swappe Cache mode
-		lite::bitfield<18, 1>	pz;		//When set parity bit are written az 0's
+		lite::bitfield<17, 1>	swc;	//Swap Cache mode
+		lite::bitfield<18, 1>	pz;		//When set parity bit are written as 0's
 		lite::bitfield<19, 1>	cm;		//Set if last access to D-Cache contained actual data
 		lite::bitfield<20, 1>	pe;		//Cache parity check
 		lite::bitfield<21, 1>	ts;		//TLB Shutdown

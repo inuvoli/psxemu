@@ -260,7 +260,7 @@ Website: www.ilikebigbits.com
 	#define STRDUP(str) strdup(str)
 #endif
 
-#include <stdarg.h>
+#include <cstdarg>
 
 // --------------------------------------------------------------------
 LOGURU_ANONYMOUS_NAMESPACE_BEGIN

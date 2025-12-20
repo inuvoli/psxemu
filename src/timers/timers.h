@@ -15,8 +15,6 @@ constexpr auto PULSE_DURATION = 1500;
 
 enum class ClockSource { System, System8, Dot, hBlank };
 
-
-
 union CounterMode
 {
 	uint32_t		word;
@@ -45,7 +43,7 @@ struct TimerStatus
 	bool		toTarget;		//Timer Counter has reached Target Value
 	bool		toOverflow;		//Timer Counter has overflowed (0xffff)
 
-	TimerStatus& operator=(TimerStatus& x)
+	TimerStatus& operator=(const TimerStatus& x)
 	{
 		this->counterValue = x.counterValue;
 		this->counterTarget = x.counterTarget;
@@ -56,12 +54,6 @@ struct TimerStatus
 
 		return *this;
 	}
-};
-
-//GPU Debug Status
-struct TimerDebugInfo
-{
-	TimerStatus		timerStatus[TIMER_NUMBER];
 };
 
 class Timers
@@ -79,8 +71,11 @@ public:
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
 
-	//Debug Info
-	void getDebugInfo(TimerDebugInfo& info);
+//#ifdef DEBUGGER_ENABLED
+    //Getter & Setters
+    TimerStatus getTimerStatus(int timerID) const { return timerStatus[timerID]; }
+    void        setTimerStatus(int timerID, TimerStatus value) { timerStatus[timerID] = value; }
+//#endif
 	
 private:
 	//Link to Bus Object

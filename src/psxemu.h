@@ -7,8 +7,7 @@
 
 #include "videolib.h"
 #include "psx.h"
-#include "debugger.h"
-#include "commandline.h"
+
 
 class psxemu
 {
@@ -40,8 +39,5 @@ private:
 	//Gamepads
 	SDL_Gamepad* pGamepadA;
 	SDL_Gamepad* pGamepadB;
-		
-	//Debugger
-	std::shared_ptr<debugger>	pDebugger;
 };
 

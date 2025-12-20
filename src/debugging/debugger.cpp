@@ -1,22 +1,14 @@
 #include <loguru.hpp>
 
 #include "debugger.h"
+#include "psx.h"
+#include "functions_name.h"
+#include "registers_name.h"
 
-debugger::debugger(std::shared_ptr<Psx> instance)
+bool debugger::isBreakpoint()
 {
-    //TODO
-    pPsx = instance;
-    breakPoint = 0xffffffff;
-    stepMode = StepMode::Halt;
-
-    //Init OpenGL Variables
-    glGenTextures(1, &vramTexture);
-};
-
-debugger::~debugger()
-{
-    //TODO
-};
+    return ((psx->cpu->pc) == breakPoint);
+}
 
 void debugger::toggleDebugModuleStatus(DebugModule module)
 {
@@ -35,6 +27,12 @@ bool debugger::getDebugModuleStatus(DebugModule module)
 
 bool debugger::update()
 {
+    getInterruptDebugInfo();
+    getTimerDebugInfo();
+    getGpuDebugInfo();
+    getCdromDebugInfo();
+    updateCallStack();
+
     return true;
 };
 
@@ -97,21 +95,18 @@ bool debugger::renderFpsWidget()
 
 bool debugger::renderBiosWidget()
 {
-    dbgRom.DrawWindow("BIOS", pPsx->bios->rom, BIOS_SIZE);
+    dbgRom.DrawWindow("BIOS", psx->bios->rom, BIOS_SIZE);
     return true;
 }
 
 bool debugger::renderRamWidget()
 {
-    dbgRam.DrawWindow("RAM", pPsx->mem->ram, RAM_SIZE);
+    dbgRam.DrawWindow("RAM", psx->mem->ram, RAM_SIZE);
     return true;
 }
 
 bool debugger::renderCpuWidget()
 {
-    InterruptDebugInfo interruptInfo;
-    pPsx->interrupt->getDebugInfo(interruptInfo);
-
     ImGui::Begin("CPU Registers");
         ImGui::BeginTabBar("#tabs");
             if (ImGui::BeginTabItem("Raw"))
@@ -120,43 +115,43 @@ bool debugger::renderCpuWidget()
                 {
                     ImGui::Text("%2d", i);
                     ImGui::SameLine();
-                    ImGui::Text("%s = 0x%08x", cpuRegisterName[i].c_str() , pPsx->cpu->gpr[i]);
+                    ImGui::Text("%s = 0x%08x", cpuRegisterName[i].c_str() , psx->cpu->gpr[i]);
                     
                     ImGui::SameLine();
                     if (cop0RegisterName[i] == "")
-                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
+                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop0RegisterName[i].c_str(), psx->cpu->cop0->reg[i]);
                     else
-                        ImGui::Text("%8s = 0x%08x", cop0RegisterName[i].c_str(), pPsx->cpu->cop0->reg[i]);
+                        ImGui::Text("%8s = 0x%08x", cop0RegisterName[i].c_str(), psx->cpu->cop0->reg[i]);
                     
                     ImGui::SameLine();
                     if (cop2RegisterName[i] == "")
-                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i].c_str(), pPsx->cpu->cop2->reg.data[i]);
+                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i].c_str(), psx->cpu->cop2->reg.data[i]);
                     else
-                        ImGui::Text("%8s = 0x%08x", cop2RegisterName[i].c_str(), pPsx->cpu->cop2->reg.data[i]);
+                        ImGui::Text("%8s = 0x%08x", cop2RegisterName[i].c_str(), psx->cpu->cop2->reg.data[i]);
                     
                     ImGui::SameLine();
                     if (cop2RegisterName[i+32] == "")
-                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i+32].c_str(), pPsx->cpu->cop2->reg.ctrl[i]);
+                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i+32].c_str(), psx->cpu->cop2->reg.ctrl[i]);
                     else
-                        ImGui::Text("%8s = 0x%08x", cop2RegisterName[i+32].c_str(), pPsx->cpu->cop2->reg.ctrl[i]);
+                        ImGui::Text("%8s = 0x%08x", cop2RegisterName[i+32].c_str(), psx->cpu->cop2->reg.ctrl[i]);
                     
                     switch (i)
                     {
                     case 0:
                         ImGui::SameLine();
-                        ImGui::TextColored(green_color, "pc = 0x%08x", pPsx->cpu->pc);
+                        ImGui::TextColored(green_color, "pc = 0x%08x", psx->cpu->pc);
                         break;
                     case 1:
                         ImGui::SameLine();
-                        ImGui::Text("hi = 0x%08x", pPsx->cpu->hi);
+                        ImGui::Text("hi = 0x%08x", psx->cpu->hi);
                         break;
                     case 2:
                         ImGui::SameLine();
-                        ImGui::Text("lo = 0x%08x", pPsx->cpu->lo);
+                        ImGui::Text("lo = 0x%08x", psx->cpu->lo);
                         break;
                     case 4:
                         ImGui::SameLine();
-                        ImGui::Text("Cache Reg   = 0x%08x", pPsx->cpu->cacheReg);
+                        ImGui::Text("Cache Reg   = 0x%08x", psx->cpu->cacheReg);
                         break;
                     case 5:
                         ImGui::SameLine();
@@ -168,7 +163,7 @@ bool debugger::renderCpuWidget()
                         break;
                     case 8:
                         ImGui::SameLine();
-                        ImGui::Text("POST = %d", pPsx->postStatus);
+                        ImGui::Text("POST = %d", psx->postStatus);
                         break;
                     }
                 }
@@ -188,24 +183,24 @@ bool debugger::renderCpuWidget()
                     ImGui::TableHeadersRow();
                     ImGui::PopStyleColor();       
                     
-                    for (int i = 0; i < pPsx->cpu->callStack.lenght() - 1; i++)
+                    for (int i = 0; i < callStack.lenght() - 1; i++)
                     {   
                         ImGui::TableNextRow();
                         ImGui::TableNextColumn();
-                        callstackinfo tmp = pPsx->cpu->callStack.inspect(i);
-                        ImGui::Text("0x%08x", tmp.jumpaddr); ImGui::TableNextColumn();
-                        ImGui::Text("0x%08x", tmp.pc); ImGui::TableNextColumn();
-                        ImGui::Text("0x%08x", tmp.sp); ImGui::TableNextColumn();
-                        if (tmp.ra == 0x0)
+                        CallStackInfo calledFunc = callStack.inspect(i);
+                        ImGui::Text("0x%08x", calledFunc.jumpaddr); ImGui::TableNextColumn();
+                        ImGui::Text("0x%08x", calledFunc.pc); ImGui::TableNextColumn();
+                        ImGui::Text("0x%08x", calledFunc.sp); ImGui::TableNextColumn();
+                        if (calledFunc.ra == 0x0)
                         {
-                            ImGui::TextColored(darkgrey_color, "0x%08x", tmp.ra);
+                            ImGui::TextColored(darkgrey_color, "0x%08x", calledFunc.ra);
                             ImGui::TableNextColumn();
                         }
                         else
                         {
-                            ImGui::Text("0x%08x", tmp.ra); ImGui::TableNextColumn();
+                            ImGui::Text("0x%08x", calledFunc.ra); ImGui::TableNextColumn();
                         }
-                        ImGui::TextColored(grey_color, "%s", tmp.func.c_str());
+                        ImGui::TextColored(grey_color, "%s", calledFunc.func.c_str());
                     }
                 }
                 ImGui::EndTable();
@@ -230,13 +225,13 @@ bool debugger::renderCpuWidget()
 bool debugger::renderCodeWidget()
 {
     ImGui::Begin("Assembler");
-    uint32_t addr = pPsx->cpu->pc;
+    uint32_t addr = psx->cpu->pc;
 
     //Debug on the fly software in RAM
     //Check if code is already disassembled, if not disassemble starting from current Program Counter.
     if (asmCode.find(addr) == asmCode.end() || std::get<2>(asmCode[addr]) == "")
     {
-        AsmCode newDisassembledCode = mipsDisassembler.disassemble(pPsx->bios->rom, pPsx->mem->ram, addr);
+        AsmCode newDisassembledCode = mipsDisassembler.disassemble(psx->bios->rom, psx->mem->ram, addr);
         for (auto& e : newDisassembledCode)
             asmCode.insert_or_assign(e.first, e.second);
     }
@@ -244,7 +239,7 @@ bool debugger::renderCodeWidget()
     addr -= (15 * 4);
     for (int line = 0; line < 32; line++)
     {
-        if (addr == pPsx->cpu->pc)
+        if (addr == psx->cpu->pc)
         {
             ImGui::TextColored(red_color, "0x%08x", addr);
             ImGui::SameLine();
@@ -278,15 +273,15 @@ bool debugger::renderDmaWidget()
             
     for (int i = 0; i < DMA_CHANNEL_NUMBER; i++)
     {
-        ImGui::Text("DMA%d:MADR 0x%08x  ", i, pPsx->dma->dmaChannel[i].chanMadr);
+        ImGui::Text("DMA%d:MADR 0x%08x  ", i, psx->dma->dmaChannel[i].chanMadr);
         ImGui::SameLine();
-        ImGui::Text("DMA%d:BCR  0x%08x  ", i, pPsx->dma->dmaChannel[i].chanBcr.word);
+        ImGui::Text("DMA%d:BCR  0x%08x  ", i, psx->dma->dmaChannel[i].chanBcr.word);
         ImGui::SameLine();
-        ImGui::Text("DMA%d:CHCR 0x%08x  ", i, pPsx->dma->dmaChannel[i].chanChcr.word);
+        ImGui::Text("DMA%d:CHCR 0x%08x  ", i, psx->dma->dmaChannel[i].chanChcr.word);
     }
-    ImGui::TextColored(green_color, "DPCR 0x%08x       ", pPsx->dma->dmaDpcr);
+    ImGui::TextColored(green_color, "DPCR 0x%08x       ", psx->dma->dmaDpcr);
     ImGui::SameLine();
-    ImGui::TextColored(green_color, "DICR 0x%08x  ", pPsx->dma->dmaDicr.word);
+    ImGui::TextColored(green_color, "DICR 0x%08x  ", psx->dma->dmaDicr.word);
 
     ImGui::End();
 
@@ -295,17 +290,14 @@ bool debugger::renderDmaWidget()
 
 bool debugger::renderTimersWidget()
 {
-    TimerDebugInfo timerinfo;
-    pPsx->timers->getDebugInfo(timerinfo);
-
     ImGui::Begin("TIMERS");
     for (int i = 0; i < TIMER_NUMBER; i++)
     {
-        ImGui::Text("Timer %d: Value  0x%08x  ", i, timerinfo.timerStatus[i].counterValue);
+        ImGui::Text("Timer %d: Value  0x%08x  ", i, timerInfo.timerStatus[i].counterValue);
         ImGui::SameLine();
-        ImGui::Text("Timer %d: Mode   0x%08x  ", i, timerinfo.timerStatus[i].counterMode.word);
+        ImGui::Text("Timer %d: Mode   0x%08x  ", i, timerInfo.timerStatus[i].counterMode.word);
         ImGui::SameLine();
-        ImGui::Text("Timer %d: Target 0x%08x  ", i, timerinfo.timerStatus[i].counterTarget);
+        ImGui::Text("Timer %d: Target 0x%08x  ", i, timerInfo.timerStatus[i].counterTarget);
     }
     ImGui::End();
 
@@ -314,34 +306,31 @@ bool debugger::renderTimersWidget()
 
 bool debugger::renderGpuWidget()
 {
-    GpuDebugInfo gpuinfo;
-    pPsx->gpu->getDebugInfo(gpuinfo);
-
     ImGui::Begin("GPU");
-    ImGui::Text("GPUSTAT: Value  0x%08x  ", gpuinfo.gpuStat);
-    ImGui::Text("VideoMode     : %dx%d   (%s)", gpuinfo.videoResolution.x, gpuinfo.videoResolution.y, gpuinfo.videoStandard.c_str());
-    
-    ImGui::Text("Display Start : (%4d, %4d)\t\t\t\t\t\t", gpuinfo.displayStart.x, gpuinfo.displayStart.y);
-    ImGui::SameLine();
-    ImGui::Text("Texture Page           : (%4d, %4d)", gpuinfo.texturePage.x, gpuinfo.texturePage.y);
+    ImGui::Text("GPUSTAT: Value  0x%08x  ", gpuInfo.gpuStat);
+    ImGui::Text("VideoMode     : %dx%d   (%s)", gpuInfo.videoResolution.x, gpuInfo.videoResolution.y, gpuInfo.videoStandard.c_str());
 
-    ImGui::Text("Display Range : (%4d, %4d) to (%4d, %4d)\t\t", gpuinfo.displayRange.x1, gpuinfo.displayRange.y1, gpuinfo.displayRange.x2, gpuinfo.displayRange.y2);
+    ImGui::Text("Display Start : (%4d, %4d)\t\t\t\t\t\t", gpuInfo.displayStart.x, gpuInfo.displayStart.y);
     ImGui::SameLine();
-    ImGui::Text("Texture Page Color Mode: %s", gpuinfo.textureColorDepth.c_str());
+    ImGui::Text("Texture Page           : (%4d, %4d)", gpuInfo.texturePage.x, gpuInfo.texturePage.y);
 
-    ImGui::Text("Drawing Offset: (%4d, %4d)\t\t\t\t\t\t", (int16_t)gpuinfo.drawingOffset.x, (int16_t)gpuinfo.drawingOffset.y);
+    ImGui::Text("Display Range : (%4d, %4d) to (%4d, %4d)\t\t", gpuInfo.displayRange.x1, gpuInfo.displayRange.y1, gpuInfo.displayRange.x2, gpuInfo.displayRange.y2);
     ImGui::SameLine();
-    ImGui::Text("Texture Windows Mask   : (%4d, %4d)", gpuinfo.textureMask.x, gpuinfo.textureMask.y);
+    ImGui::Text("Texture Page Color Mode: %s", gpuInfo.textureColorDepth.c_str());
 
-    ImGui::Text("Drawing Area  : (%4d, %4d) to (%4d, %4d)\t\t", gpuinfo.drawingArea.x1, gpuinfo.drawingArea.y1, gpuinfo.drawingArea.x2, gpuinfo.drawingArea.y2);
+    ImGui::Text("Drawing Offset: (%4d, %4d)\t\t\t\t\t\t", (int16_t)gpuInfo.drawingOffset.x, (int16_t)gpuInfo.drawingOffset.y);
     ImGui::SameLine();
-    ImGui::Text("Texture Windows Offset : (%4d, %4d)", gpuinfo.textureOffset.x, gpuinfo.textureOffset.y); 
+    ImGui::Text("Texture Windows Mask   : (%4d, %4d)", gpuInfo.textureMask.x, gpuInfo.textureMask.y);
+
+    ImGui::Text("Drawing Area  : (%4d, %4d) to (%4d, %4d)\t\t", gpuInfo.drawingArea.x1, gpuInfo.drawingArea.y1, gpuInfo.drawingArea.x2, gpuInfo.drawingArea.y2);
+    ImGui::SameLine();
+    ImGui::Text("Texture Windows Offset : (%4d, %4d)", gpuInfo.textureOffset.x, gpuInfo.textureOffset.y); 
     
     glBindTexture(GL_TEXTURE_2D, vramTexture);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, (const void*)gpuinfo.vRam);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, (const void*)gpuInfo.vRam);
             
     ImGui::Image((void*)(intptr_t)vramTexture, ImVec2(1024, 512));
     ImGui::End();
@@ -356,14 +345,11 @@ bool debugger::renderSpuWidget()
 
 bool debugger::renderCdromWidget()
 {
-    CdromDebugInfo info;
-    pPsx->cdrom->getDebugInfo(info);
-
     ImGui::Begin("CDROM");
-    ImGui::Text("Status Register:           Value  0x%02x  ", info.statusRegister);
-    ImGui::Text("Request Register:          Value  0x%02x  ", info.requestRegister);
-    ImGui::Text("Interrupt Enable Register: Value  0x%02x  ", info.interruptEnableRegister);
-    ImGui::Text("Interrupt Flag Register:   Value  0x%02x  ", info.interruptFlagRegister);
+    ImGui::Text("Status Register:           Value  0x%02x  ", cdromInfo.statusRegister);
+    ImGui::Text("Request Register:          Value  0x%02x  ", cdromInfo.requestRegister);
+    ImGui::Text("Interrupt Enable Register: Value  0x%02x  ", cdromInfo.interruptEnableRegister);
+    ImGui::Text("Interrupt Flag Register:   Value  0x%02x  ", cdromInfo.interruptFlagRegister);
     ImGui::End();
     return false;
 }
@@ -371,7 +357,7 @@ bool debugger::renderCdromWidget()
 bool debugger::renderTtyWidget()
 {
     ImGui::Begin("TTY");
-    for (std::string s : pPsx->tty->bufferA)
+    for (std::string s : psx->tty->bufferA)
         ImGui::Text("%s", s.c_str());
     ImGui::SetScrollHereY(1.0f);
     ImGui::End();
@@ -466,6 +452,88 @@ bool debugger::renderMenuBar()
 void debugger::dumpRam()
 {
     std::ofstream fs("ramdump.bin", std::ios::out | std::ios::binary);
-    fs.write(reinterpret_cast<const char*>(pPsx->mem->ram), 0x200000);
+    fs.write(reinterpret_cast<const char*>(psx->mem->ram), 0x200000);
     fs.close();
+}
+
+//------------------------------------------------------------------------------------------
+// Debug Info Update Functions
+//------------------------------------------------------------------------------------------
+void debugger::getInterruptDebugInfo()
+{
+    interruptInfo.i_mask = psx->interrupt->getMaskRegister();
+    interruptInfo.i_stat = psx->interrupt->getStatusRegister();
+}
+
+void debugger::getTimerDebugInfo()
+{
+    timerInfo.timerStatus[0] = psx->timers->getTimerStatus(0);
+    timerInfo.timerStatus[1] = psx->timers->getTimerStatus(1);
+    timerInfo.timerStatus[2] = psx->timers->getTimerStatus(2);
+}
+
+void debugger::getGpuDebugInfo()
+{
+    gpuInfo.gpuStat =  psx->gpu->getGPUStat();
+    gpuInfo.videoResolution = psx->gpu->getVideoResolution();
+    gpuInfo.displayRange = psx->gpu->getDisplayRange();
+    gpuInfo.displayStart = psx->gpu->getDisplayStart();
+    gpuInfo.drawingArea = psx->gpu->getDrawingArea();
+    gpuInfo.drawingOffset = psx->gpu->getDrawingOffset();
+    gpuInfo.textureDisabled = psx->gpu->getTextureDisabled();
+    gpuInfo.texturePage = psx->gpu->getTexturePage();
+    gpuInfo.textureMask = psx->gpu->getTextureMask();
+    gpuInfo.textureOffset = psx->gpu->getTextureOffset();
+    gpuInfo.vRam = psx->gpu->getVRAM();
+    gpuInfo.textureColorDepth = psx->gpu->getTextureColorDepth();
+    gpuInfo.videoStandard = psx->gpu->getVideoStandard();
+}
+
+void debugger::getCdromDebugInfo()
+{
+    cdromInfo.statusRegister = psx->cdrom->getStatusRegister();
+    cdromInfo.requestRegister = psx->cdrom->getRequestRegister();
+    cdromInfo.interruptEnableRegister = psx->cdrom->getInterruptEnableRegister();
+    cdromInfo.interruptFlagRegister = psx->cdrom->getInterruptFlagRegister();   
+}
+
+void debugger::updateCallStack()
+{
+    //Check if the current instruction is a jump instruction
+    if (mipsDisassembler.isJumpInstruction(psx->bios->rom, psx->mem->ram, psx->cpu->pc))
+    {
+        CallStackInfo callInfo;
+        //callInfo.jumpaddr = psx->cpu->branchAddress;
+        callInfo.pc = psx->cpu->pc;
+        callInfo.sp = psx->cpu->gpr[29]; //Stack Pointer
+        callInfo.ra = psx->cpu->gpr[31]; //Return Address TODO: should be 0x0 for J and JR instructions
+        
+        //callInfo.func = mipsDisassembler.getFunctionName(callInfo.jumpaddr);
+
+        //std::stringstream ss;
+	    //ss << "function_" << std::hex << callInfo.jumpaddr;
+	    //callInfo.func = ss.str();
+
+        //DEBUG - stdlib calls
+        //A Functions
+        if ((psx->cpu->pc & 0x1fffffff) == 0xac)
+        {
+            //LOG_F(1, "CPU - %s (r4: 0x%08x, r5: 0x%08x, r6: 0x%08x, r7: 0x%08x) [A(%02xh)]", function_A[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
+            //tmp.func = function_A[gpr[9]];
+        }
+        //B Functions
+        if ((psx->cpu->pc & 0x1fffffff) == 0xbc)
+        {
+            //LOG_F(1, "CPU - %s (r4: 0x%08x, r5: 0x%08x, r6: 0x%08x, r7: 0x%08x) [B(%02xh)]", function_B[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
+            //tmp.func = function_B[gpr[9]];
+        }
+        //C Functions
+        if ((psx->cpu->pc & 0x1fffffff) == 0xcc)
+        {
+            //LOG_F(1, "CPU - %s (r4: 0x%08x, r5: 0x%08x, r6: 0x%08x, r7: 0x%08x) [C(%02xh)]", function_C[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
+            //tmp.func = function_C[gpr[9]];
+        }
+
+        callStack.write(callInfo);
+    }
 }

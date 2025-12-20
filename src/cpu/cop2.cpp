@@ -1,6 +1,6 @@
 #include <loguru.hpp>
 #include "cop2.h"
-#include "cpu_short_pipe.h"
+#include "cpu.h"
 
 Cop2::Cop2(CPU* instance)
 {

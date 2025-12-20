@@ -1,5 +1,10 @@
 #pragma once
 
+#include <cstdint>
+#include <cstdio>
+#include <glm/glm.hpp>
+#include "litelib.h"
+
 //-------------------------------------------------------------
 //
 //GPU Parameters Decode Helper Functions

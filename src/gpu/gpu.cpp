@@ -940,7 +940,7 @@ bool GPU::gp0_Rectangles()
 	_vInfoTemp.transparent = _transparent;
 	_vInfoTemp.texBlending = 0.0f;
 	_vInfoTemp.texColorDepth = (float)textureColorDepth;
-	_vInfoTemp.texPageCoords = texturePage;
+	//_vInfoTemp.texPageCoords = texturePage;
 
 	//Set Rectangle size
 	switch (_rectangleSize)
@@ -1033,7 +1033,7 @@ bool GPU::gp0_Points()
 	_vInfo.transparent = _transparent;
 	_vInfo.texBlending = 0.0f;
 	_vInfo.texColorDepth = (float)textureColorDepth;
-	_vInfo.texPageCoords = texturePage;
+	//_vInfo.texPageCoords = texturePage;
 
 	//Add Current Vertex Info GPU Vertex Buffer
 	vertexPolyInfo.push_back(_vInfo);		//First Vertex
@@ -1280,12 +1280,12 @@ bool GPU::gp0_DrawMode()
 	//GPUSTAT.0-3 << GP0DATA.0-3								Texture page X Base (N x 64) in halfwords
 	data = gp0DataLatch & 0x0000000f;							//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x0000000f)) | (data);				//Set GPUSTAT.0-3 to data value
-	texturePage.x = static_cast<float>(data * 64);
+	texturePage.x = (data * 64);
 
 	//GPUSTAT.4 << GP0DATA.4									Texture page Y Base (N x 256) in halfwords
 	data = (gp0DataLatch & 0x00000010) >> 4;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 4)) | (data << 4);		//Set GPUSTAT.4 to data value
-	texturePage.y = static_cast<float>(data * 256);
+	texturePage.y = (data * 256);
 
 	//GPUSTAT.5-6 << GP0DATA.5-6								Semi Transparency (0 = B/2+F/2, 1 = B+F, 2 = B-F, 3 = B+F/4)
 	data = (gp0DataLatch & 0x000000060) >> 5;					//Extract bit value from GP0 Command
@@ -1706,51 +1706,4 @@ void GPU::gp1_ResetStatus()
 	recvCommand = false;
 	recvParameters = false;
 	gp1CommandAvailable = false;
-}
-
-//-----------------------------------------------------------------------------------------------------
-// 
-//                               DEBUG Status
-// 
-//-----------------------------------------------------------------------------------------------------
-void GPU::getDebugInfo(GpuDebugInfo& info)
-{
-	info.gpuStat = gpuStat;
-	info.vRam = static_cast<void*>(vRam);
-	info.videoResolution = videoResolution;
-	info.displayRange = displayRange;
-	info.displayStart = displayStart;
-	info.drawingArea = drawingArea;
-	info.drawingOffset = drawingOffset;
-	info.textureDisabled = (textureDisabled) ? "true" : "false";
-	info.texturePage.x = (uint16_t)texturePage.x;
-	info.texturePage.y = (uint16_t)texturePage.y;
-	info.textureMask = textureMask;
-	info.textureOffset = textureOffset;
-
-	switch (textureColorDepth)
-	{
-	case 0:
-		info.textureColorDepth = "4 bit CLUT";
-		break;
-	case 1:
-		info.textureColorDepth = "8 bit CLUT";
-		break;
-	case 2:
-		info.textureColorDepth = "15 Bit ABGR (1555)";
-		break;
-	case 3:
-		info.textureColorDepth = "Reserved";
-		break;
-	}
-	
-	switch (videoMode)
-	{
-	case VideoMode::NTSC:
-		info.videoStandard = "NTSC";
-		break;
-	case VideoMode::PAL:
-		info.videoStandard = "PAL";
-		break;
-	}
 }

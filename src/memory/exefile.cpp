@@ -4,6 +4,14 @@
 
 exefile::exefile()
 {
+    //Reset Executable Informations
+	exeInfo.isPresent = false;
+    exeInfo.fileSize = 0x0;
+    exeInfo.destinationAddress = 0x0;
+    exeInfo.startProgramCounter = 0x0;
+    exeInfo.startGlobalPointer = 0x0;
+    exeInfo.startStackPointerBase = 0x0;
+    exeInfo.startStackPointerOffset = 0x0; 
 }
 
 exefile::~exefile()
@@ -13,7 +21,7 @@ exefile::~exefile()
 bool exefile::loadExe(const std::string& fileName, const uint8_t * memory)
 {
     //Load EXE Header
-	LOG_F(INFO, "EXE File (%s) Loading...", fileName.c_str());
+	LOG_F(INFO, "EXE - File (%s) Loading...", fileName.c_str());
 
 	std::ifstream ifs;
 	ifs.open(fileName, std::ifstream::binary);
@@ -26,52 +34,59 @@ bool exefile::loadExe(const std::string& fileName, const uint8_t * memory)
         std::string id = std::string(reinterpret_cast<char*>(header), 8);
         if (id.compare("PS-X EXE") != 0)
         {
-            LOG_F(ERROR, "Invalid file identifier found!");
+            LOG_F(ERROR, "EXE - Invalid file identifier found!");
             return false;
         }
 
-        //Load Header Parameters
-        fileSize = loadFromHeader(0x1c);
-        dstAddress = loadFromHeader(0x18);
-        startProgramCounter = loadFromHeader(0x10);
-        startGlobalPointer = loadFromHeader(0x14);
-        startStackPointerBase = loadFromHeader(0x30);
-        startStackPointerOffset = loadFromHeader(0x34);
-
-        if (fileSize % 0x800 != 0)
+        exeInfo.fileSize = loadFromHeader(0x1c);
+        if (exeInfo.fileSize % 0x800 != 0)
         {
-            LOG_F(ERROR, "Invalid file size!");
+            LOG_F(ERROR, "EXE - Invalid file size!");
             return false;
         }
 
-        // LOG_F(INFO, "EXE File Filesize 0x%08x", fileSize);
-        // LOG_F(INFO, "EXE File Destination Address 0x%08x", dstAddress);
-        // LOG_F(INFO, "EXE File Program Counter 0x%08x", startProgramCounter);
-        // LOG_F(INFO, "EXE File Global Pointer 0x%08x", startGlobalPointer);
-        // LOG_F(INFO, "EXE File Stack Pointer Base 0x%08x", startStackPointerBase);
-        // LOG_F(INFO, "EXE File Stack Pointer Offset 0x%08x", startStackPointerOffset);
+        //Load Exe Header Infos
+        exeInfo.isPresent = true;
+        exeInfo.destinationAddress = loadFromHeader(0x18);
+        exeInfo.startProgramCounter = loadFromHeader(0x10);
+        exeInfo.startGlobalPointer = loadFromHeader(0x14);
+        exeInfo.startStackPointerBase = loadFromHeader(0x30);
+        exeInfo.startStackPointerOffset = loadFromHeader(0x34);     
+           
+        LOG_F(INFO, "EXE - File Filesize 0x%08x", exeInfo.fileSize);
+        LOG_F(INFO, "EXE - File Destination Address 0x%08x", exeInfo.destinationAddress);
+        LOG_F(INFO, "EXE - File Program Counter 0x%08x", exeInfo.startProgramCounter);
+        LOG_F(INFO, "EXE - File Global Pointer 0x%08x", exeInfo.startGlobalPointer);
+        LOG_F(INFO, "EXE - File Stack Pointer Base 0x%08x", exeInfo.startStackPointerBase);
+        LOG_F(INFO, "EXE - File Stack Pointer Offset 0x%08x", exeInfo.startStackPointerOffset);
 
         //Load File to Memory    
-        ifs.read((char*)(memory + (dstAddress & 0x1fffffff)), fileSize);
+        ifs.read((char*)(memory + (exeInfo.destinationAddress & 0x1fffffff)), exeInfo.fileSize);
         ifs.close();
 
-        LOG_F(INFO, "EXE File Loaded");
+        LOG_F(INFO, "EXE - File Loaded");
 		return true;
 	}
-	LOG_F(ERROR, "PSP Bios Not Found");
+	LOG_F(ERROR, "EXE - File Not Found");
 
     return false;
 }
 
 bool exefile::setRegisters(uint32_t * pc, uint32_t * gpr)
 {
-    *pc = startProgramCounter;
-    gpr[28] = startGlobalPointer;
-
-    if (startStackPointerBase != 0)
+    if (!exeInfo.isPresent)
     {
-        gpr[29] = startStackPointerBase + startStackPointerOffset;
-        gpr[30] = startStackPointerBase + startStackPointerOffset;
+        LOG_F(ERROR, "EXE - No EXE Loaded, cannot set registers!");
+        return false;
+    }
+
+    *pc = exeInfo.startProgramCounter;
+    gpr[28] = exeInfo.startGlobalPointer;
+
+    if (exeInfo.startStackPointerBase != 0)
+    {
+        gpr[29] = exeInfo.startStackPointerBase + exeInfo.startStackPointerOffset;
+        gpr[30] = exeInfo.startStackPointerBase + exeInfo.startStackPointerOffset;
     }
     
     return true;
