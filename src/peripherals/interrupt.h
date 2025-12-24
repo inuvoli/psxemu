@@ -37,13 +37,11 @@ public:
     //Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
 
-#ifdef DEBUGGER_ENABLED
     //Getter & Setters
     uint32_t getStatusRegister() const { return i_stat; }
     void     setStatusRegister(uint32_t value) { i_stat = value; }
     uint32_t getMaskRegister() const { return i_mask; }
     void     setMaskRegister(uint32_t value) { i_mask = value; }   
-#endif
 
 private:
     //Link to PSP Object

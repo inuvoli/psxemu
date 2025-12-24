@@ -1,5 +1,7 @@
 #include <loguru.hpp>
 
+#include <cstdlib>
+
 #include "debugger.h"
 #include "psx.h"
 #include "functions_name.h"
@@ -27,12 +29,12 @@ bool debugger::getDebugModuleStatus(DebugModule module)
 
 bool debugger::update()
 {
-    getInterruptDebugInfo();
-    getTimerDebugInfo();
-    getGpuDebugInfo();
-    getCdromDebugInfo();
+    //getInterruptDebugInfo();
+    //getTimerDebugInfo();
+    //getGpuDebugInfo();
+    //getCdromDebugInfo();
     updateCallStack();
-
+ 
     return true;
 };
 
@@ -86,10 +88,19 @@ bool debugger::renderFpsWidget()
     widgetPosition.y += ImGui::GetMainViewport()->WorkSize.y;
     ImGui::SetNextWindowPos(widgetPosition, 0, ImVec2(1.0f, 1.0f));
     
-    ImGui::Begin("FPS", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground);
-    ImGui::Text("FPS: %.4d\t", framePerSecond);
-    ImGui::End();
-
+    if (stepMode == StepMode::Frame)
+    {
+        ImGui::Begin("FPS", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground);
+        ImGui::Text("FPS: %.4d\t", framePerSecond);
+        ImGui::End();
+    }
+    else
+    {
+        ImGui::Begin("FPS", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground);
+        ImGui::Text("FPS: Stop\t");
+        ImGui::End();
+    }
+    
     return true;
 }
 
@@ -174,7 +185,6 @@ bool debugger::renderCpuWidget()
                 if (ImGui::BeginTable("Call Stack", 5, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
                 {
                     ImGui::TableSetupColumn("Jump Address", ImGuiTableColumnFlags_WidthFixed, 110.0f);
-                    ImGui::TableSetupColumn("Program Counter", ImGuiTableColumnFlags_WidthFixed, 110.0f);
                     ImGui::TableSetupColumn("Stack Pointer", ImGuiTableColumnFlags_WidthFixed, 110.0f);
                     ImGui::TableSetupColumn("Return Address", ImGuiTableColumnFlags_WidthFixed, 110.0f);
                     ImGui::TableSetupColumn("Function Name");
@@ -188,7 +198,6 @@ bool debugger::renderCpuWidget()
                         ImGui::TableNextRow();
                         ImGui::TableNextColumn();
                         CallStackInfo calledFunc = callStack.inspect(i);
-                        ImGui::Text("0x%08x", calledFunc.jumpaddr); ImGui::TableNextColumn();
                         ImGui::Text("0x%08x", calledFunc.pc); ImGui::TableNextColumn();
                         ImGui::Text("0x%08x", calledFunc.sp); ImGui::TableNextColumn();
                         if (calledFunc.ra == 0x0)
@@ -439,11 +448,55 @@ bool debugger::renderMenuBar()
             }
             if (ImGui::MenuItem("Set Breakpoint"))
             {
-
+                openSetBreakpointPopup = true;
             }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
+
+        // Open popup after menu closed (works around menu focus)
+        if (openSetBreakpointPopup)
+        {
+            ImGui::OpenPopup("Set Breakpoint");
+            openSetBreakpointPopup = false;
+        }
+
+        // Set Breakpoint popup
+        if (ImGui::BeginPopupModal("Set Breakpoint", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            static char breakpointInput[64];
+            static bool bp_init = false;
+            if (!bp_init)
+            {
+                sprintf(breakpointInput, "0x%08x", breakPoint);
+                bp_init = true;
+            }
+
+            ImGui::Text("Enter breakpoint address (hex):");
+            ImGui::InputText("##breakpoint", breakpointInput, IM_ARRAYSIZE(breakpointInput));
+
+            if (ImGui::Button("OK"))
+            {
+                // Parse hex (allow 0x prefix or plain hex)
+                char* endptr = nullptr;
+                unsigned long val = strtoul(breakpointInput, &endptr, 0);
+                if (endptr != breakpointInput)
+                {
+                    setBreakpoint(static_cast<uint32_t>(val));
+                }
+                bp_init = false;
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel"))
+            {
+                bp_init = false;
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
     }
 
     return true;
@@ -499,41 +552,55 @@ void debugger::getCdromDebugInfo()
 
 void debugger::updateCallStack()
 {
-    //Check if the current instruction is a jump instruction
-    if (mipsDisassembler.isJumpInstruction(psx->bios->rom, psx->mem->ram, psx->cpu->pc))
+    if (!psx->cpu->isBranchCompleted)
+        return; 
+
+    CallStackInfo callInfo;
+    callInfo.pc = (psx->cpu->pc);
+    callInfo.sp = psx->cpu->gpr[29];    //Stack Pointer
+    if (psx->cpu->branchHasReturnAddress)
+        callInfo.ra = psx->cpu->gpr[31];
+    else
+        callInfo.ra = 0x0;
+    
+    //Generate Generic Function Name    
+    std::stringstream functionName;
+    functionName << "function_" << std::hex << callInfo.pc;
+    callInfo.func = functionName.str();
+
+    uint8_t funcIndex = psx->cpu->gpr[9] & 0xff;
+    //A Functions Name Resolution
+    if (callInfo.pc == 0x000000a0)
     {
-        CallStackInfo callInfo;
-        //callInfo.jumpaddr = psx->cpu->branchAddress;
-        callInfo.pc = psx->cpu->pc;
-        callInfo.sp = psx->cpu->gpr[29]; //Stack Pointer
-        callInfo.ra = psx->cpu->gpr[31]; //Return Address TODO: should be 0x0 for J and JR instructions
-        
-        //callInfo.func = mipsDisassembler.getFunctionName(callInfo.jumpaddr);
-
-        //std::stringstream ss;
-	    //ss << "function_" << std::hex << callInfo.jumpaddr;
-	    //callInfo.func = ss.str();
-
-        //DEBUG - stdlib calls
-        //A Functions
-        if ((psx->cpu->pc & 0x1fffffff) == 0xac)
-        {
-            //LOG_F(1, "CPU - %s (r4: 0x%08x, r5: 0x%08x, r6: 0x%08x, r7: 0x%08x) [A(%02xh)]", function_A[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
-            //tmp.func = function_A[gpr[9]];
-        }
-        //B Functions
-        if ((psx->cpu->pc & 0x1fffffff) == 0xbc)
-        {
-            //LOG_F(1, "CPU - %s (r4: 0x%08x, r5: 0x%08x, r6: 0x%08x, r7: 0x%08x) [B(%02xh)]", function_B[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
-            //tmp.func = function_B[gpr[9]];
-        }
-        //C Functions
-        if ((psx->cpu->pc & 0x1fffffff) == 0xcc)
-        {
-            //LOG_F(1, "CPU - %s (r4: 0x%08x, r5: 0x%08x, r6: 0x%08x, r7: 0x%08x) [C(%02xh)]", function_C[gpr[9]].c_str(), gpr[4], gpr[5], gpr[6],gpr[7], gpr[9]);
-            //tmp.func = function_C[gpr[9]];
-        }
-
-        callStack.write(callInfo);
+        functionName.str("");
+        functionName << function_A[funcIndex];
+        LOG_F(2, "Kernel - Calling %s", functionName.str().c_str());
+        callInfo.func = functionName.str();
     }
+
+    //B Functions Name Resolution
+    if (callInfo.pc == 0x000000b0)
+    {
+        functionName.str("");
+        functionName << function_B[funcIndex];
+        LOG_F(2, "Kernel - Calling: %s", functionName.str().c_str());
+        callInfo.func = functionName.str();
+    }
+
+    //C Functions Name Resolution
+    if (callInfo.pc == 0x000000c0)
+    {
+        functionName.str("");
+        functionName << function_C[funcIndex];
+        LOG_F(2, "Kernel - Calling: %s", functionName.str().c_str());
+        callInfo.func = functionName.str();
+    }
+
+    callStack.write(callInfo);
+
+    //Reset Branch Completed Flag
+    psx->cpu->isBranchCompleted = false;
+    psx->cpu->branchHasReturnAddress = false;
+
+    return;
 }

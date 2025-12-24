@@ -56,11 +56,10 @@ struct CdromDebugInfo
 
 struct CallStackInfo
 {
-	uint32_t		jumpaddr;
-	uint32_t		pc;
-	uint32_t		sp;
-	uint32_t		ra;
-	std::string		func;
+	uint32_t		pc;		//Program Counter value at the target address
+	uint32_t		sp;		//Stack Pointer value at target address
+	uint32_t		ra;		//Return Address value at target address
+	std::string		func;	//Function Name
 };
 
 //Class Psx forward declaration
@@ -155,4 +154,7 @@ private:
 
 	//Debug State names
 	std::string debugStates[4] = { "Halt", "Manual", "Instruction", "Frame"};
+	
+	// UI flags
+	bool openSetBreakpointPopup = false;
 };

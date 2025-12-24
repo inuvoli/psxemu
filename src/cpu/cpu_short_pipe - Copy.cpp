@@ -24,10 +24,7 @@ CpuShort::CpuShort()
 	isBranchCompleted = false;
 
 	//Init Memory Delay Load Status
-	currentDelayedRegisterLoad.id = 0;
-	currentDelayedRegisterLoad.value = 0;
-	nextDelayedRegisterLoad.id = 0;
-	nextDelayedRegisterLoad.value = 0;
+	memoryLoadDelay.pending = false;
 
 	//Init Instruction & Function Dictionaries
 	instrSet =
@@ -198,11 +195,7 @@ bool CpuShort::reset()
 	isBranchCompleted = false;
 
 	//Init Memory Delay Load Status
-	currentDelayedRegisterLoad.id = 0;
-	currentDelayedRegisterLoad.value = 0;
-	nextDelayedRegisterLoad.id = 0;
-	nextDelayedRegisterLoad.value = 0;
-
+	memoryLoadDelay.pending = false;
 
 	
 	return true;
@@ -348,6 +341,49 @@ bool CpuShort::execute()
 		currentOpcode.shamt = (uint8_t)opcode.shamt;
 		currentOpcode.cofun = (uint32_t)opcode.cofun;
 		currentOpcode.imm = (uint32_t)(int16_t)opcode.imm; //Sign Extended
+
+		//Commit Memory Load Delay after Current Instruction Decode
+		//Updated Register value will be available only on the next instruction
+		//Special Case 1: In case of two consecutive Load Instruction that write the same register
+		//the first Load is dropped.
+		//Special Case 2: LWL and LWR can read the value of rt in flight if its update is in pending
+		if (memoryLoadDelay.pending)
+		{
+			memoryLoadDelay.pending = false;
+
+			//Check if the currentOperation is changing the same register in the Memory Load Delay
+			bool isSameRegister = currentOpcode.rt == memoryLoadDelay.regIdentifier;
+			if (isSameRegister)
+			{
+				switch (currentOpcode.op)
+				{
+					case 0x20: 	//lb
+						memoryLoadDelay.regIdentifier = 0; //Discard Memory Load if current operation is another lb
+						break;
+					case 0x21:	//lh
+						memoryLoadDelay.regIdentifier = 0; //Discard Memory Load if current operation is another lh
+						break;
+					case 0x22:	//lwl
+						currentOpcode.regB = memoryLoadDelay.regValue; //Read rt in-flight value
+						break;
+					case 0x23:	//lw
+						memoryLoadDelay.regIdentifier = 0; //Discard Memory Load if current operation is another lw
+						break;
+					case 0x24:	//lbu
+						memoryLoadDelay.regIdentifier = 0; //Discard Memory Load if current operation is another lbu
+						break;
+					case 0x25:	//lhu
+						memoryLoadDelay.regIdentifier = 0; //Discard Memory Load if current operation is another lhu
+						break;
+					case 0x26:	//lwr
+						currentOpcode.regB = memoryLoadDelay.regValue; //Read rt in-flight value
+						break;
+				}
+			}
+				
+			if (memoryLoadDelay.regIdentifier != 0)
+				gpr[memoryLoadDelay.regIdentifier] = memoryLoadDelay.regValue;
+		} 
 	
 		//Execute Current Instruction
 		if (currentOpcode.op == 0x00)
@@ -363,9 +399,6 @@ bool CpuShort::execute()
 			if (!bResult)
 				LOG_F(ERROR, "CPU - Unimplemented Instruction %s!", instrSet[currentOpcode.op].mnemonic.c_str());
 		}
-
-		//Memory Delay Load implementation
-		performDelayedLoad();
 
 		return bResult;
 	};
@@ -534,13 +567,13 @@ bool CpuShort::op_bxx()
 		//BLTZAL
 		branch = ((int32_t)currentOpcode.regA < 0);
 		branchHasReturnAddress = true;
-		writeRegister(31, pc + 4); //Return to the istruction after the delay slot
+		gpr[31] = pc + 4; //Return to the istruction after the delay slot
 		break;
 	case 0x11:
 		//BGEZAL
 		branch = ((int32_t)currentOpcode.regA >= 0);
 		branchHasReturnAddress = true;
-		writeRegister(31, pc + 4); //Return to the istruction after the delay slot
+		gpr[31] = pc + 4; //Return to the istruction after the delay slot
 		break;
 	default:
 		branch = false;
@@ -582,7 +615,8 @@ bool CpuShort::op_jal()
 
 	//Set Return Address
 	//Should return to the istruction after the delay slot instruction. PC already point at the delay slot at this stage
-	writeRegister(31, pc + 4);
+	gpr[31] = pc + 4;
+	
  
 	return true;
 }
@@ -657,7 +691,7 @@ bool CpuShort::op_addi()
 	else
 	{
 		if (currentOpcode.rt !=0)
-			writeRegister(currentOpcode.rt, result);
+        	gpr[currentOpcode.rt] = result;
     }
 
 	return true;
@@ -665,70 +699,56 @@ bool CpuShort::op_addi()
 
 bool CpuShort::op_addiu()
 {
-	uint32_t result = currentOpcode.regA + currentOpcode.imm;
-
 	if (currentOpcode.rt != 0)
-		writeRegister(currentOpcode.rt, result);
+		gpr[currentOpcode.rt] = currentOpcode.regA + currentOpcode.imm;
 
 	return true;
 }
 
 bool CpuShort::op_slti()
 {
-	uint32_t result = ((int32_t)currentOpcode.regA < (int32_t)currentOpcode.imm) ? 0x00000001 : 0x00000000;
-
 	if (currentOpcode.rt != 0)
-		writeRegister(currentOpcode.rt, result);
+		gpr[currentOpcode.rt] = ((int32_t)currentOpcode.regA < (int32_t)currentOpcode.imm) ? 0x00000001 : 0x00000000;
 
 	return true;
 }
 
 bool CpuShort::op_sltiu()
 {
-	uint32_t result = ((uint32_t)currentOpcode.regA < (uint32_t)currentOpcode.imm) ? 0x00000001 : 0x00000000;
-
 	if (currentOpcode.rt != 0)
-		writeRegister(currentOpcode.rt, result);
+		gpr[currentOpcode.rt] = ((uint32_t)currentOpcode.regA < (uint32_t)currentOpcode.imm) ? 0x00000001 : 0x00000000;
 	
 	return true;
 }
 
 bool CpuShort::op_andi()
 {
-	uint32_t result = currentOpcode.regA & (0x0000ffff & currentOpcode.imm); //imm is zero extended
-
 	if (currentOpcode.rt != 0)
-		writeRegister(currentOpcode.rt, result);
+		gpr[currentOpcode.rt] = currentOpcode.regA & (0x0000ffff & currentOpcode.imm); //imm is zero extended
 
 	return true;
 }
 
 bool CpuShort::op_ori()
 {
-	uint32_t result = currentOpcode.regA | (0x0000ffff & currentOpcode.imm); //imm is zero extended
-
 	if (currentOpcode.rt != 0)
-		writeRegister(currentOpcode.rt, result);
+		gpr[currentOpcode.rt] = currentOpcode.regA | (0x0000ffff & currentOpcode.imm); //imm is zero extended
 
 	return true;
 }
 
 bool CpuShort::op_xori()
 {
-	uint32_t result = currentOpcode.regA ^ (0x0000ffff & currentOpcode.imm); //imm is zero extended
-
 	if (currentOpcode.rt != 0)
-		writeRegister(currentOpcode.rt, result);
+		gpr[currentOpcode.rt] = currentOpcode.regA ^ (0x0000ffff & currentOpcode.imm); //imm is zero extended
 		
 	return true;
 }
 
 bool CpuShort::op_lui()
 {
-	uint32_t result = currentOpcode.imm << 16;
-
 	if (currentOpcode.rt != 0)
-		writeRegister(currentOpcode.rt, result);
+		gpr[currentOpcode.rt] = currentOpcode.imm << 16;
 
 	return true;
 }
@@ -775,7 +795,9 @@ bool CpuShort::op_lb()
     uint32_t value = (int8_t)rdMem(address, 1);
 
 	//Set Memory Load Delay info
-	writeRegisterDelayed(currentOpcode.rt, value);
+	memoryLoadDelay.pending = true;
+	memoryLoadDelay.regIdentifier = currentOpcode.rt;
+	memoryLoadDelay.regValue = value;
 
 	return true;
 }
@@ -795,8 +817,10 @@ bool CpuShort::op_lh()
     }
     
 	//Set Memory Load Delay info
-	writeRegisterDelayed(currentOpcode.rt, (int16_t)rdMem(targetAddress, 2));
-	
+	memoryLoadDelay.pending = true;
+	memoryLoadDelay.regIdentifier = currentOpcode.rt;
+	memoryLoadDelay.regValue = (int16_t)rdMem(targetAddress, 2);
+
 	return true;
 }
 
@@ -819,7 +843,7 @@ bool CpuShort::op_lwl()
 	uint32_t shift;
 	uint32_t value, tmp;
 
-	value = readRegisterInFlight(currentOpcode.rt);   	//copy current content of rt
+	value = currentOpcode.regB;   						//copy current content of rt
 	vAddr = currentOpcode.regA + currentOpcode.imm;		//sum base address and offset to get Virtual Address
 	phAddr = vAddr & 0xfffffffc;						//get word address aligned in memory
 	offset = vAddr & 0x00000003;						//get offset within the word aligned in memory
@@ -830,7 +854,11 @@ bool CpuShort::op_lwl()
 	value = (value & lwlMask[offset]) | tmp;
 
 	//Set Memory Load Delay info
-	writeRegisterDelayed(currentOpcode.rt, value);
+	memoryLoadDelay.pending = true;
+	memoryLoadDelay.regIdentifier = currentOpcode.rt;
+	memoryLoadDelay.regValue = value;
+
+	//gpr[currentOpcode.rt] = value;
 
 	return true;
 }
@@ -850,16 +878,24 @@ bool CpuShort::op_lw()
     }
 
 	//Set Memory Load Delay info
-	writeRegisterDelayed(currentOpcode.rt, (uint32_t)rdMem(targetAddress, 4));
-	
+	memoryLoadDelay.pending = true;
+	memoryLoadDelay.regIdentifier = currentOpcode.rt;
+	memoryLoadDelay.regValue = (uint32_t)rdMem(targetAddress, 4);
+
+    //uint32_t value = (uint32_t)rdMem(targetAddress, 4);
+	//if (currentOpcode.rt != 0)
+	//	gpr[currentOpcode.rt] = value;
+
 	return true;
 }
 
 bool CpuShort::op_lbu()
 {
 	//Set Memory Load Delay info
-	writeRegisterDelayed(currentOpcode.rt, rdMem(currentOpcode.regA + currentOpcode.imm, 1));
-	
+	memoryLoadDelay.pending = true;
+	memoryLoadDelay.regIdentifier = currentOpcode.rt;
+	memoryLoadDelay.regValue = rdMem(currentOpcode.regA + currentOpcode.imm, 1);
+
 	return true;
 }
 
@@ -878,8 +914,10 @@ bool CpuShort::op_lhu()
     }
 
 	//Set Memory Load Delay info
-	writeRegisterDelayed(currentOpcode.rt, (uint16_t)rdMem(targetAddress, 2));
-	
+	memoryLoadDelay.pending = true;
+	memoryLoadDelay.regIdentifier = currentOpcode.rt;
+	memoryLoadDelay.regValue = (uint16_t)rdMem(targetAddress, 2);
+
 	return true;
 }
 
@@ -902,8 +940,8 @@ bool CpuShort::op_lwr()
 	uint32_t shift;
 	uint32_t value, tmp;
 
-	value = readRegisterInFlight(currentOpcode.rt);   	//copy current content of rt
-	vAddr = currentOpcode.regA + currentOpcode.imm;		//sum base address from rs and offset to get Virtual Address
+	value = currentOpcode.regB;   						//copy current content of rt
+	vAddr = currentOpcode.regA + currentOpcode.imm;		//sum base address and offset to get Virtual Address
 	phAddr = vAddr & 0xfffffffc;						//get word address aligned in memory
 	offset = vAddr & 0x00000003;						//get offset within the word aligned in memory
 	shift = 8*offset;
@@ -913,8 +951,12 @@ bool CpuShort::op_lwr()
 	value = (value & lwrMask[offset]) | tmp;
 
 	//Set Memory Load Delay info
-	writeRegisterDelayed(currentOpcode.rt, value);
-	
+	memoryLoadDelay.pending = true;
+	memoryLoadDelay.regIdentifier = currentOpcode.rt;
+	memoryLoadDelay.regValue = value;
+
+	//gpr[currentOpcode.rt] = value;
+
 	return true;
 }
 
@@ -1118,60 +1160,48 @@ bool CpuShort::op_swc3()
 
 bool CpuShort::op_sll()
 {
-	uint32_t result = currentOpcode.regB << currentOpcode.shamt;
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = currentOpcode.regB << currentOpcode.shamt;
 
 	return true;
 }
 
 bool CpuShort::op_srl()
 {
-	uint32_t result = currentOpcode.regB >> currentOpcode.shamt;
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = currentOpcode.regB >> currentOpcode.shamt;
 
 	return true;
 }
 
 bool CpuShort::op_sra()
 {
-	uint32_t result = (int32_t)currentOpcode.regB >> currentOpcode.shamt;
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = (int32_t)currentOpcode.regB >> currentOpcode.shamt;
 
 	return true;
 }
 
 bool CpuShort::op_sllv()
 {
-	uint32_t result = currentOpcode.regB << (currentOpcode.regA & 0x0000001f);
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = currentOpcode.regB << (currentOpcode.regA & 0x0000001f);
 
 	return true;
 }
 
 bool CpuShort::op_srlv()
 {
-	uint32_t result = currentOpcode.regB >> (currentOpcode.regA & 0x0000001f);
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = currentOpcode.regB >> (currentOpcode.regA & 0x0000001f);
 
 	return true;
 }
 
 bool CpuShort::op_srav()
 {
-	uint32_t result = (int32_t)currentOpcode.regB >> (currentOpcode.regA & 0x0000001f);
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = (int32_t)currentOpcode.regB >> (currentOpcode.regA & 0x0000001f);
 
 	return true;
 }
@@ -1207,7 +1237,7 @@ bool CpuShort::op_jalr()
 		//Return Address is set even if instruction cause an exception
 		//Should return to the istruction after the delay slot instruction. PC already point at the delay slot at this stage
 		if (currentOpcode.rd != 0)
-			writeRegister(currentOpcode.rd, pc + 4);
+			gpr[currentOpcode.rd] = pc + 4;
 
 		cop0->reg[8] = targetAddress;
 		exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
@@ -1223,7 +1253,7 @@ bool CpuShort::op_jalr()
 	//Set Return Address
 	//Should return to the istruction after the delay slot instruction. PC already point at the delay slot at this stage
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, pc + 4);
+		gpr[currentOpcode.rd] = pc + 4;
 
 	return true;
 }
@@ -1246,7 +1276,7 @@ bool CpuShort::op_break()
 bool CpuShort::op_mfhi()
 {
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, hi);
+		gpr[currentOpcode.rd] = hi;
 	
 	return true;
 }
@@ -1261,7 +1291,7 @@ bool CpuShort::op_mthi()
 bool CpuShort::op_mflo()
 {
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, lo);
+		gpr[currentOpcode.rd] = lo;
 
 	return true;
 }
@@ -1364,7 +1394,7 @@ bool CpuShort::op_add()
     else
     {
         if (currentOpcode.rd != 0)
-			writeRegister(currentOpcode.rd, (uint32_t)r);
+            gpr[currentOpcode.rd] = (uint32_t)r;
     }
 
     return true;
@@ -1372,10 +1402,8 @@ bool CpuShort::op_add()
 
 bool CpuShort::op_addu()
 {
-	uint32_t result = (uint32_t)currentOpcode.regA + (uint32_t)currentOpcode.regB;
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = (uint32_t)currentOpcode.regA + (uint32_t)currentOpcode.regB;
 
 	return true;
 }
@@ -1384,10 +1412,10 @@ bool CpuShort::op_sub()
 {
 	uint32_t s = currentOpcode.regA;
     uint32_t t = currentOpcode.regB;
-    uint32_t r = s - t;
+    uint32_t result = s - t;
 
     // Two's-complement overflow if carries out of bits 30 and 31 differ:
-    if ((((s ^ t) & (s ^ r)) & 0x80000000U) != 0)
+    if ((((s ^ t) & (s ^ result)) & 0x80000000U) != 0)
     {
         exception(static_cast<uint32_t>(cpu::exceptionCause::overflow));
         return true;
@@ -1395,7 +1423,7 @@ bool CpuShort::op_sub()
     else
     {
         if (currentOpcode.rd != 0)
-			writeRegister(currentOpcode.rd, r);
+            gpr[currentOpcode.rd] = result;
     }
 
     return true;
@@ -1403,70 +1431,56 @@ bool CpuShort::op_sub()
 
 bool CpuShort::op_subu()
 {
-	uint32_t result = (uint32_t)currentOpcode.regA - (uint32_t)currentOpcode.regB;
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = (uint32_t)currentOpcode.regA - (uint32_t)currentOpcode.regB;
 
 	return true;
 }
 
 bool CpuShort::op_and()
 {
-	uint32_t result = currentOpcode.regA & currentOpcode.regB;
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = currentOpcode.regA & currentOpcode.regB;
 
 	return true;
 }
 
 bool CpuShort::op_or()
 {
-	uint32_t result = currentOpcode.regA | currentOpcode.regB;
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = currentOpcode.regA | currentOpcode.regB;
 
 	return true;
 }
 
 bool CpuShort::op_xor()
 {
-	uint32_t result = currentOpcode.regA ^ currentOpcode.regB;
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = currentOpcode.regA ^ currentOpcode.regB;
 
 	return true;
 }
 
 bool CpuShort::op_nor()
 {
-	uint32_t result = ~(currentOpcode.regA | currentOpcode.regB);
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = ~(currentOpcode.regA | currentOpcode.regB);
 
 	return true;
 }
 
 bool CpuShort::op_slt()
 {
-	uint32_t result = ((int32_t)currentOpcode.regA < (int32_t)currentOpcode.regB) ? 0x00000001 : 0x00000000;
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = ((int32_t)currentOpcode.regA < (int32_t)currentOpcode.regB) ? 0x00000001 : 0x00000000;
 
 	return true;
 }
 
 bool CpuShort::op_sltu()
 {
-	uint32_t result = ((uint32_t)currentOpcode.regA < (uint32_t)currentOpcode.regB) ? 0x00000001 : 0x00000000;
-
 	if (currentOpcode.rd != 0)
-		writeRegister(currentOpcode.rd, result);
+		gpr[currentOpcode.rd] = ((uint32_t)currentOpcode.regA < (uint32_t)currentOpcode.regB) ? 0x00000001 : 0x00000000;
 
 	return true;
 }
@@ -1519,90 +1533,4 @@ void CpuShort::set_gpr(uint8_t regNum, uint32_t value)
 {
 	if (regNum != 0)
 		gpr[regNum] = value;
-}
-
-//-------------------------------------------------------------------------------------------------------------
-//Delay Memory Load Helper fFunctions
-//-------------------------------------------------------------------------------------------------------------
-
-// Write a general-purpose register immediately.
-// Parameters:
-// - id:	index of the GPR to write (0-31). Writes to register 0 should be ignored.
-// - value: value to store into the register.
-// Returns true on success, false on failure.
-bool CpuShort::writeRegister(uint8_t id, uint32_t value)
-{	
-	if (id == 0)
-		return true;
-
-	//Write value on the register
-	gpr[id] = value;
-
-	//Check if we are writing the same register on the Current Delay, in that case the Current Delay Load is discarded
-	if (currentDelayedRegisterLoad.id == id)
-	{
-		currentDelayedRegisterLoad.id = 0;
-		currentDelayedRegisterLoad.value = 0;
-	}
-
-	return true;
-}
-
-// Schedule a register write to occur after the next instruction (delayed load).
-// This models the MIPS load-delay behavior where loads take effect one
-// instruction later.
-// Parameters:
-// - id:	index of the GPR to write (0-31). Writes to register 0 should be ignored.
-// - value: value to store into the register.
-//Return true if the delayed write was scheduled.
-bool CpuShort::writeRegisterDelayed(uint8_t id, uint32_t value)
-{
-	
-
-	if (id == 0)
-		return true;
-	
-		nextDelayedRegisterLoad.id = id;
-		nextDelayedRegisterLoad.value = value;
-
-	//Check if we are writing the same register on the Current Delay, in that case the Current Delay Load is discarded
-	if (currentDelayedRegisterLoad.id == id)
-	{
-		currentDelayedRegisterLoad.id = 0;
-		currentDelayedRegisterLoad.value = 0;
-	}
-
-	return true;
-}
-
-// Used by LWL and LWR, read rt in flight if is pending it's update for Memory Delay
-// Parameters:
-// - id:	index of the GPR to write (0-31). Writes to register 0 should be ignored.
-// Return:
-// In Flight register value if LWR or LWL uses the same register in the Current Delay Load for rt
-uint32_t CpuShort::readRegisterInFlight(uint8_t id)
-{
-	
-	// the content of the register otherwise
-
-	if (id == currentDelayedRegisterLoad.id)
-		return currentDelayedRegisterLoad.value;
-	else
-		return gpr[id];
-}
-
-// Commit any pending delayed register loads to the architectural register
-// file. Returns true if a delayed load was applied, false if there was
-// nothing to do.
-bool CpuShort::performDelayedLoad()
-{
-	
-	gpr[currentDelayedRegisterLoad.id] = currentDelayedRegisterLoad.value;
-
-	currentDelayedRegisterLoad.id = nextDelayedRegisterLoad.id;
-	currentDelayedRegisterLoad.value = nextDelayedRegisterLoad.value;
-	nextDelayedRegisterLoad.id = 0;
-	nextDelayedRegisterLoad.value = 0;
-
-	return true;
 }

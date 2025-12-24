@@ -156,10 +156,14 @@ bool psxemu::run()
         handleEvents();
 
         //Update Emulator Status
+#ifdef DEBUGGER_ENABLED
         update(debugger::instance().getStepMode());
+#else
+        update();
+#endif
 
         //Render Screen
-        render(debugger::instance().getStepMode());
+        render();
 
         uint64_t timerStop = SDL_GetPerformanceCounter();
         uint16_t framePerSecond = static_cast<uint16_t>(SDL_GetPerformanceFrequency() / (timerStop - timerStart));
@@ -199,7 +203,7 @@ bool psxemu::handleEvents()
             glViewport(0, 0, wndWidth, wndHeight);
             break;
     
-        case SDL_EVENT_KEY_DOWN:
+        case SDL_EVENT_KEY_DOWN:          
             switch (sdlEvent.key.key)
             {
             case SDLK_X:
@@ -250,7 +254,7 @@ bool psxemu::handleEvents()
             case SDLK_0:
                 debugger::instance().toggleDebugModuleStatus(DebugModule::Tty);
                 break;
-            }
+            }    
             break;
         }
     }
@@ -258,12 +262,17 @@ bool psxemu::handleEvents()
     return true;
 }
 
+bool psxemu::update()
+{
+    //Run PSX Emulator in Normal mode
+    while (!pPsx->gpu->isFrameReady())
+        pPsx->execute();
+
+    return true;
+}
+
 bool psxemu::update(StepMode stepMode)
 {
-#ifndef DEBUGGER_ENABLED
-    //Run PSX Emulator in Normal mode
-    pPsx->execute();
-#else
     //Run PSX Emulator in Debug mode  
     switch(stepMode)
     {
@@ -272,11 +281,13 @@ bool psxemu::update(StepMode stepMode)
 
         case StepMode::Manual:
             pPsx->execute();
+            debugger::instance().update();
             debugger::instance().setStepMode(StepMode::Halt);
             break;
 
         case StepMode::Instruction:
             pPsx->execute();
+            debugger::instance().update();
             if (debugger::instance().isBreakpoint()) debugger::instance().setStepMode(StepMode::Halt);
             break;
 
@@ -284,6 +295,7 @@ bool psxemu::update(StepMode stepMode)
             while (!pPsx->gpu->isFrameReady())
             {
                 pPsx->execute();
+                debugger::instance().update();
                 if (debugger::instance().isBreakpoint())
                 {
                     debugger::instance().setStepMode(StepMode::Halt);
@@ -292,14 +304,10 @@ bool psxemu::update(StepMode stepMode)
             }
             break;
     }
-    //Update Debug Info
-    debugger::instance().update();
-#endif
-
     return true;
 }
 
-bool psxemu::render(StepMode stepMode)
+bool psxemu::render()
 {
     //Clear Frame Buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

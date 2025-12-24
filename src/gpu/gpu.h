@@ -83,7 +83,6 @@ public:
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
 
-#ifdef DEBUGGER_ENABLED
     //Getter & Setters
 	uint32_t getGPUStat() const { return gpuStat; }
 	lite::vec2t<uint16_t> getVideoResolution() const { return videoResolution; }
@@ -108,7 +107,6 @@ public:
 	lite::vec2t<uint8_t> getTextureMask() const { return textureMask; }
 	lite::vec2t<uint8_t> getTextureOffset() const { return textureOffset; }
 	void* getVRAM() const { return (void*)vRam; }	
-#endif
 
 public:
 	bool hBlank;

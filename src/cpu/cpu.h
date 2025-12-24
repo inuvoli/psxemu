@@ -53,6 +53,19 @@ public:
 	uint32_t	gpr[32];			//CPU General Purpose Registers
 	uint32_t	cacheReg;			//Cache Control Register (mapped to 0xfffe0130)
 
+    //Internal Status Flags
+    bool        isInDelaySlot;     	//Indicates if the current instruction is in a delay slot
+
+	//Branch/Jump Debugger Flags
+	bool		branchHasReturnAddress;	//Set if a JR o JALR jump instruction is executed. It is reset by the debugger
+    bool        isBranchCompleted;		//It is set after the execution of the delay slot instruction after a branch/jump instruction.
+										//Used by the debugger to check if a branch was taken and completed to Update the CallStack.
+										//It is reset by the debugger while updatating the CallStack status.
+
+    //Additional Info
+    uint32_t    branchAddress;      	//branch target address for jump/branch instructions
+	uint32_t	branchFunctionAddress;	//jump/branch function address, used for correct EPC setting on exceptions during delay slots
+
     //Coprocessors
     std::shared_ptr<Cop0>	cop0;	//Coprocessor 0
     std::shared_ptr<Cop2>	cop2;	//Coprocessor 2 (GTE)

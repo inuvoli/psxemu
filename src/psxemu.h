@@ -26,9 +26,9 @@ public:
 
 private:
 	bool handleEvents();
-	bool debugInfo();
 	bool update(StepMode stepMode);
-	bool render(StepMode stepMode);
+	bool update();
+	bool render();
 
 private:
 	SDL_Event			sdlEvent;

@@ -1,4 +1,3 @@
-#include <loguru.hpp>
 #include "mipsdisassembler.h"
 
 MipsDisassembler::MipsDisassembler()
@@ -251,9 +250,6 @@ bool MipsDisassembler::isJumpInstruction(const uint8_t* rom, const uint8_t* ram,
 	}
 
 	decodeOpcode(opcode, isJump);
-
-	if (isJump)
-		LOG_F(INFO, "MIPS Disassembler - Instruction at 0x%08x is a Jump Instruction", pc);
 
     return isJump;
 }

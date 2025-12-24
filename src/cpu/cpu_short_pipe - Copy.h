@@ -10,10 +10,11 @@
 #include "litelib.h" 
 #include "cpu.h"
 
-struct DelayedLoadRegister
+struct MemoryLoadDelay
 {
-	uint8_t		id;		//Register Identifier
-	uint32_t	value;	//Register Value	
+	bool		pending;		//Set if there's a delayed memory load pending
+	uint8_t		regIdentifier;	//Register Identifier
+	uint32_t	regValue;		//Register Value	
 };
 
 struct decodedOpcode
@@ -152,12 +153,6 @@ private:
 	//Unknown OpCode
 	bool op_unknown();
 
-	//Memory Delay Load Helper Functions
-	bool writeRegister(uint8_t id, uint32_t value);
-	bool writeRegisterDelayed(uint8_t id, uint32_t value);
-	uint32_t readRegisterInFlight(uint8_t id);
-	bool performDelayedLoad();
-
 private:
 	//Full set of CPU Instruction Dictionaries
 	struct INSTR
@@ -166,8 +161,7 @@ private:
 		bool(CpuShort::* operate)() = nullptr;
 	};
 
-	DelayedLoadRegister		currentDelayedRegisterLoad;		//Contains the register that is going to be updated after Memory Delay
-	DelayedLoadRegister		nextDelayedRegisterLoad;		//Contains the next register that is going to be updated after Memory Delay
+	MemoryLoadDelay		memoryLoadDelay;	//Used to managed Memory Load Delay
 
 	std::vector<INSTR> instrSet;		//Full Instruction Set
 	std::vector<INSTR> functSet;		//Full Function Set

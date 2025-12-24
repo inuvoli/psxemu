@@ -71,11 +71,9 @@ public:
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
 
-//#ifdef DEBUGGER_ENABLED
     //Getter & Setters
     TimerStatus getTimerStatus(int timerID) const { return timerStatus[timerID]; }
     void        setTimerStatus(int timerID, TimerStatus value) { timerStatus[timerID] = value; }
-//#endif
 	
 private:
 	//Link to Bus Object

@@ -96,13 +96,11 @@ public:
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
 
-#ifdef DEBUGGER_ENABLED
     //Getter & Setters
     uint8_t getStatusRegister() const { return statusRegister.byte; }
 	uint8_t getRequestRegister() const { return requestRegister.byte; }
 	uint8_t getInterruptEnableRegister() const { return interruptEnableRegister; }
 	uint8_t getInterruptFlagRegister() const { return interruptFlagRegister; }	
-#endif
 
 private:
 	//Link to Bus Object
