@@ -25,7 +25,7 @@ bool Interrupt::reset()
 
 bool Interrupt::execute()
 {
-    //Set value for Hardware Interupt Pin to CPU
+    //Set value for Hardware Interrupt Pin to CPU
     //PSX only use Hardware Interrupt INT0
     uint8_t status = (i_stat & i_mask) ? 1 : 0;
     psx->cpu->interrupt(status);

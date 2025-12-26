@@ -97,10 +97,14 @@ bool Psx::reset()
 bool Psx::execute()
 {
 	//-------------------------------------------------------------------
+	// CPU Clock:			33.8688 MHz (Master Clock)
+	// GPU Clock:			11/7 CPU Clock
+	// System8 Clock:		1/8 CPU Clock
+	// 
 	// GPU Clock (PAL):  	53.203425 MHz
 	// GPU Clock (NTSC): 	53.693175 MHz
 	// CPU Clock:  			33.8688 MHz       [(44.100KHz * 600h) / 2]
-	// CDR Clock: 			4.00MHz
+	// CDR Clock: 			4.00 MHz
 	//
 	// CPU Clock is about 7/11 of the GPU Clock. This is achieved starting from
 	// a Master Clock at 372.5535 Mhz then:
@@ -113,6 +117,7 @@ bool Psx::execute()
 	if (!(masterClock % 2))
 	{
 		cpu->execute();
+		interrupt->execute();
 		dma->execute();
 		timers->execute(ClockSource::System);
 	}
@@ -127,15 +132,10 @@ bool Psx::execute()
 		timers->execute(ClockSource::System8);
 	}
 
-	if (!(masterClock % 13))
+	if (!(masterClock % 14))
 	{
 		cdrom->execute(); //Temporary
 		controller->execute(); //Temporary
-	}
-
-	if (!(masterClock % 2))
-	{
-		interrupt->execute();
 	}
 
 	masterClock++;

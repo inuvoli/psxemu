@@ -417,7 +417,7 @@ bool CpuShort::exception(uint32_t cause)
 	cop0::StatusRegister	statusReg;
 	cop0::CauseRegister		causeReg;
 	
-	LOG_F(2, "CPU - Received Exception [PC: 0x%08x, Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", pc, cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
+	//LOG_F(2, "CPU - Received Exception [PC: 0x%08x, Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", pc, cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
 	
 	//Get Current values of Cause Register and Status Register
 	statusReg.word = cop0->reg[12];
@@ -788,9 +788,12 @@ bool CpuShort::op_lh()
 	//Check Target Address Alignment, last bit must be 0
 	if (targetAddress & 0x1)
 	{
+		LOG_F(ERROR, "CPU - Address Load Error: 0x%08x lh r%d, 0x%08x(r%d)  - [0x%08x], [0x%08x]", pc - 4, currentOpcode.rt, currentOpcode.imm, currentOpcode.rs, gpr[currentOpcode.rd], currentOpcode.regA);
+
 		//Exception not supported by PSX Bios
 		cop0->reg[8] = targetAddress;	//Bad Virtual Address
         exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
+		
         return true;
     }
     
@@ -843,10 +846,13 @@ bool CpuShort::op_lw()
 	//Check Target Address Alignment, last two bits must be 0
     if (targetAddress & 0x3)
 	{
+		LOG_F(ERROR, "CPU - Address Load Error: 0x%08x lw r%d, 0x%08x(r%d)  - [0x%08x], [0x%08x]", pc - 4, currentOpcode.rt, currentOpcode.imm, currentOpcode.rs, gpr[currentOpcode.rd], currentOpcode.regA);
+        
 		//Exception not supported by PSX Bios
 		cop0->reg[8] = targetAddress;	//Bad Virtual Address
         exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
-        return true;
+
+		return true;
     }
 
 	//Set Memory Load Delay info
@@ -871,10 +877,13 @@ bool CpuShort::op_lhu()
 	//Check Target Address Alignment, last bit must be 0
 	if (targetAddress & 0x1)
 	{
+		LOG_F(ERROR, "CPU - Address Load Error: 0x%08x lhu r%d, 0x%08x(r%d)  - [0x%08x], [0x%08x]", pc - 4, currentOpcode.rt, currentOpcode.imm, currentOpcode.rs, gpr[currentOpcode.rd], currentOpcode.regA);
+        
 		//Exception not supported by PSX Bios
 		cop0->reg[8] = targetAddress;	//Bad Virtual Address
         exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
-        return true;
+		
+		return true;
     }
 
 	//Set Memory Load Delay info
@@ -1184,8 +1193,11 @@ bool CpuShort::op_jr()
 	//Check Target Address Alignment, last two bits must be 0
 	if (targetAddress & 0x3)
 	{
+		LOG_F(ERROR, "CPU - Address Load Error: 0x%08x jr r%d  - [0x%08x]", pc - 4, currentOpcode.rs, currentOpcode.regA);
+		
 		cop0->reg[8] = targetAddress;
 		exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
+		
 		return true;
 	}
 
@@ -1204,6 +1216,8 @@ bool CpuShort::op_jalr()
 	//Check Target Address Alignment, last two bits must be 0
 	if (targetAddress & 0x3)
 	{
+		LOG_F(ERROR, "CPU - Address Load Error: 0x%08x jalr r%d, r%d  - [0x%08x], [0x%08x]", pc - 4, currentOpcode.rd, currentOpcode.rs, gpr[currentOpcode.rd], currentOpcode.regA);
+		
 		//Return Address is set even if instruction cause an exception
 		//Should return to the istruction after the delay slot instruction. PC already point at the delay slot at this stage
 		if (currentOpcode.rd != 0)
@@ -1211,6 +1225,7 @@ bool CpuShort::op_jalr()
 
 		cop0->reg[8] = targetAddress;
 		exception(static_cast<uint32_t>(cpu::exceptionCause::addrerrload));
+
 		return true;
 	}
 
