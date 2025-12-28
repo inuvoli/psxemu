@@ -165,8 +165,8 @@ bool psxemu::run()
         //Render Screen
         render();
 
-        uint64_t timerStop = SDL_GetPerformanceCounter();
-        uint16_t framePerSecond = static_cast<uint16_t>(SDL_GetPerformanceFrequency() / (timerStop - timerStart));
+        uint64_t timerActual = SDL_GetPerformanceCounter();
+        uint16_t framePerSecond = static_cast<uint16_t>(SDL_GetPerformanceFrequency() / (timerActual - timerStart));
         debugger::instance().setFrameRate(framePerSecond);
     }
 

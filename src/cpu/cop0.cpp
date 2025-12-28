@@ -53,15 +53,15 @@ bool Cop0::execute(uint32_t cofun)
 	case 0x04:	//mtc0 rt, rd
 		switch(currentOperation.rd)
 		{
+			
 			case 8: 	//BadVAddr ignore writes
-			case 15:    //PRid id Read only
+			case 15:    //PRid id Read only ignore write
 				break;
 			
-			case 13:	//Cause Register write mask
-			{
-				//Only BD, ExcCode and IP7-IP2 bits are writable
+			case 13:	//CauseRegister: Only BD, ExcCode and IP7-IP2 bits are writable
 				reg[currentOperation.rd] = cpu->gpr[currentOperation.rt] & 0x8000fc7c;
-			}
+				break;
+
 			default:
 				reg[currentOperation.rd] = cpu->gpr[currentOperation.rt];
 				break;
@@ -93,8 +93,6 @@ bool Cop0::execute(uint32_t cofun)
 			statusReg.word = reg[12];
 			statusReg.stk = ((statusReg.stk >> 2) & 0x0f) | (statusReg.stk & 0x30);
 			reg[12] = statusReg.word;
-			LOG_F(2, "COP0 - Calling RFE, Returning From Exception [CauseRegister: 0x%08x, StatusRegister: 0x%08x]", reg[13], reg[12]);
-			if (statusReg.kuc)
 			break;
 		}
 		break;

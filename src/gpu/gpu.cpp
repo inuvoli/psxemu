@@ -4,6 +4,10 @@
 
 GPU::GPU()
 {
+	//Reset Scheduler Parameters
+	schedulerClockRatio = 11.0f / 7.0f; //GPU Clock is 11/7 of CPU Clock
+	schedulerClockTicks = 0.0f;
+	
 	//Reset Internal Registers
 	gp0DataLatch = 0x00000000;
 	gp1DataLatch = 0x00000000;
@@ -25,6 +29,7 @@ GPU::GPU()
 	textureDisabled = false;
 	textureColorDepth = 0;
 	textureTransparencyMode = 0;
+	frameCount = 0;
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
@@ -408,6 +413,10 @@ GPU::~GPU()
 
 bool GPU::reset()
 {
+	//Reset Scheduler Parameters
+	schedulerClockRatio = 11.0f / 7.0f; //GPU Clock is 11/7 of CPU Clock
+	schedulerClockTicks = 0.0f;
+
 	//Reset Internal Registers
 	gp0DataLatch = 0x00000000;
 	gp1DataLatch = 0x00000000;
@@ -429,6 +438,7 @@ bool GPU::reset()
 	textureDisabled = false;
 	textureColorDepth = 0;
 	textureTransparencyMode = 0;
+	frameCount = 0;
 
 	//VRAM & Video Settings
 	memset(vRam, 0, sizeof(uint16_t) * VRAM_SIZE);
@@ -540,6 +550,17 @@ uint32_t GPU::readVRAM()
 //                               GPU Interface
 // 
 //-----------------------------------------------------------------------------------------------------
+bool GPU::runticks()
+{
+	schedulerClockTicks += schedulerClockRatio;
+	while (schedulerClockTicks >= 1.0f)
+	{
+		execute();
+		schedulerClockTicks -= 1.0f;
+	}
+	return true;
+}
+
 bool GPU::execute()
 {
 	auto updateVHBlank = [&](const unsigned int active_ticks, const unsigned int hblank_ticks, const unsigned int visible_scanlines, const unsigned int vblank_scanlines)
@@ -577,6 +598,7 @@ bool GPU::execute()
 		{
 			vCount = 0;
 			newFrameReady = true;
+			frameCount++;
 		}
 
 		return 0;
@@ -637,14 +659,14 @@ bool GPU::execute()
 	//  - Toggle at every new frame if GPUSTAT.19 = 1
 	//  - Always Zero during vBlank
 	if (vBlank) { gpuStat &= ~(1UL << 31); };
-	if (newScanline & !static_cast<bool>((gpuStat & (1UL << 19)))) { gpuStat ^= (1UL << 31); };
-	if (newFrameReady & static_cast<bool>((gpuStat & (1UL << 19)))) { gpuStat ^= (1UL << 31); };
+	if (newScanline && !static_cast<bool>((gpuStat & (1UL << 19)))) { gpuStat ^= (1UL << 31); };
+	if (newFrameReady && static_cast<bool>((gpuStat & (1UL << 19)))) { gpuStat ^= (1UL << 31); };
 
 	//Update GPUSTAT.28
 	//  - Set to 0 after receiving both GP0/1 Command and all GP0/1 Parameters (GPU is Busy)
 	//  - Set to 0 immediately after receiving Polygons or Lines Command (GPU is Busy)
 	//  - Set to 1 when GPU is ready to receive a new Command and Parameters (previous command completed execution)
-	gpuStat = (gpuStat & ~(1UL << 28)) | (static_cast<uint32_t>(!((recvCommand & recvParameters) | gp0RecvPolyLine)) << 28);
+	gpuStat = (gpuStat & ~(1UL << 28)) | (static_cast<uint32_t>(!((recvCommand && recvParameters) || gp0RecvPolyLine)) << 28);
 
 	//Update GPUSTAT.27
 	//  - Set to 1 by GP0(C0h) - DMA transfer from VRAM to RAM

@@ -60,7 +60,7 @@ public:
 	//Data Bus Status
 	bool		dataBusBusy;
 
-	//Master Clock: 372.5535MHz
+	//Master Clock: CPU Clock 33.8688 MHz
 	uint64_t	masterClock;
 
 	//Temporary Debug

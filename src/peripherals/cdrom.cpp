@@ -596,7 +596,7 @@ bool Cdrom::cmd_unused() { return false; };
 bool Cdrom::cmd_getstat()
 { 
 	//Reset OpenShell
-	statusCode.shellopen = 0;
+	statusCode.shellopen = false;
 	
 	//Trigger INT3
 	interruptFifo.push(cdrom::INT3);
@@ -731,23 +731,33 @@ bool Cdrom::cmd_test()
 
 bool Cdrom::cmd_getid()
 { 
-	//Door open
-	//interruptFifo.push(cdrom::INT5);
-	//responseFifo.push( {0x11, 0x80} );
+	static int count = 0;
+	/*
+	if (count < 2)
+	{
+		//Not Ready
+		interruptFifo.push(cdrom::INT5);
+		switch (count)
+		{
+			case 0:
+				responseFifo.push( {0x11, 0x80} );
+				break;
+			case 1:
+				responseFifo.push({ 0x03, 0x80 });
+				break;
+		}
+		count++;
 
-	//Push INT3(stat)
+		return true;
+	}
+
+	*/
+	
+	//Push INT3(stat) + INT5 (Licensed)
 	interruptFifo.push(cdrom::INT3);
-	responseFifo.push(statusCode.byte);
-
-	//Temporary - Empty CD Only
-	//Push INT5
-	//interruptFifo.push(cdrom::INT5);
-	//responseFifo.push( {0x08, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00} );
-
-	//Temporary - Licensed:Mode2 
-	//Push INT2
+	responseFifo.push( {0x02} );
 	interruptFifo.push(cdrom::INT2);
-	responseFifo.push( {0x02, 0x40, 0x20, 0x00, 0x53, 0x43, 0x45, 0x41} );
+	responseFifo.push( {0x02, 0x00, 0x20, 0x00, 0x53, 0x43, 0x45, 0x41} ); //SCEA 0x41, SCEE 0x45
 	
 	return true;
 };

@@ -56,7 +56,7 @@ bool CdImage::openImage(const std::string& fileName)
         char sectorSubHeader[sector_subheader_size];
         uint8_t subMode;
         image.read(sectorSubHeader, sector_subheader_size);
-        subMode = (uint8_t)sectorSubHeader[18];
+        subMode = (uint8_t)sectorSubHeader[2];
         imageForm = (subMode & 0x20) ? 2 : 1;
 
         image.seekg(0, image.beg);      

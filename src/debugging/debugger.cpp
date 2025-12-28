@@ -33,7 +33,7 @@ bool debugger::update()
     //getTimerDebugInfo();
     //getGpuDebugInfo();
     //getCdromDebugInfo();
-    updateCallStack();
+    //updateCallStack();
  
     return true;
 };
@@ -159,6 +159,10 @@ bool debugger::renderCpuWidget()
                     case 2:
                         ImGui::SameLine();
                         ImGui::Text("lo = 0x%08x", psx->cpu->lo);
+                        break;
+                    case 3:
+                        ImGui::SameLine();
+                        ImGui::Text("Clk Count = %d", psx->masterClock);
                         break;
                     case 4:
                         ImGui::SameLine();
@@ -449,6 +453,10 @@ bool debugger::renderMenuBar()
             if (ImGui::MenuItem("Set Breakpoint"))
             {
                 openSetBreakpointPopup = true;
+            }
+            if (ImGui::MenuItem("Conditions..."))
+            {
+                //TODO
             }
             ImGui::EndMenu();
         }

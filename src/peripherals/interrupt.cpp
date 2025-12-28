@@ -29,7 +29,7 @@ bool Interrupt::execute()
     //PSX only use Hardware Interrupt INT0
     uint8_t status = (i_stat & i_mask) ? 1 : 0;
     psx->cpu->interrupt(status);
-       
+
     return true;
 }
 
@@ -38,7 +38,7 @@ bool Interrupt::set(uint32_t cause)
     //Set I_STAT Interrupt Flag according to the Interrupt Cause
 	i_stat |= 1UL << cause;
 
-    LOG_F(2, "INTERRUPT - %s Requesting Hardware Interrupt", interruptDescription[cause].c_str());
+    LOG_F(2, "INTERRUPT - Requesting Hardware Interrupt (%s) [i_mask: 0x%08x]", interruptDescription[cause].c_str());
     
     return true;
 }

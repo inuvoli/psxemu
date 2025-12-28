@@ -437,7 +437,11 @@ bool CpuShort::exception(uint32_t cause)
 	}
 	else
 	{
-		cop0->reg[14] = pc - 4;						//Set EPC to Failing Instruction if we are not in a Branch Delay Slot, we need to roll pc back by 4
+		if (cause == static_cast<uint8_t>(cpu::exceptionCause::interrupt))
+			cop0->reg[14] = pc;						//Set EPC to the istruction next to the one has received the interrupt
+		else
+			cop0->reg[14] = pc - 4;					//Set EPC to Failing Instruction if we are not in a Branch Delay Slot, we need to roll pc back by 4
+
 		causeReg.bd = false;						//Set BD bit in cop0 CAUSE Register if exception occurs in a Branch Delay Slot
 	}
 	
@@ -469,12 +473,12 @@ bool CpuShort::interrupt(uint8_t status)
 	statusReg.word = cop0->reg[12];
 	causeReg.word = cop0->reg[13];
 
-	//Set cop0r13.bit10 (Cause Register) according to INTn pin value, PSX only use Hw INT0
+	//Set cop0r13.bit10 (Cause Register) according to INTn pin value, PSX only use Hw INT0 (bit10)
 	causeReg.iphw = status;	
 	cop0->reg[13] = causeReg.word;		//Update Cause Register
 
 	//Check COP0 for Pending non masked Interrupts with iEc enabled.
-	if ((bool)(statusReg.imhw & causeReg.iphw) & (bool)statusReg.iec)
+	if ((bool)(statusReg.imhw & causeReg.iphw) && (bool)statusReg.iec)
 	{
 		LOG_F(2, "CPU - Hardware Interrupt 0 Triggered");
 		exception(static_cast<uint32_t>(cpu::exceptionCause::interrupt));		
@@ -840,13 +844,13 @@ bool CpuShort::op_lwl()
 
 bool CpuShort::op_lw()
 {
-	uint32_t imm = currentOpcode.imm;
-    uint32_t targetAddress = currentOpcode.regA + imm;
+	uint32_t offset = currentOpcode.imm;
+    uint32_t targetAddress = currentOpcode.regA + offset;
 
 	//Check Target Address Alignment, last two bits must be 0
     if (targetAddress & 0x3)
 	{
-		LOG_F(ERROR, "CPU - Address Load Error: 0x%08x lw r%d, 0x%08x(r%d)  - [0x%08x], [0x%08x]", pc - 4, currentOpcode.rt, currentOpcode.imm, currentOpcode.rs, gpr[currentOpcode.rd], currentOpcode.regA);
+		LOG_F(ERROR, "CPU - Address Load Error: 0x%08x lw r%d, 0x%08x(r%d)  - [rt: 0x%08x], [rs: 0x%08x] [MasterClock: %d]", pc - 4, currentOpcode.rt, offset, currentOpcode.rs, gpr[currentOpcode.rt], gpr[currentOpcode.rs], psx->masterClock);
         
 		//Exception not supported by PSX Bios
 		cop0->reg[8] = targetAddress;	//Bad Virtual Address

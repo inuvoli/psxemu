@@ -26,19 +26,6 @@ bool Tty::reset()
 	return true;
 }
 
-bool Tty::writeTTYChar(char c)
-{
-	buffer += c;
-	if (c == '\n')
-	{
-		bufferA.emplace_back(buffer);
-		buffer = "";
-	}
-	ofs << c;
-	ofs.flush();
-	return true;
-}
-
 bool Tty::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 {
 	switch (addr)

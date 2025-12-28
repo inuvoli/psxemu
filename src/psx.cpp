@@ -97,46 +97,39 @@ bool Psx::reset()
 bool Psx::execute()
 {
 	//-------------------------------------------------------------------
-	// CPU Clock:			33.8688 MHz (Master Clock)
+	// CPU Clock:			33.8688 MHz (Master Clock) [44.1KHz * 600h / 2]
+	// TIMER Clock :		33.8688 MHz (CPU Clock) [System8 Clock = 1/8 CPU Clock]
 	// GPU Clock:			11/7 CPU Clock
-	// System8 Clock:		1/8 CPU Clock
+	// CDROM Clock:			1/2 CPU Clock (16.9344 MHz)
+	// CONTROLLER Clock:	250.88KHz 1/135 CPU Clock
 	// 
 	// GPU Clock (PAL):  	53.203425 MHz
 	// GPU Clock (NTSC): 	53.693175 MHz
-	// CPU Clock:  			33.8688 MHz       [(44.100KHz * 600h) / 2]
-	// CDR Clock: 			4.00 MHz
-	//
-	// CPU Clock is about 7/11 of the GPU Clock. This is achieved starting from
-	// a Master Clock at 372.5535 Mhz then:
-	// CPU Clock		= Master Clock / 11 (2)
-	// GPU Clock		= Master Clock / 7  (1)
-	// System/8 Clock	= Master Clock / 88 (13)
-	// CDRom Clock 		= Master Clock / 93 (13)
 	//-------------------------------------------------------------------
+
+	//Execute all devices
+	cpu->execute();
+	gpu->runticks();
+	dma->execute();
+	timers->execute(ClockSource::System);
 
 	if (!(masterClock % 2))
 	{
-		cpu->execute();
-		interrupt->execute();
-		dma->execute();
-		timers->execute(ClockSource::System);
+		cdrom->execute();
 	}
 
-	if (!(masterClock % 1))
-	{
-		gpu->execute();
-	}
-
-	if (!(masterClock % 13))
+	if (!(masterClock % 8))
 	{
 		timers->execute(ClockSource::System8);
 	}
 
-	if (!(masterClock % 14))
+	if (!(masterClock % 135))
 	{
-		cdrom->execute(); //Temporary
-		controller->execute(); //Temporary
+		controller->execute();
 	}
+
+	//Interrupt should be first to update interrupt status before CPU execution
+	interrupt->execute();
 
 	masterClock++;
 

@@ -22,7 +22,6 @@ public:
 
     bool reset();
     
-    bool writeTTYChar(char c);
     bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes);
 	uint32_t readAddr(uint32_t addr, uint8_t bytes);
     

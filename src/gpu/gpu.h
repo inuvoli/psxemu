@@ -74,11 +74,13 @@ public:
 
 	bool reset();
 	bool execute();
+	bool runticks();
 
 	bool writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes = 4);
 	uint32_t readAddr(uint32_t addr, uint8_t bytes = 4);
 
 	bool isFrameReady();
+	uint64_t getFrameCount() const { return frameCount; }
 
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
@@ -124,6 +126,10 @@ private:
 private:
 	//Link to Bus Object
 	Psx* psx;
+
+	//Scheduler Clock
+	float			schedulerClockTicks;
+	float			schedulerClockRatio;
 
 	//VRAM 1MB
 	uint16_t	vRam[512][1024];	//vram[rows][pixels]
@@ -181,6 +187,7 @@ private:
 	uint32_t			vCount;				//Count the number of Scanlines
 	bool				newScanline;		//Set if a new Scanline has startes
 	bool				newFrameReady;		//Set if a new Frame has started
+	uint64_t			frameCount;			//Count the number of Frames rendered
 		
 	//Memory Transfer Status
 	lite::vec2t<uint16_t>		dataDestination;	//Framebuffer destination start point: x is offset in halfwords, y is offset in rows

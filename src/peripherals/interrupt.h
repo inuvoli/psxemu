@@ -13,10 +13,10 @@ enum class interruptCause
     timer0 = 0x04,
     timer1 = 0x05,
     timer2 = 0x06,
-    byterecv = 0x07,
+    controller = 0x07,
     sio = 0x08,
     spu = 0x09,
-    controller = 0x0a
+    pio = 0x0a
 };
 
 class Psx;
