@@ -1,4 +1,4 @@
-# PSXemu - Another SDL2/OpenGL Playstation Emulator in C++ 20
+# PSXemu - Another SDL3/OpenGL Playstation Emulator in C++ 20
 
 ----
 
