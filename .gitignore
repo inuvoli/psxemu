@@ -50,12 +50,3 @@ psxemu
 3rdparty/fpm/*
 3rdparty/imgui/*
 3rdparty/loguru/*
-
-# Reenable Directory
-!3rdparty/imgui_club/
-!3rdparty/fpm/
-!3rdparty/imgui/
-!3rdparty/loguru/
-
-# Except HOW_TO_INSTALL files in 3rdparty folder
-!3rdparty/**/HOW_TO_INSTALL.md
