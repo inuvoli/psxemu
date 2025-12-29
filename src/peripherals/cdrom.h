@@ -11,6 +11,12 @@
 
 namespace cdrom
 {
+	struct InterruptEvent
+	{
+		uint32_t delay; 			//Delay in number of CDROM Clock Cycles
+		uint8_t	interruptNumber; 	//Interrupt Number to trigger
+	};
+
 	union StatusCode
 	{
 		uint8_t byte;
@@ -36,12 +42,12 @@ namespace cdrom
 		struct
 		{
 			uint8_t index : 2;		//Port 1F801801h-1F801803h index (0..3 = Index0..Index3)   (R/W)
-			uint8_t adpbusy : 1;	//XA-ADPCM fifo empty  (0=Empty) ;set when playing XA-ADPCM sound
-			uint8_t prmempt : 1;	//Parameter fifo empty (1=Empty) ;triggered before writing 1st byte
-			uint8_t prmwrdy : 1;	//Parameter fifo full  (0=Full)  ;triggered after writing 16 bytes
-			uint8_t rslrrdy : 1;	//Response fifo empty  (0=Empty) ;triggered after reading LAST byte
-			uint8_t drqsts : 1;		//Data fifo empty      (0=Empty) ;triggered after reading LAST byte
-			uint8_t busysts : 1;	//Command/parameter transmission busy  (1=Busy)
+			uint8_t adpbusy : 1;	//XA-ADPCM fifo empty  (0=Empty) - Set when playing XA-ADPCM sound
+			uint8_t prmempt : 1;	//Parameter fifo empty (1=Empty) - Triggered before writing 1st byte
+			uint8_t prmwrdy : 1;	//Parameter fifo full  (0=Full) - Triggered after writing 16 bytes
+			uint8_t rslrrdy : 1;	//Response fifo empty  (0=Empty) - Triggered after reading LAST byte
+			uint8_t drqsts : 1;		//Data fifo empty      (0=Empty) - Triggered after reading LAST byte
+			uint8_t busysts : 1;	//Command/Parameter transmission busy (1=Busy)
 		};
 	};
 
@@ -124,11 +130,11 @@ private:
 	uint32_t				readSectorTimer;
 
 	//Internal Fifo
-	lite::fifo<uint8_t, 16> 	parameterFifo;
-	lite::fifo<uint8_t, 2048 * 2> 	dataFifo;
-	lite::fifo<uint8_t, 16> 	responseFifo;
-	lite::fifo<uint8_t, 16> 	interruptFifo;
-	lite::fifo<uint8_t, 2048 * 2> 	adpcmFifo;
+	lite::fifo<uint8_t, 16> 				parameterFifo;
+	lite::fifo<uint8_t, 2048 * 2> 			dataFifo;
+	lite::fifo<uint8_t, 16> 				responseFifo;
+	lite::fifo<cdrom::InterruptEvent, 16> 	interruptFifo;
+	lite::fifo<uint8_t, 2048 * 2> 			adpcmFifo;
 
 	//Command Functions
 	bool cmd_unused();

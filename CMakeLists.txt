@@ -52,12 +52,12 @@ set(PSXEMU_SOURCES
 
 # IMGUI cpp files
 set(IMGUI_SOURCES
-	3rdparty/imgui/imgui.cpp
-	3rdparty/imgui/imgui_draw.cpp
-	3rdparty/imgui/imgui_impl_opengl3.cpp
-	3rdparty/imgui/imgui_impl_sdl3.cpp
-	3rdparty/imgui/imgui_tables.cpp
-	3rdparty/imgui/imgui_widgets.cpp
+	3rdparty/imgui-docking/imgui.cpp
+	3rdparty/imgui-docking/imgui_draw.cpp
+	3rdparty/imgui-docking/imgui_tables.cpp
+	3rdparty/imgui-docking/imgui_widgets.cpp
+	3rdparty/imgui-docking/backends/imgui_impl_opengl3.cpp
+	3rdparty/imgui-docking/backends/imgui_impl_sdl3.cpp
 )
 
 #  LOGURU cpp files
@@ -78,7 +78,9 @@ add_executable(psxemu ${PSXEMU_SOURCES} ${IMGUI_SOURCES} ${LOGURU_SOURCES} ${LIB
 target_include_directories(psxemu
     PRIVATE 
 		${PROJECT_SOURCE_DIR}/3rdparty
-		${PROJECT_SOURCE_DIR}/3rdparty/imgui
+		${PROJECT_SOURCE_DIR}/3rdparty/imgui-docking
+		${PROJECT_SOURCE_DIR}/3rdparty/imgui-docking/backends
+		${PROJECT_SOURCE_DIR}/3rdparty/imgui_club/imgui_memory_editor
 		${PROJECT_SOURCE_DIR}/3rdparty/litelib
 		${PROJECT_SOURCE_DIR}/3rdparty/loguru
 		${PROJECT_SOURCE_DIR}/3rdparty/libcdimage

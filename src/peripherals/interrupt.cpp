@@ -38,7 +38,7 @@ bool Interrupt::set(uint32_t cause)
     //Set I_STAT Interrupt Flag according to the Interrupt Cause
 	i_stat |= 1UL << cause;
 
-    LOG_F(2, "INTERRUPT - Requesting Hardware Interrupt (%s) [i_mask: 0x%08x]", interruptDescription[cause].c_str());
+    LOG_F(2, "INTERRUPT - Requesting Hardware Interrupt (%s)", interruptDescription[cause].c_str());
     
     return true;
 }

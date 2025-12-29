@@ -18,11 +18,12 @@ namespace lite
         bool    push(const T& value);                  //push a record on the fifo
         bool    push(const std::vector<T>& value);     //push a vector on the fifo
         bool    pop(T& value);                         //pop a record from the fifo
-        size_t  lenght();                              //return fifo lenght in number od records
+        size_t  lenght();                              //return fifo lenght in number of records
         void    flush();                               //empty the fifo
         bool    isfull();                              //check if the fifo is full
         bool    isempty();                             //check if the fifo is empty
         T       head();                                //return the first record on the fifo without pop it from the queue
+        T*      getheadptr();                          //return a pointer to the first record on the fifo without pop it from the queue
 
     private:
         uint32_t readPtr;
@@ -122,6 +123,12 @@ namespace lite
     inline T fifo<T, size>::head()
     {
         return data[readPtr % size];
+    };
+
+    template<typename T, size_t size>
+    inline T* fifo<T, size>::getheadptr()
+    {
+        return &data[readPtr % size];
     };
 };
 

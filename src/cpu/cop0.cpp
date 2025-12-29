@@ -93,6 +93,8 @@ bool Cop0::execute(uint32_t cofun)
 			statusReg.word = reg[12];
 			statusReg.stk = ((statusReg.stk >> 2) & 0x0f) | (statusReg.stk & 0x30);
 			reg[12] = statusReg.word;
+			LOG_F(2, "COP0 - Executed RFE [PC: 0x%08x, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", cpu->pc, reg[14], reg[13], reg[12]);
+
 			break;
 		}
 		break;
