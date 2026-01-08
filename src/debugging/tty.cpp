@@ -77,11 +77,11 @@ bool Tty::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
     case 0x1f80202f:
 		break;
 	default:
-		LOG_F(ERROR, "TTY - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
+		LOG_F(ERROR, "TTY - Write Unknown Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return false;
 	}
-    LOG_F(3, "TTY - Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
 
+	LOG_F(3, "TTY - Write to Register:\t\t0x%08x (%d), data: '%c'", addr, bytes, data);
 	return true;
 }
 
@@ -124,9 +124,11 @@ uint32_t Tty::readAddr(uint32_t addr, uint8_t bytes)
     case 0x1f80202f:
 		break;
 	default:
-		printf("TTY - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
+		LOG_F(ERROR, "TTY - Read Unknown Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return 0;
 	}
+
+	LOG_F(3, "TTY - Read from Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 	return data;
 }
 

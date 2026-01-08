@@ -1,5 +1,5 @@
 #pragma once
-#define DEBUGGER_ENABLED
+//#define DEBUGGER_ENABLED
 
 #include <cstdint>
 #include <memory>
@@ -50,8 +50,8 @@ struct CdromDebugInfo
 {
 	uint8_t		statusRegister;
 	uint8_t		requestRegister;
-	uint8_t		interruptEnableRegister;
-	uint8_t		interruptFlagRegister;
+	uint8_t		interruptMaskRegister;
+	uint8_t		interruptStatusRegister;
 };
 
 struct CallStackInfo

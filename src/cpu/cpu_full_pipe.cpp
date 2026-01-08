@@ -61,7 +61,7 @@ bool CpuFull::exception(uint32_t cause)
     return false;
 }
 
-bool CpuFull::interrupt(uint8_t status)
+bool CpuFull::interrupt(uint8_t number, bool status)
 {
     return false;
 }

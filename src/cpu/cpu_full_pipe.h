@@ -33,7 +33,7 @@ public:
 
     // Pipeline phase functions
     bool exception(uint32_t cause) override;
-    bool interrupt(uint8_t status) override;
+    bool interrupt(uint8_t number, bool status) override;
 
     // Link to PSX instance
     void link(Psx* instance) { psx = instance; }

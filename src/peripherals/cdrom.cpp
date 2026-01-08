@@ -4,34 +4,25 @@
 
 Cdrom::Cdrom()
 {
-	statusCode.byte = 0;
+	//Initialize Internal Registers
 	requestRegister.byte = 0;
 	modeRegister.byte = 0;
-
-	interruptEnableRegister = 0;
-	interruptFlagRegister = 0;
-	commandRegister = 0;
+	interruptMaskRegister.byte = 0;
+	interruptStatusRegister.byte = 0;
 	
+	commandFifo.flush();
 	adpcmFifo.flush();
 	parameterFifo.flush();
 	dataFifo.flush();
 	responseFifo.flush();
 	interruptFifo.flush();
 
-	//Init StatusRegister
-	statusRegister.index = 0;
-	statusRegister.adpbusy = 0;
-	statusRegister.prmempt = 1;
-	statusRegister.prmwrdy = 1;
-	statusRegister.rslrrdy = 0;
-	statusRegister.drqsts = 0;
-	statusRegister.busysts = 0;
-
 	//Init Internal Status
-	commandAvailable = false;
-
-	//Init Internal Counter
-	readSectorTimer = 0;
+	cdImageLoaded = false;	
+	cdShellOpen = false;
+	cdMotorOn = false;
+	isStreamingData = false;
+	streamingINT1Delay = 0;
 
 	//Init COMMAND Dictionary
 	commandSet = 
@@ -308,50 +299,45 @@ bool Cdrom::loadImage(const std::string& fileName)
 	if (cdImage.openImage(fileName))
 	{
 		LOG_F(INFO, "PSP Game Loaded");
-		statusCode.shellopen = 0;
-		statusCode.spindlemotor = 1;
+		cdImageLoaded = true;
+		cdShellOpen = false;
+		cdMotorOn = true;
 	}
 	else
 	{
 		LOG_F(ERROR, "PSP Game Not Found");
-		statusCode.shellopen = 1;
-		statusCode.spindlemotor = 0;
+		cdImageLoaded = false;
+		cdShellOpen = false;
+		cdMotorOn = false;
 		return false;
 	}
+
+	LOG_F(2, "CDR - Offset: %u, Mode: %u, Form: %u", 
+          cdImage.getSectorOffset(), cdImage.getSectorInfo().mode, cdImage.getSectorInfo().form);
 
 	return true;
 }
 
 bool Cdrom::reset()
 {
-	statusCode.byte = 0;
+	//Initialize Internal Registers
 	requestRegister.byte = 0;
 	modeRegister.byte = 0;
-
-	interruptEnableRegister = 0;
-	interruptFlagRegister = 0;
-	commandRegister = 0;
+	interruptMaskRegister.byte = 0;
+	interruptStatusRegister.byte = 0;
 	
+	commandFifo.flush();
 	adpcmFifo.flush();
 	parameterFifo.flush();
 	dataFifo.flush();
 	responseFifo.flush();
 	interruptFifo.flush();
 
-	//Init StatusRegister
-	statusRegister.index = 0;
-	statusRegister.adpbusy = 0;
-	statusRegister.prmempt = 1;
-	statusRegister.prmwrdy = 1;
-	statusRegister.rslrrdy = 0;
-	statusRegister.drqsts = 0;
-	statusRegister.busysts = 0;
-
 	//Init Internal Status
-	commandAvailable = false;
-
-	//Init Internal Counter
-	readSectorTimer = 0;
+	cdShellOpen = false;
+	cdMotorOn = false;
+	isStreamingData = false;
+	streamingINT1Delay = 0;
 	
 	return true;
 }
@@ -372,8 +358,9 @@ bool Cdrom::execute()
 	if (!interruptFifo.isempty())
 	{
 		//Check for other Interrupt still running
-		if ((interruptFlagRegister & 0x07) == 0x0)
+		if ((interruptStatusRegister.byte & 0x1f) == 0x00)
 		{
+			//Get Interrupt Event at the head of the Fifo
 			cdrom::InterruptEvent* ie;
 			ie = interruptFifo.getheadptr();
 
@@ -384,65 +371,74 @@ bool Cdrom::execute()
 			}
 			else
 			{
-				//Check if Interrupt is enabled
-				if ((interruptEnableRegister & ie->interruptNumber) == ie->interruptNumber)
+				//Check if the current Interrupt is enabled
+				if ((interruptMaskRegister.enint & ie->interruptNumber) == ie->interruptNumber)
 				{
-					interruptFlagRegister = (interruptFlagRegister & 0xf8) | ie->interruptNumber;
-					//LOG_F(2, "CDROM - Requesting Interrupt [INT%d]", interruptFlagRegister & 0x7);
-					LOG_F(INFO, "CDROM - Requesting Interrupt [INT%d]", interruptFlagRegister & 0x7);
-					psx->interrupt->set(static_cast<uint32_t>(interruptCause::cdrom));
+					//Reset busysts in case of INT3 (Command Complete)
+					if (ie->interruptNumber == cdrom::INT3)
+						statusRegister.busysts = 0;
+					
+					//Set Interrupt Status
+					interruptStatusRegister.intsts = ie->interruptNumber;
+					LOG_F(2, "CDR - Requesting Interrupt [INT%d]", interruptStatusRegister.intsts & 0x07);
+					psx->interrupt->request(static_cast<uint32_t>(interrupt::Cause::cdrom));
 
 					//Remove Interrupt from Fifo
 					cdrom::InterruptEvent tmp;
 					interruptFifo.pop(tmp);
 				}
+
+				
 			}
 		}
 	}
 
 	//Check for available commands
-	if (commandAvailable)
+	if (!commandFifo.isempty())
 	{
-		commandAvailable = false;
-		statusRegister.busysts = 0;
+		uint8_t command;
 
-		//LOG_F(1, "CDROM - Command %s", commandSet[commandRegister].mnemonic.c_str());
-		LOG_F(INFO, "CDROM - Command %s", commandSet[commandRegister].mnemonic.c_str());
-		bResult = (this->*commandSet[commandRegister].operate)();
+		//Extract Commanf from FIFO
+		commandFifo.pop(command);
+
+		LOG_F(1, "CDR - Command %s", commandSet[command].mnemonic.c_str());
+		bResult = (this->*commandSet[command].operate)();
 			if (!bResult)
-				LOG_F(ERROR, "CDROM - Unimplemented Command %s!", commandSet[commandRegister].mnemonic.c_str());
+				LOG_F(ERROR, "CDR - Unimplemented Command %s!", commandSet[command].mnemonic.c_str());
 	}
 
-	//Read Sector in Read or Play mode
-	if (statusCode.play == 1 || statusCode.read == 1)
+	//If we are in Streaming mode, continue reading sectors and respond with INT1
+	if (isStreamingData)
 	{
-		//Read Speed is 75 Sector per Second at x1 speed and 150 Sector per Second at x2 speed
-		//CDROM Clock speed is 16.9344 MHz, a Sector is read every:
-		//   - 16934400/75 = 225792 clock tick at x1 speed
-		//   - 16934400/150 = 112896 clock tick at x2 speed
-		//TODO - Only works for READN Command
-		if (readSectorTimer)
+		streamingINT1Delay--;
+		if (streamingINT1Delay == 0)
 		{
-			readSectorTimer--;
-		}
-		else
-		{
-			char sectorData[sector_payload_mode1_size];
+			int sectorSize = (modeRegister.sector_size) ? payload_size_raw : payload_size_mode2;
+			char sectorData[total_sector_size];
+
+			//Read Sector
+			cdImage.readSector(sectorData);  //TODO read always 2048 bytes, add supporto for raw size.
+
+			//Push Sector Data to Data Fifo
+			for(int i = 0; i < sectorSize;  i++)
+				dataFifo.push((uint8_t)sectorData[i]);
 
 			//Push INT1(stat)
 			cdrom::InterruptEvent ie;
-			ie.delay = 0;
+			ie.delay = 0; //Fire immediately, delay is already handled by streamingINT1Delay
 			ie.interruptNumber = cdrom::INT1;
 			interruptFifo.push(ie);
-			responseFifo.push(statusCode.byte);
 
-			cdImage.readSector(sectorData);
-
-			for(int i = 0; i < sector_payload_mode1_size;  i++)
-				dataFifo.push((uint8_t)sectorData[i]);
+			//Prepare Response and push to Response Fifo
+			cdrom::StatusCode sc;
+			sc.byte = 0;
+			sc.spindlemotor = cdMotorOn;
+			sc.shellopen = cdShellOpen;
+			sc.read = 1;
+			responseFifo.push(sc.byte);
 			
-			//Set Reading Speed according to actual mode
-			readSectorTimer = 16934400/(75*(modeRegister.speed + 1));
+			//Reset Streaming INT1 Delay for next sector
+			streamingINT1Delay = modeRegister.speed ? 112900 : 225800; //Set delay according to speed mode
 		}
 	}
 
@@ -454,8 +450,7 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 	switch (addr)
 	{
 	case 0x1f801800:
-		LOG_F(INFO, "CDROM - Write Status Register:\t0x%08x       , data: 0x%08x", addr, data);
-		//LOG_F(3, "CDROM - Write Status Register:\t\t0x%08x       , data: 0x%08x", addr, data);
+		LOG_F(3, "CDR - Write HSTS Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		statusRegister.index = data & 0x3;
 		break;
 	
@@ -463,29 +458,24 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		switch(statusRegister.index)
 		{
 		case 0:
-			commandRegister = data;
-			commandAvailable = true;
+			commandFifo.push(data);
 			statusRegister.busysts = 1;
-			LOG_F(INFO, "CDROM - Write Command Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
-			//LOG_F(3, "CDROM - Write Command Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
+			LOG_F(3, "CDR - Write COMMAND Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 			break;
 
 		case 1:
 			//Sound Map Data Out
-			LOG_F(INFO, "CDROM - Write Sound Map Data Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
-			//LOG_F(3, "CDROM - Write Sound Map Data Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
+			LOG_F(3, "CDR - Write WRDATA Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 			break;
 
 		case 2:
 			//Sound Map Coding Info
-			LOG_F(INFO, "CDROM - Write Sound Map Coding Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
-			//LOG_F(3, "CDROM - Write Sound Map Coding Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
+			LOG_F(3, "CDR - Write CI Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 			break;
 
 		case 3:
 			//Audio Volume for Right-CD-Out to Right-SPU-Input
-			LOG_F(INFO, "CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
-			//LOG_F(3, "CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
+			LOG_F(3, "CDR - Write ATV2 Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 			break;
 		};
 		break;
@@ -495,26 +485,23 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		{
 		case 0:
 			parameterFifo.push(data);
-			LOG_F(INFO, "CDROM - Write Parameter Fifo:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
-			//LOG_F(3, "CDROM - Write Parameter Fifo:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
+			LOG_F(3, "CDR - Write PARAMETER Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 			break;
 
 		case 1:
-			interruptEnableRegister = data & 0x1f;
-			LOG_F(INFO, "CDROM - Write Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
-			//LOG_F(3, "CDROM - Write Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
+			//Write Interrupt Mask Register
+			interruptMaskRegister.byte = data & 0x1f;
+			LOG_F(3, "CDR - Write HINTMSK Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 			break;
 
 		case 2:
 			//Audio Volume for Left-CD-Out to Left-SPU-Input
-			LOG_F(INFO, "CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data); 
-			//LOG_F(3, "CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data); 
+			LOG_F(3, "CDR - Write ATV0 Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data); 
 			break;
 
 		case 3:
 			//Audio Volume for Right-CD-Out to Left-SPU-Input
-			LOG_F(INFO, "CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
-			//LOG_F(3, "CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
+			LOG_F(3, "CDR - Write ATV3 Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 			break;
 		};
 		break;
@@ -523,38 +510,44 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		switch(statusRegister.index)
 		{
 		case 0:
+			//Write Request Register, only top 3 bits are used the other are always 0
 			requestRegister.byte = data & 0xe0;
-			//If RequestRegister.bit7 = 0, Reset DataFifo
-			//if (requestRegister.bfrd == 0) dataFifo.flush();
-			LOG_F(INFO, "CDROM - Write Request Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
-			//LOG_F(3, "CDROM - Write Request Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
+			LOG_F(3, "CDR - Write HCHPCTL Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 			break;
 
 		case 1:
-			interruptFlagRegister = (data & 0xe0) | ((interruptFlagRegister & 0x1f) & ~(data & 0x1f));
+			//Update Interrupt Status Register
+			interruptStatusRegister.byte = (interruptStatusRegister.byte & 0xe0) | 
+			                               ((interruptStatusRegister.byte & 0x1f) & ~(data & 0x1f));
+
+			//If bit 5 is set, clear sound map XA-ADPCM buffer
+			if (data & 0x20)
+				adpcmFifo.flush();
+
+			//If bit 6 is set, clear parameter fifo
 			if (data & 0x40)
 				parameterFifo.flush();
+			
+			//if bit 7 is set, reset decoder chip
+				//TODO - implement decoder reset
 
-			LOG_F(INFO, "CDROM - Write Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);	
-			//LOG_F(3, "CDROM - Write Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
+			LOG_F(3, "CDR - Write HCLRCTL Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);	
 			break;
 
 		case 2:
 			//Audio Volume for Left-CD-Out to Right-SPU-Input
-			LOG_F(INFO, "CDROM - Write Audio Volume Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
-			//LOG_F(3, "CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
+			LOG_F(3, "CDR - Write ATV1 Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 			break;
 
 		case 3:
 			//Audio Volume Apply Changes
-			LOG_F(INFO, "CDROM - Write Audio Volume Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
-			//LOG_F(3, "CDROM - Write Audio Volume Register:\t\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
+			LOG_F(3, "CDR - Write ADPCTL Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 			break;
 		};
 		break;
 
 	default:
-		LOG_F(ERROR, "CDROM - Unknown Parameter Set addr:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+		LOG_F(ERROR, "CDR - Unknown Parameter Set addr:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return false;
 	}
 
@@ -570,55 +563,41 @@ uint32_t Cdrom::readAddr(uint32_t addr, uint8_t bytes)
 	{
 	case 0x1f801800:
 		data = statusRegister.byte;
-		LOG_F(INFO, "CDROM - Read Status Register:\t\t0x%08x       , data: 0x%08x", addr, data);
-		//LOG_F(3, "CDROM - Read Status Register:\t\t0x%08x       , data: 0x%08x", addr, data);
+		LOG_F(3, "CDR - Read HSTS Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		break;
 
 	case 0x1f801801:
 		if (responseFifo.pop(tmp))
 			data = tmp;
-		LOG_F(INFO, "CDROM - Read Response Fifo:\t\t0x%08x       , data: 0x%02x", addr, data); 	
-		//LOG_F(3, "CDROM - Read Response Fifo:\t\t0x%08x       , data: 0x%02x", addr, data); 
+		LOG_F(3, "CDR - Read RESULT Fifo:\t\t0x%08x (%d), data: 0x%02x", addr, bytes, data); 	 
 		break;
 	
 	case 0x1f801802:
 		if (dataFifo.pop(tmp))
 			data = tmp;
-		LOG_F(3, "CDROM - Read Data Fifo:\t\t0x%08x       , data: 0x%08x", addr, data); 	
+		LOG_F(3, "CDR - Read RDDATA Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data); 	
 		break;
 
 	case 0x1f801803:
 		switch(statusRegister.index)
 		{
 		case 0:
-			data = interruptEnableRegister;
-			LOG_F(INFO, "CDROM - Read Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data); 
-			//LOG_F(3, "CDROM - Read Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data); 
+		case 2:
+			data = interruptMaskRegister.byte | 0xe0; //top 3 bits are unused, read return always 1
+			LOG_F(3, "CDR - Read HINTMSK Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);  
 			break;
 
 		case 1:
-			data = 0b11100000 | (interruptFlagRegister & 0x1f);
-			LOG_F(INFO, "CDROM - Read Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data); 
-			//LOG_F(3, "CDROM - Read Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data); 
-			break;
-
-		case 2:
-			data = interruptEnableRegister;
-			LOG_F(INFO, "CDROM - Read Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data); 
-			//LOG_F(3, "CDROM - Read Int. Enable Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data); 
-			break;
-
 		case 3:
-			data = 0b11100000 | (interruptFlagRegister & 0x1f);
-			LOG_F(INFO, "CDROM - Read Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data);
-			//LOG_F(3, "CDROM - Read Int. Flag Register:\t0x%08x.Index%d, data: 0x%08x", addr, statusRegister.index, data); 
+			data = interruptStatusRegister.byte | 0xe0; //top 3 bits are unused, read return always 1
+			LOG_F(3, "CDR - Read HINTSTS Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);  
 			break;
 		};
 		break;
 
 	default:
-		LOG_F(ERROR, "CDROM - Unknown Parameter Get addr: 0x%08x (%d)", addr, bytes);
-		return 0;
+		LOG_F(ERROR, "CDR - Unknown Parameter Get addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
+		return 0x0;
 	}
 	
 	return data;
@@ -632,38 +611,49 @@ bool Cdrom::cmd_unused() { return false; };
 
 bool Cdrom::cmd_getstat()
 { 
-	//Reset OpenShell
-	statusCode.shellopen = 0;
+	cdrom::StatusCode sc;
 	
 	//Acknowledge with INT3(stat)
 	cdrom::InterruptEvent ie;
-	ie.delay = 0; //Temporary Value;
+	ie.delay = 102; //about 6us
 	ie.interruptNumber = cdrom::INT3;
 	interruptFifo.push(ie);	
-	responseFifo.push(statusCode.byte);
+
+	//Prepare Status Code and push to Response Fifo
+	sc.byte = 0;
+	sc.shellopen = cdShellOpen; 		
+	sc.spindlemotor = cdMotorOn;
+	responseFifo.push(sc.byte);
 
 	return true;
 };
 
 bool Cdrom::cmd_setloc()
 { 
+	cdrom::StatusCode sc;
+
 	//Get All Parameters
 	uint8_t amm, ass, asect;
 	parameterFifo.pop(amm);
 	parameterFifo.pop(ass);
 	parameterFifo.pop(asect);
-	LOG_F(INFO, "CDROM - Command Parameters [amm: %d, ass: %d, asect: %d]", amm, ass, asect);
-	//LOG_F(1, "CDROM - Command Parameters [amm %d, ass %d, asect %d]", amm, ass, asect);
+	LOG_F(1, "CDR - Command Parameters [mm: 0x%02x, ss: 0x%02x, ff: 0x%02x]", amm, ass, asect);
 
 	//Search Sector on CdRom Image
-	cdImage.setLocation(amm, ass, asect); 
+	cdImage.setLocation(amm, ass, asect);
+	LOG_F(1, "CDR - Sector Target: %d", cdImage.getSectorTarget());
 
 	//Acknowledge with INT3(stat)
 	cdrom::InterruptEvent ie;
-	ie.delay = 0; //Temporary Value;
+	ie.delay = 102; //about 6us
 	ie.interruptNumber = cdrom::INT3;
-	interruptFifo.push(ie);	
-	responseFifo.push(statusCode.byte);
+	interruptFifo.push(ie);
+
+	//Prepare Status Code and push to Response Fifo
+	sc.byte = 0;
+	sc.shellopen = cdShellOpen;
+	sc.spindlemotor = cdMotorOn; 
+	responseFifo.push(sc.byte);
 
 	return true;
 };
@@ -674,21 +664,25 @@ bool Cdrom::cmd_backward() { return false; };
 
 bool Cdrom::cmd_readn()
 { 
+	cdrom::StatusCode sc;
+
 	//Acknowledge with INT3(stat)
 	cdrom::InterruptEvent ie;
-	ie.delay = 0; //Temporary Value;
+	ie.delay = 102; //about 6us
 	ie.interruptNumber = cdrom::INT3;
 	interruptFifo.push(ie);
-	
-	//Reset Seek and Set Read
-	statusCode.play = 0;
-	statusCode.seek = 0;
-	statusCode.read = 1;
-	responseFifo.push(statusCode.byte);
-	
-	//Set Reading Speed according to actual mode
-	readSectorTimer = 16934400/(75*(modeRegister.speed + 1));
-	
+
+	//Prepare Status Code and push to Response Fifo
+	sc.byte = 0;
+	sc.shellopen = cdShellOpen;
+	sc.spindlemotor = cdMotorOn;
+	sc.read = 1;
+	responseFifo.push(sc.byte);
+
+	//Set the CDROM in Streaming mode, receives sectors continuously until Pause/Stop command
+	isStreamingData = true;
+	streamingINT1Delay = modeRegister.speed ? 112900 : 225800; //Set delay according to speed mode
+
 	return true;
 };
 
@@ -697,23 +691,35 @@ bool Cdrom::cmd_stop() { return false; };
 
 bool Cdrom::cmd_pause()
 {	
+	cdrom::StatusCode sc;
+
 	//Acknowledge with INT3(stat)
 	cdrom::InterruptEvent ie;
-	ie.delay = 0; //Temporary Value;
+	ie.delay = 102; //about 6us
 	ie.interruptNumber = cdrom::INT3;
 	interruptFifo.push(ie);
-	responseFifo.push(statusCode.byte);
+
+	//Prepare Status Code and push to Response Fifo
+	sc.byte = 0;
+	sc.spindlemotor = cdMotorOn;
+	sc.shellopen = cdShellOpen;
+	sc.read = 1;  //TODO, support forn play/pause status
+	responseFifo.push(sc.byte);
 
 	//Command COmplete with INT2(stat)
-	ie.delay = 0; //Temporary Value;
+	ie.delay = modeRegister.speed ? (112900/2) : (225800/2); //Set delay according to speed mode, assuming it occurs after half sector read
 	ie.interruptNumber = cdrom::INT2;
 	interruptFifo.push(ie);
 
-	//Reset Read
-	statusCode.play = 0;
-	statusCode.seek = 0;
-	statusCode.read = 0;
-	responseFifo.push(statusCode.byte);
+	//Prepare Status Code and push to Response Fifo
+	sc.byte = 0;
+	sc.spindlemotor = cdMotorOn;
+	sc.shellopen = cdShellOpen;
+	sc.read  = 0;
+	responseFifo.push(sc.byte);
+
+	//Stop Streaming Data
+	isStreamingData = false;
 
 	return true;
 };
@@ -724,22 +730,28 @@ bool Cdrom::cmd_setfilter() { return false; };
 
 bool Cdrom::cmd_setmode()
 { 
+	cdrom::StatusCode sc;
+
 	//Get All Parameters
 	uint8_t mode;
 	parameterFifo.pop(mode);
 
-	LOG_F(INFO, "CDROM - Command Parameters [mode: 0x%02x]", mode);
-	//LOG_F(1, "CDROM - Command Parameters [mode %d]", mode);
+	LOG_F(1, "CDR - Command Parameters [mode: 0x%02x]", mode);
 	
 	//Update Mode Register
 	modeRegister.byte = mode;
 
 	//Acnowkledge with INT3(stat)
 	cdrom::InterruptEvent ie;
-	ie.delay = 0; //Temporary Value;
+	ie.delay = 102; //about 6us
 	ie.interruptNumber = cdrom::INT3;
 	interruptFifo.push(ie);
-	responseFifo.push(statusCode.byte);
+
+	//Prepare Status Code and push to Response Fifo
+	sc.byte = 0;
+	sc.shellopen = cdShellOpen;
+	sc.spindlemotor = cdMotorOn;
+	responseFifo.push(sc.byte);
 
 	return true;
 };
@@ -753,26 +765,34 @@ bool Cdrom::cmd_cettd() { return false; };
 
 bool Cdrom::cmd_seekl()
 {
+	cdrom::StatusCode sc;
+
 	//Acknowledge with INT3(stat)
 	cdrom::InterruptEvent ie;
-	ie.delay = 0; //Temporary Value;
+	ie.delay = 102; //about 6us
 	ie.interruptNumber = cdrom::INT3;
 	interruptFifo.push(ie);
-	responseFifo.push(statusCode.byte);
 
-	//Search Sector on CdRom Image
+	//Prepare Status Code and push to Response Fifo
+	sc.byte = 0;
+	sc.shellopen = cdShellOpen;
+	sc.spindlemotor = cdMotorOn;
+	sc.seek = 1;
+	responseFifo.push(sc.byte);
+
+	//Search Sector on CdRom Image according to sector target set by setloc
 	cdImage.seekSector();
 
 	//Complete Command with INT2(stat)
-	ie.delay = 0; //Temporary Value;
+	ie.delay = 677500; //about 40ms
 	ie.interruptNumber = cdrom::INT2;
 	interruptFifo.push(ie);
 
-	//Status Seek
-	statusCode.play = 0;
-	statusCode.seek = 1;
-	statusCode.read = 0;
-	responseFifo.push(statusCode.byte);
+	//Prepare Status Code and push to Response Fifo
+	sc.byte = 0;
+	sc.shellopen = cdShellOpen;
+	sc.spindlemotor = cdMotorOn;
+	responseFifo.push(sc.byte);
 
 	return true;
 
@@ -786,22 +806,21 @@ bool Cdrom::cmd_test()
 	uint8_t sub;
 	parameterFifo.pop(sub);
 
-	LOG_F(INFO, "CDROM - Command Parameters [sub: 0x%02x]", sub);
-	//LOG_F(1, "CDROM - Command Parameters [param1 %02x]", tmp);
-
+	LOG_F(1, "CDR - Command Parameters [sub: 0x%02x]", sub);
+	
 	cdrom::InterruptEvent ie;
 	switch(sub)
 	{
 		case 0x20:  //CDROM Controller Version
 			//Acknowledge with INT3(stat)
-			ie.delay = 0; //Temporary Value;
+			ie.delay = 68000; //about 4ms
 			ie.interruptNumber = cdrom::INT3;
 			interruptFifo.push(ie);
-			responseFifo.push( {0x94, 0x09, 0x19, 0xc0} );
+			responseFifo.push( {0x94, 0x11, 0x18, 0xc0} );
 			break;
 		default:
 			//Unknown Sub Command
-			LOG_F(ERROR, "CDROM - Unknown TEST Sub Command 0x%02x", sub);
+			LOG_F(ERROR, "CDR - Unknown TEST Sub Command 0x%02x", sub);
 	}
 	
 	return true;	
@@ -809,39 +828,25 @@ bool Cdrom::cmd_test()
 
 bool Cdrom::cmd_getid()
 { 
-	/*
-	static int count = 0;
-	if (count < 2)
-	{
-		//Not Ready
-		interruptFifo.push(cdrom::INT5);
-		switch (count)
-		{
-			case 0:
-				responseFifo.push( {0x11, 0x80} );
-				break;
-			case 1:
-				responseFifo.push({ 0x03, 0x80 });
-				break;
-		}
-		count++;
+	cdrom::StatusCode sc;
 
-		return true;
-	}
-	*/
-	
 	//Acknowledge with INT3(stat)
 	cdrom::InterruptEvent ie;
-	ie.delay = 0; //Temporary Value;
+	ie.delay = 102; //about 6 us
 	ie.interruptNumber = cdrom::INT3;
 	interruptFifo.push(ie);
-	responseFifo.push(statusCode.byte);
+
+	//Prepare Status Code and push to Response Fifo
+	sc.byte = 0;
+	sc.shellopen = cdShellOpen;
+	sc.spindlemotor = cdMotorOn;
+	responseFifo.push(sc.byte);
 
 	//Complete Command with INT2(stat)
-	ie.delay = 0; //Temporary Value;
+	ie.delay = 1500; //about 80 us
 	ie.interruptNumber = cdrom::INT2;
 	interruptFifo.push(ie);
-	responseFifo.push( {0x02, 0x00, 0x20, 0x00, 0x53, 0x43, 0x45, 0x41} ); //SCEA 0x41, SCEE 0x45
+	responseFifo.push( {0x02, 0x00, 0x20, 0x00, 0x53, 0x43, 0x45, 0x45} ); //SCEA 0x41, SCEE 0x45
 	
 	return true;
 };

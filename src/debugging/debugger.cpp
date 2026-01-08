@@ -33,7 +33,7 @@ bool debugger::update()
     getTimerDebugInfo();
     getGpuDebugInfo();
     getCdromDebugInfo();
-    //updateCallStack();
+    updateCallStack();
  
     return true;
 };
@@ -122,7 +122,7 @@ bool debugger::renderCpuWidget()
 {
     ImGui::Begin("CPU Registers");
         ImGui::BeginTabBar("#tabs");
-            if (ImGui::BeginTabItem("Raw"))
+            if (ImGui::BeginTabItem("CPU"))
             {
                 for (int i = 0; i < 32; i++)
                 {
@@ -178,7 +178,16 @@ bool debugger::renderCpuWidget()
                         ImGui::SameLine();
                         ImGui::Text("Int. Mask   = 0x%08x", interruptInfo.i_mask);
                         break;
+                    case 7:
+                        ImGui::SameLine();
+                        ImGui::Text("%s", (psx->cpu->cop0->reg[12] & 0x1) ? "Interrupt Enabled" : "Interrupt Disabled");
+                        break;
                     case 8:
+                        ImGui::SameLine();
+                        ImGui::Text("%s", (psx->cpu->cop0->reg[12] & 0x2) ? "User Mode" : "Kernel Mode");
+                        break;
+
+                    case 10:
                         ImGui::SameLine();
                         ImGui::Text("POST = %d", psx->postStatus);
                         break;
@@ -361,12 +370,201 @@ bool debugger::renderSpuWidget()
 bool debugger::renderCdromWidget()
 {
     ImGui::Begin("CDROM");
-    ImGui::Text("Status Register:           Value  0x%02x  ", cdromInfo.statusRegister);
-    ImGui::Text("Request Register:          Value  0x%02x  ", cdromInfo.requestRegister);
-    ImGui::Text("Interrupt Enable Register: Value  0x%02x  ", cdromInfo.interruptEnableRegister);
-    ImGui::Text("Interrupt Flag Register:   Value  0x%02x  ", cdromInfo.interruptFlagRegister);
+
+    // Status Register Table
+    if (ImGui::BeginTable("Status Register", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
+    {
+        ImGui::TableSetupColumn("Field", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::PushStyleColor(ImGuiCol_Text, green_color);
+        ImGui::Text("Status Register");
+        ImGui::PopStyleColor();
+        ImGui::TableNextColumn();
+        ImGui::PushStyleColor(ImGuiCol_Text, green_color);
+        ImGui::Text("0x%02x", cdromInfo.statusRegister);
+        ImGui::PopStyleColor();
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("ra");
+        ImGui::TableNextColumn();
+        ImGui::Text("%d", cdromInfo.statusRegister & 0x3);
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("adpbusy");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.statusRegister & 0x4) ? "playing XA-ADPCM" : "Idle");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("prmempty");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.statusRegister & 0x8) ? "Params FIFO Empty" : "Params Available");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("prmwrdy");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.statusRegister & 0x10) ? "Param. FIFO writable" : "Param. FIFO Full");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("rslrrdy");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.statusRegister & 0x20) ? "Result Ready" : "No Result available");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("drqsts");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.statusRegister & 0x40) ? "R/W Request Pending" : "No R/W Request");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("busysts");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.statusRegister & 0x80) ? "Busy" : "Idle");
+
+        ImGui::EndTable();
+    }
+
+    // Request Register Table
+    if (ImGui::BeginTable("Request Register", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
+    {
+        ImGui::TableSetupColumn("Field", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::PushStyleColor(ImGuiCol_Text, green_color);
+        ImGui::Text("Request Register");
+        ImGui::PopStyleColor();
+        ImGui::TableNextColumn();
+        ImGui::PushStyleColor(ImGuiCol_Text, green_color);
+        ImGui::Text("0x%02x", cdromInfo.requestRegister);
+        ImGui::PopStyleColor();
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("reserved");
+        ImGui::TableNextColumn();
+        ImGui::Text("%d", cdromInfo.requestRegister & 0x1f);
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("smen");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.requestRegister & 0x20) ? "Sound Map Enabled" : "Sound Map Disabled");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("bfwr");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.requestRegister & 0x40) ? "Writes to WRDATA" : "Idle");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("bfrd");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.requestRegister & 0x80) ? "Reads from RDDATA" : "Idle");
+
+        ImGui::EndTable();
+    }
+
+    // Interrupt Mask Register Table
+    if (ImGui::BeginTable("Interrupt Mask Register", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
+    {
+        ImGui::TableSetupColumn("Field", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::PushStyleColor(ImGuiCol_Text, green_color);
+        ImGui::Text("Interrupt Mask");
+        ImGui::PopStyleColor();
+        ImGui::TableNextColumn();
+        ImGui::PushStyleColor(ImGuiCol_Text, green_color);
+        ImGui::Text("0x%02x", cdromInfo.interruptMaskRegister);
+        ImGui::PopStyleColor();
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("enint");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.interruptMaskRegister & 0x07) ? "Enabled" : "Disabled");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("enbfempt");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.interruptMaskRegister & 0x08) ? "Enabled" : "Disabled");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("enbfwrdy");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.interruptMaskRegister & 0x10) ? "Enabled" : "Disabled");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("reserved");
+        ImGui::TableNextColumn();
+        ImGui::Text("%d", cdromInfo.interruptMaskRegister & 0xe0);
+
+        ImGui::EndTable();
+    }
+
+    // Interrupt Status Register Table
+    if (ImGui::BeginTable("Interrupt Status Register", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
+    {
+        ImGui::TableSetupColumn("Field", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::PushStyleColor(ImGuiCol_Text, green_color);
+        ImGui::Text("Interrupt Status");
+        ImGui::PopStyleColor();
+        ImGui::TableNextColumn();
+        ImGui::PushStyleColor(ImGuiCol_Text, green_color);
+        ImGui::Text("0x%02x", cdromInfo.interruptStatusRegister);
+        ImGui::PopStyleColor();
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("intsts");
+        ImGui::TableNextColumn();
+        char buf[16];
+        sprintf(buf, "INT%d", cdromInfo.interruptStatusRegister & 0x07);
+        ImGui::Text("%s", (cdromInfo.interruptStatusRegister & 0x07) ? buf : "-");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("bfempt");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.interruptStatusRegister & 0x08) ? "XA-ADPCM buffer empty" : "-");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("bfwrdy");
+        ImGui::TableNextColumn();
+        ImGui::Text("%s", (cdromInfo.interruptStatusRegister & 0x10) ? "XA-ADPCM buffer write ready" : "-");
+
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::Text("reserved");
+        ImGui::TableNextColumn();
+        ImGui::Text("%d", cdromInfo.interruptStatusRegister & 0xe0);
+
+        ImGui::EndTable();
+    }
+
     ImGui::End();
-    return false;
+    return true;
 }
 
 bool debugger::renderTtyWidget()
@@ -556,8 +754,8 @@ void debugger::getCdromDebugInfo()
 {
     cdromInfo.statusRegister = psx->cdrom->getStatusRegister();
     cdromInfo.requestRegister = psx->cdrom->getRequestRegister();
-    cdromInfo.interruptEnableRegister = psx->cdrom->getInterruptEnableRegister();
-    cdromInfo.interruptFlagRegister = psx->cdrom->getInterruptFlagRegister();   
+    cdromInfo.interruptMaskRegister = psx->cdrom->getInterruptMaskRegister();
+    cdromInfo.interruptStatusRegister = psx->cdrom->getInterruptStatusRegister();   
 }
 
 void debugger::updateCallStack()
@@ -582,18 +780,26 @@ void debugger::updateCallStack()
     //A Functions Name Resolution
     if (callInfo.pc == 0x000000a0)
     {
+        //Skip putchar function
+        if (funcIndex == 0x3c) 
+            return;
+        
         functionName.str("");
         functionName << function_A[funcIndex];
-        LOG_F(2, "Kernel - Calling %s", functionName.str().c_str());
+        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), psx->cpu->gpr[4], psx->cpu->gpr[5], psx->cpu->gpr[6], psx->cpu->gpr[7]);
         callInfo.func = functionName.str();
     }
 
     //B Functions Name Resolution
     if (callInfo.pc == 0x000000b0)
     {
+        //Skip putchar function
+        if (funcIndex == 0x3d) 
+            return;
+
         functionName.str("");
         functionName << function_B[funcIndex];
-        LOG_F(2, "Kernel - Calling: %s", functionName.str().c_str());
+        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), psx->cpu->gpr[4], psx->cpu->gpr[5], psx->cpu->gpr[6], psx->cpu->gpr[7]);
         callInfo.func = functionName.str();
     }
 
@@ -602,7 +808,7 @@ void debugger::updateCallStack()
     {
         functionName.str("");
         functionName << function_C[funcIndex];
-        LOG_F(2, "Kernel - Calling: %s", functionName.str().c_str());
+        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), psx->cpu->gpr[4], psx->cpu->gpr[5], psx->cpu->gpr[6], psx->cpu->gpr[7]);
         callInfo.func = functionName.str();
     }
 

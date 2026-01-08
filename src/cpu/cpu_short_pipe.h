@@ -51,7 +51,7 @@ public:
 
 	//Pipeline Fase Functions
 	bool exception(uint32_t cause) override;
-	bool interrupt(uint8_t status) override;
+	bool interrupt(uint8_t number, bool status) override;
 
 	// Basic register accessors
 	uint32_t get_pc() const override;

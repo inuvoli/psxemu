@@ -42,6 +42,7 @@ bool Cop0::execute(uint32_t cofun)
 	switch(currentOperation.operation)
 	{
 	case 0x00:	//mfc0 rt, rd
+		LOG_F(3, "CP0 - mfc0 r%d, c0_r%d [0x%08x --> r%d]", (int)currentOperation.rt, (int)currentOperation.rd, reg[currentOperation.rd],  (int)currentOperation.rt);
 		if (currentOperation.rt != 0)
 			cpu->gpr[currentOperation.rt] = reg[currentOperation.rd];
 		break;
@@ -51,6 +52,7 @@ bool Cop0::execute(uint32_t cofun)
 		break;
 
 	case 0x04:	//mtc0 rt, rd
+		LOG_F(3, "CP0 - mtc0 r%d, c0_r%d [0x%08x --> c0_r%d]", (int)currentOperation.rt, (int)currentOperation.rd, cpu->gpr[currentOperation.rt], (int)currentOperation.rd);
 		switch(currentOperation.rd)
 		{
 			

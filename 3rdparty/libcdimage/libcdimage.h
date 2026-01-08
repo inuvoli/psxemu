@@ -15,31 +15,47 @@ constexpr auto sector_payload_mode1_size = 2048;
 constexpr auto sector_tail_mode1_size = 288;
 constexpr auto sector_payload_mode2_size = 2336;
 
+// Sector information structure
+struct SectorInfo {
+    uint8_t mm;
+    uint8_t ss;
+    uint8_t ff;
+    uint8_t mode;
+    uint8_t form;
+    uint32_t lba;
+};
 
 class CdImage
 {
 public:
     CdImage();
-    ~CdImage() {};
+    ~CdImage();
 
     //Interface Methods
     bool openImage(const std::string& fileName);
     bool closeImage();
 
-    bool setLocation(int min, int sec, int frac);
-    bool readSector(char* buf);
+    void setLocation(uint8_t min, uint8_t sec, uint8_t frac);
     bool seekSector();
+    int readSector(char* buf);
+
+    // Getter methods
+    uint32_t getSectorOffset() const { return sectorOffset; }
+    uint32_t getSectorTarget() const { return sectorTarget; }
+    uint8_t getImageMode() const { return sectorInfo.mode; }
+    uint8_t getImageForm() const { return sectorInfo.form; }
+    const SectorInfo& getSectorInfo() const { return sectorInfo; }
 
 private:
-    uint32_t seekTarget;    //Expressed in number of sectors
+    // Helper methods
+    uint8_t bcdToDecimal(uint8_t bcd);
+    uint32_t calculateLBA(uint8_t mm, uint8_t ss, uint8_t ff);
+    bool readSectorHeader();
+
     std::string fileName;
     std::ifstream image;
 
-    uint8_t     imageMode;
-    uint8_t     imageForm;
-    uint8_t     mmOffset;
-    uint8_t     ssOffset;
-    uint8_t     fracOffset;
-    uint32_t    sectorOffset;       //Contains the Offset in byte of the first sector
-    uint32_t    sectorTarget;       //Contains sector specified by setLocation
+    SectorInfo sectorInfo;      // First sector information
+    uint32_t sectorOffset;      // LBA offset from first sector
+    uint32_t sectorTarget;      // Target sector LBA, updated by setLocation
 };

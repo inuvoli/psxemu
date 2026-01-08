@@ -128,7 +128,6 @@ bool Psx::execute()
 		controller->execute();
 	}
 
-	//Interrupt should be first to update interrupt status before CPU execution
 	interrupt->execute();
 
 	masterClock++;
@@ -163,8 +162,7 @@ uint32_t Psx::rdMem(uint32_t vAddr, uint8_t bytes)
 	//Debug Bios TTY
 	if (memRangeTTY.contains(phAddr))  return tty->readAddr(phAddr, bytes);
 		
-	//LOG_F(ERROR, "Unhandled Memory Read  - addr: 0x%08x (%d)", vAddr, bytes);
-
+	LOG_F(ERROR, "Unhandled Memory Read  - addr: 0x%08x (%d)", vAddr, bytes);
 	return 0;	
 }
 
@@ -235,14 +233,16 @@ bool Psx::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		postStatus = data;
 		break;
 	default:
-		LOG_F(ERROR, "PSX - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
+		LOG_F(ERROR, "PSX - Write Unknown Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data); 	
 		return false;
 	}
+
+	LOG_F(3, "PSX - Write to Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data); 	
 	return true;
 }
 uint32_t Psx::readAddr(uint32_t addr, uint8_t bytes)
 {
-	uint32_t data;
+	uint32_t data = 0x0;
 
 	switch(addr)
 	{
@@ -251,9 +251,11 @@ uint32_t Psx::readAddr(uint32_t addr, uint8_t bytes)
 
 	default:
 		data = 0;
-		LOG_F(ERROR, "PSX - Unknown Parameter Get addr: 0x%08x (%d)\n", addr, bytes);
+		LOG_F(ERROR, "PSX - Read Unknown Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data); 	
+		return 0x0;
 		break;
 	}
 
+	LOG_F(3, "PSX - Read from Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data); 	
 	return data;
 }

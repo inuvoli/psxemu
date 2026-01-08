@@ -30,7 +30,7 @@ public:
 
 	// Pipeline phase functions
 	virtual bool exception(uint32_t cause) = 0;
-	virtual bool interrupt(uint8_t status) = 0;
+	virtual bool interrupt(uint8_t number, bool status) = 0;
 
 	// Link to PSX instance
 	virtual void link(Psx* instance) = 0;

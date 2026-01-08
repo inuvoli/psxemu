@@ -61,7 +61,7 @@ bool Timers::execute(ClockSource source)
 		break;
 		
 	default:
-		LOG_F(ERROR, "TIMERS - Unknown Clock Source!");
+		LOG_F(ERROR, "TMR - Unknown Clock Source!");
 	}
 
 	//Update Interrupt Signals
@@ -380,9 +380,11 @@ bool Timers::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		break;
 
 	default:
-		LOG_F(ERROR, "TIMERS - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
+		LOG_F(ERROR, "TMR - Write Unknown Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data); 	
 		return false;
 	}
+
+	LOG_F(3, "TMR - Write to Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data); 	
 	return true;
 }
 
@@ -432,10 +434,11 @@ uint32_t Timers::readAddr(uint32_t addr, uint8_t bytes)
 		break;
 
 	default:
-		LOG_F(ERROR, "TIMERS - Unknown Parameter Get addr: 0x%08x (%d)", addr, bytes);
+		LOG_F(ERROR, "TMR - Unknown Parameter Get addr: 0x%08x (%d)", addr, bytes);
 		return 0x0;
 	}
 
+	LOG_F(3, "TMR - Read from Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data); 	
 	return data;
 }
 
@@ -557,13 +560,13 @@ void Timers::updateInterrupt(uint8_t timerNumber)
 		switch(timerNumber)
 		{
 		case 0:
-			psx->interrupt->set(static_cast<uint32_t>(interruptCause::timer0));
+			psx->interrupt->request(static_cast<uint32_t>(interrupt::Cause::timer0));
 			break;
 		case 1:
-			psx->interrupt->set(static_cast<uint32_t>(interruptCause::timer1));
+			psx->interrupt->request(static_cast<uint32_t>(interrupt::Cause::timer1));
 			break;
 		case 2:
-			psx->interrupt->set(static_cast<uint32_t>(interruptCause::timer2));
+			psx->interrupt->request(static_cast<uint32_t>(interrupt::Cause::timer2));
 			break;
 			
 		}

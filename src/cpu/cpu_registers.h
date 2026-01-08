@@ -14,67 +14,15 @@ namespace cpu
 	{
 		uint32_t		word;
 
-		lite::bitfield<26, 6> op;		//opcode
-		lite::bitfield<21, 5> rs;		//rs index
-		lite::bitfield<16, 5> rt;		//rt index
-		lite::bitfield<11, 5> rd;		//rd index
+		lite::bitfield<26, 6>	op;		//opcode
+		lite::bitfield<21, 5>	rs;		//rs index
+		lite::bitfield<16, 5>	rt;		//rt index
+		lite::bitfield<11, 5>	rd;		//rd index
 		lite::bitfield<6, 5>	shamt;	//shift amount
 		lite::bitfield<0, 6>	funct;	//function
-		lite::bitfield<0, 16> imm;	//immediate value
-		lite::bitfield<0, 26> tgt;	//target
-		lite::bitfield<0, 26> cofun;	//coprocessor function
-	};
-
-	//Pipeline Buffers, used to pass Signals and Data from one stage to the next
-	struct ifidBuffer
-	{
-		uint32_t	pc;
-		uint32_t	instr;
-		bool		branchDelaySlot;
-	};
-
-	struct idexBuffer
-	{
-		uint32_t	pc;
-		uint32_t	regA;	//Content of rs (aka base)
-		uint32_t	regB;	//Content of rt
-		uint32_t	imm;	//32bit Sign extendend immediate value
-		uint8_t		rs;
-		uint8_t		rd;
-		uint8_t		rt;
-		uint8_t		op;
-		uint8_t		funct;
-		uint32_t	tgt;
-		uint8_t		shamt;
-		uint32_t	cofun;
-		bool		cop;
-		bool		branchDelaySlot;
-	};
-
-	struct exmemBuffer
-	{
-		uint32_t	pc;
-		uint32_t	aluRes;
-		uint8_t		rd;
-		uint32_t	regB;
-		uint8_t		bytes;
-		bool		readMem;
-		bool		readMemUnaligned;
-		bool		readMemSignExt;
-		bool		writeMem;
-		bool		writeMemUnaligned;
-		bool		memToReg;
-		bool		aluToReg;
-
-	};
-	struct memwbBuffer
-	{
-		uint32_t	pc;
-		uint32_t	memData;
-		uint32_t	aluRes;
-		uint8_t		rd;
-		bool		memToReg;
-		bool		aluToReg;
+		lite::bitfield<0, 16>	imm;	//immediate value
+		lite::bitfield<0, 26>	tgt;	//target
+		lite::bitfield<0, 26>	cofun;	//coprocessor function
 	};
 
 	enum class exceptionCause : uint32_t
@@ -89,5 +37,15 @@ namespace cpu
 		resinst = 0x0a,
 		copunusable = 0x0b,
 		overflow = 0x0c
+	};
+
+	enum class hwInterrupt : uint8_t
+	{
+		int0 = 0x01,
+		int1 = 0x02,
+		int2 = 0x04,
+		int3 = 0x08,
+		int4 = 0x10,
+		int5 = 0x20
 	};
 };

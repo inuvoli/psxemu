@@ -224,6 +224,9 @@ bool psxemu::handleEvents()
             case SDLK_Y:
                 debugger::instance().setStepMode(StepMode::Frame);
                 break;
+            case SDLK_M:
+                pPsx->cpu->cop0->reg[12] = 0x00000401;
+                break;
             case SDLK_1:
                 debugger::instance().toggleDebugModuleStatus(DebugModule::Bios);
                 break;

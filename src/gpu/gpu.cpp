@@ -23,6 +23,11 @@ GPU::GPU()
 
 	videoMode = VideoMode::NTSC;
 	dotClockRatio = 10;				//Assuming 256 pixel per line is standard configuration
+	tickCountPerScanline = NTSC_GPU_CLOCK_PER_SCANLINE;
+	tickCountPerDots = tickCountPerScanline / dotClockRatio;
+	tickCountPerHBlank = NTSC_GPU_CLOCK_PER_HBLANK;
+	scanlinePerFrame = NTSC_SCANLINES_PER_FRAME;
+	scanlinePerVBlank = NTSC_SCANLINES_PER_VBLANK;
 	verticalInterlace = false;
 	newScanline = false;
 	newFrameReady = false;
@@ -41,7 +46,6 @@ GPU::GPU()
 	memset(&textureMask, 0, sizeof(lite::vec2t<uint8_t>));
 	memset(&textureOffset, 0, sizeof(lite::vec2t<uint8_t>));
 	memset(&texturePage, 0, sizeof(lite::vec2t<uint16_t>));
-	dmaDirection = 0;
 
 	//Reset Internal Clock Counter
 	gpuClockTicks = 0;
@@ -339,70 +343,70 @@ GPU::GPU()
 
 	gp1InstrSet =
 	{
-		{"Reset GPU", &GPU::gp1_ResetGpu},
-		{"Reset Command Buffer", &GPU::gp1_ResetFifo},
-		{"Ack GPU Interrupt", &GPU::gp1_AckInterrupt},
-		{"Display Enable", &GPU::gp1_DisplayEnable},
-		{"DMA Direction", &GPU::gp1_DmaDirection},
-		{"Start Display Area VRAM", &GPU::gp1_StartDisplayArea},
-		{"Horizontal Display Range", &GPU::gp1_HDisplayRange},
-		{"Vertical Display Range", &GPU::gp1_VDisplayRange},
-		{"Display Mode", &GPU::gp1_DisplayMode},
-		{"New Texture Disable", &GPU::gp1_TextureDisable},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Get GPU Info", &GPU::gp1_GetGpuInfo},
-		{"Special Texture Disable", &GPU::gp1_TextureDisable},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown},
-		{"Unknown", &GPU::gp1_Unknown}
+		{"Reset GPU", &GPU::gp1_ResetGpu, 0},
+		{"Reset Command Buffer", &GPU::gp1_ResetFifo, 0},
+		{"Ack GPU Interrupt", &GPU::gp1_AckInterrupt, 0},
+		{"Display Enable", &GPU::gp1_DisplayEnable, 1},
+		{"DMA Direction", &GPU::gp1_DmaDirection, 1},
+		{"Start Display Area VRAM", &GPU::gp1_StartDisplayArea, 2},
+		{"Horizontal Display Range", &GPU::gp1_HDisplayRange, 2},
+		{"Vertical Display Range", &GPU::gp1_VDisplayRange, 2},
+		{"Display Mode", &GPU::gp1_DisplayMode, 7},
+		{"New Texture Disable", &GPU::gp1_TextureDisable, 1},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Get GPU Info", &GPU::gp1_GetGpuInfo, 1},
+		{"Special Texture Disable", &GPU::gp1_TextureDisable, 1},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0},
+		{"Unknown", &GPU::gp1_Unknown, 0}
 	};
 }
 
@@ -432,6 +436,11 @@ bool GPU::reset()
 
 	videoMode = VideoMode::NTSC;
 	dotClockRatio = 10;				//Assuming 256 pixel per line is standard configuration
+	tickCountPerScanline = NTSC_GPU_CLOCK_PER_SCANLINE;
+	tickCountPerDots = tickCountPerScanline / dotClockRatio;
+	tickCountPerHBlank = NTSC_GPU_CLOCK_PER_HBLANK;
+	scanlinePerFrame = NTSC_SCANLINES_PER_FRAME;
+	scanlinePerVBlank = NTSC_SCANLINES_PER_VBLANK;
 	verticalInterlace = false;
 	newScanline = false;
 	newFrameReady = false;
@@ -450,7 +459,6 @@ bool GPU::reset()
 	memset(&textureMask, 0, sizeof(lite::vec2t<uint8_t>));
 	memset(&textureOffset, 0, sizeof(lite::vec2t<uint8_t>));
 	memset(&texturePage, 0, sizeof(lite::vec2t<uint16_t>));
-	dmaDirection = 0;
 
 	//Reset Internal Clock Counter
 	gpuClockTicks = 0;
@@ -501,12 +509,18 @@ bool GPU::isFrameReady()
 
 void GPU::writeVRAM(uint32_t& data)
 {
-	uint16_t h, l;
+	uint16_t h, l, x1, x2, y1, y2;
+
+	y1 = dataPointer.y % 512;
+	y2 = y1;
+	x1 = dataPointer.x % 1024;
+	x2 = (dataPointer.x + 1) % 1024;
+
 	l = static_cast<uint16_t>((data & 0x0000ffff));
 	h = static_cast<uint16_t>((data & 0xffff0000) >> 16);
 
-	vRam[dataPointer.y][dataPointer.x] = l;
-	vRam[dataPointer.y][dataPointer.x + 1] = h;
+	vRam[y1][x1] = l;
+	vRam[y2][x2] = h;
 
 	//Update Data Pointer in VRAM
 	dataPointer.x += 2;
@@ -525,24 +539,73 @@ void GPU::writeVRAM(uint32_t& data)
 uint32_t GPU::readVRAM()
 {
 	uint32_t data;
-	uint16_t h, l;
+	uint16_t h, l, x1, x2, y1, y2;
 
-	l = vRam[dataPointer.y][dataPointer.x];
-	h = vRam[dataPointer.y][dataPointer.x + 1];
+	y1 = dataPointer.y % 512;
+	y2 = y1;
+	x1 = dataPointer.x % 1024;
+	x2 = (dataPointer.x + 1) % 1024;
+
+	l = vRam[y1][x1];
+	h = vRam[y2][x2];
 	data = (h << 16) | l;
 
 	//Update Data Pointer in VRAM
 	dataPointer.x += 2;
-	if (dataPointer.x >= dataDestination.x + dataSize.x)
+	if (dataPointer.x >= dataSource.x + dataSize.x)
 	{
-		dataPointer.x = dataDestination.x;
+		dataPointer.x = dataSource.x;
 		dataPointer.y++;
 	}
 
-	if (dataPointer.y >= dataDestination.y + dataSize.y)
+	if (dataPointer.y >= dataSource.y + dataSize.y)
 		dataReadActive = false;
 
 	return data;
+}
+
+bool GPU::updateVHBlank()
+{
+	bool currentVBlank = vBlank;
+	bool currentHBlank = hBlank;
+
+	//Reset NewFrame and NewScanline Status
+	newScanline = false;
+	newFrameReady = false;
+
+	hCount++;
+	if (hCount == tickCountPerScanline)
+	{
+		hCount = 0;
+		vCount++;
+		newScanline = true;
+	}
+	if (vCount == scanlinePerFrame)
+	{
+		vCount = 0;
+		newFrameReady = true;
+		frameCount++;
+	}
+
+	//Update hBlank and vBlank Status
+	hBlank = !(hCount < (tickCountPerScanline - tickCountPerHBlank));
+	vBlank = !(vCount < (scanlinePerFrame - scanlinePerVBlank));
+
+	//Check if I need to trigger vBlank Interrupt or hBlank Clock on raising edge
+	//According to vBlank and hBlank new status
+	if (!currentVBlank && vBlank)
+	{
+		//Raising Edge of vBlank
+		psx->interrupt->request(static_cast<uint32_t>(interrupt::Cause::vblank));
+	}
+
+	if (!currentHBlank && hBlank)
+	{
+		//Raising Edge of hBlank
+		psx->timers->execute(ClockSource::hBlank);
+	}
+
+	return true;
 }
 
 //-----------------------------------------------------------------------------------------------------
@@ -563,46 +626,8 @@ bool GPU::runticks()
 
 bool GPU::execute()
 {
-	auto updateVHBlank = [&](const unsigned int active_ticks, const unsigned int hblank_ticks, const unsigned int visible_scanlines, const unsigned int vblank_scanlines)
-	{
-		//Update hBlank and vBlank Status
-		hBlank = !(hCount < active_ticks);
-		vBlank = !(vCount < visible_scanlines);
+	uint32_t data;
 
-		//Reset NewFrame and NewScanline Status
-		newScanline = false;
-		newFrameReady = false;
-		
-		hCount++;
-		if (hCount == active_ticks)
-		{
-			//Trigger hBlank signal
-			//Generate hBlank Clock 
-			psx->timers->execute(ClockSource::hBlank);
-		}
-		if (vCount == visible_scanlines)
-		{
-			//Trigger vBlank signal
-			//Trigger vBlank Interrupt
-			vCount++; //Add a fake line to trigger interrupt just one time 
-			psx->interrupt->set(static_cast<uint32_t>(interruptCause::vblank));
-		}
-		if (hCount >= (active_ticks + hblank_ticks))
-		{
-			hCount = 0;
-			vCount++;
-			newScanline = true;
-		}
-
-		if (vCount >= (visible_scanlines + vblank_scanlines))
-		{
-			vCount = 0;
-			newFrameReady = true;
-			frameCount++;
-		}
-
-		return 0;
-	};
 	auto gp0RunCommand = [&]()
 	{
 		bool bResult;
@@ -624,7 +649,7 @@ bool GPU::execute()
 			//It isn't a command stored on the FIFO
 			//Actual GP0 Command its already on gp0Command
 
-			LOG_F(1, "GPU - %s", gp0InstrSet[gp0Opcode].mnemonic.c_str());
+			LOG_F(1, "GPU - %s (params: %d)", gp0InstrSet[gp0Opcode].mnemonic.c_str(), gp0InstrSet[gp0Opcode].parameters);
 			bResult = (this->*gp0InstrSet[gp0Opcode].operate)();
 			if (!bResult)
 				LOG_F(ERROR, "GPU - Unimplemented GP0 Command %s!", gp0InstrSet[gp0Opcode].mnemonic.c_str()); 
@@ -635,26 +660,17 @@ bool GPU::execute()
 	auto gp1RunCommand = [&]()
 	{
 		bool bResult;
-		LOG_F(1, "GPU - %s ", gp1InstrSet[gp1Opcode].mnemonic.c_str());
+		LOG_F(1, "GPU - %s (params: %d)", gp1InstrSet[gp1Opcode].mnemonic.c_str(), gp1InstrSet[gp1Opcode].parameters);
 		bResult = (this->*gp1InstrSet[gp1Opcode].operate)();		//GP1 Command are always executed immediately
 		if (!bResult)
 				LOG_F(ERROR, "GPU - Unimplemented GP1 Command %s!", gp1InstrSet[gp1Opcode].mnemonic.c_str()); 
 		return 0;
 	};
 
-	//Update Vertical and Horizontal Blank Flag according to Video Mode
-	switch (videoMode)
-	{
-		case VideoMode::NTSC:
-			updateVHBlank(NTSC_ACTIVE_GPU_TICK, NTSC_HBLANK_GPU_TICK, NTSC_VISIBLE_SCANLINES, NTSC_VBLANK_SCANLINES);
-			break;
+	//Update Vertical and Horizontal Blank Flag and trigger Interrupts/Clocks
+	updateVHBlank();
 
-		case VideoMode::PAL:
-			updateVHBlank(PAL_ACTIVE_GPU_TICK, PAL_HBLANK_GPU_TICK, PAL_VISIBLE_SCANLINES, PAL_VBLANK_SCANLINES);
-			break;
-	}
-
-	//Update GPUSTAT.31
+	//Update GPUSTAT.31 - Interlace Lines (0 = Drawing Even Lines or vBlank, 1 = Drawing Odd Line)
 	//  - Toggle at every new scanline if GPUSTAT.19 = 0
 	//  - Toggle at every new frame if GPUSTAT.19 = 1
 	//  - Always Zero during vBlank
@@ -662,6 +678,9 @@ bool GPU::execute()
 	if (newScanline && !static_cast<bool>((gpuStat & (1UL << 19)))) { gpuStat ^= (1UL << 31); };
 	if (newFrameReady && static_cast<bool>((gpuStat & (1UL << 19)))) { gpuStat ^= (1UL << 31); };
 
+	// Update GPUSTAT.29-30 - DMA Direction
+	// Updated in gp1_DmaDirection (0=Off, 1=FIFO, 2=RAM to VRAM, 3=VRAM to RAM)
+	
 	//Update GPUSTAT.28
 	//  - Set to 0 after receiving both GP0/1 Command and all GP0/1 Parameters (GPU is Busy)
 	//  - Set to 0 immediately after receiving Polygons or Lines Command (GPU is Busy)
@@ -683,8 +702,7 @@ bool GPU::execute()
 	// - When GPUSTAT.29-30 = 1 --->FIFO State(0 = Full, 1 = Not Full)
 	// - When GPUSTAT.29-30 = 2 --->Same as GPUSTAT.28
 	// - When GPUSTAT.29-30 = 3 --->Same as GPUSTAT.27
-	// GPUSTAT.29-30 is set by GP1(04h) DmaDirection (0=Off, 1=FIFO, 2=RAM to VRAM, 3=VRAM to RAM)
-	uint32_t data;
+	uint32_t dmaDirection = (gpuStat >> 29) & 0x03;
 	switch (dmaDirection)
 	{
 	case 0:
@@ -706,13 +724,13 @@ bool GPU::execute()
 		gpuStat = (gpuStat & ~(1UL << 25)) | (data << 25);
 		break;
 	}
-
+	
 	//Run Available Command, either GP0 or GP1 Command
 	if (gp0CommandAvailable) { gp0RunCommand(); };
 	if (gp1CommandAvailable) { gp1RunCommand(); };
 
 	//Generate Dot Clock Signal
-	if (!(gpuClockTicks % dotClockRatio))
+	if (!(gpuClockTicks % tickCountPerDots))
 	{
 		psx->timers->execute(ClockSource::Dot);
 	}
@@ -778,29 +796,28 @@ bool GPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		
 		return 0;
 	};
-	auto gp0ReceiveRamData = [&](uint32_t word)
-	{
-		writeVRAM(word);
-		return 0;
-	};
 	
+	uint32_t dmaDirection;
+
 	switch (addr)
 	{
 	case 0x1f801810:	//--------------------------GP0 Command
 		gp0DataLatch = data;						//Rendering and VRAM Access
+		
+		dmaDirection = (gpuStat >> 29) & 0x3;
 		if (dataWriteActive && (dmaDirection == 2 || dmaDirection == 0))
 		{
-			//dataWriteActive is set by GP0(A0h)
+			//dataWriteActive is set by GP0(A0h) - Copy Rectangle (CPU to VRAM)
+			//DmaDirection [GPUSTAT.21-30] is set by GP1(04h) - DMA Direction
 			//Data Transfer could be either thru:
 			//	- CPU, GPUSTAT.29-30 (DMA Direction) = 0  "DMA Off"
 			//	- DMA, GPUSTAT.29-30 (DMA Direction) = 2  "DMA RAM to VRAM"
-			gp0ReceiveRamData(data);
+			writeVRAM(data);
 		}
 		else
 		{
 			gp0ReceiveCommand(data);
-		}
-			
+		};
 		break;
 	case 0x1f801814:	//--------------------------GP1 Command
 		gp1DataLatch = data;						//Display Control
@@ -811,22 +828,28 @@ bool GPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		LOG_F(ERROR, "GPU - Unknown Parameter Set addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return false;
 	}
+
+	LOG_F(3, "GPU - Write to Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 	return true;
 }
 
 uint32_t GPU::readAddr(uint32_t addr, uint8_t bytes)
 {
 	uint32_t data;
+	uint32_t dmaDirection;
 	
 	switch (addr)
 	{
 	case 0x1f801810:
 		data = gpuReadLatch;	//--------------------------------------Response from GP0 and GP1 commands
+		
+		dmaDirection = (gpuStat >> 29) & 0x3;
 		if (dataReadActive && (dmaDirection == 3 || dmaDirection == 0))
-			//dataReadActive is set by GP0(C0h)
+			//dataReadActive is set by GP0(C0h) - Copy Rectangle (VRAM to CPU)
+			//DmaDirection [GPUSTAT.21-30] is set by GP1(04h) - DMA Direction
 			//Data Transfer could be either thru:
 			//	- CPU, GPUSTAT.29-30 (DMA Direction) = 0  "DMA Off"
-			//	- DMA, GPUSTAT.29-30 (DMA Direction) = 3  "DMA RAM to VRAM"
+			//	- DMA, GPUSTAT.29-30 (DMA Direction) = 3  "DMA VRAM to RAM"
 			data = readVRAM();
 		break;
 	case 0x1f801814:
@@ -838,6 +861,7 @@ uint32_t GPU::readAddr(uint32_t addr, uint8_t bytes)
 		return 0x0;
 	}
 
+	LOG_F(3, "GPU - Read from Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 	return data;
 }
 //-----------------------------------------------------------------------------------------------------
@@ -1201,6 +1225,10 @@ bool GPU::gp0_CopyRam2VRam()
 	dataPointer.x = dataDestination.x;
 	dataPointer.y = dataDestination.y;
 	dataWriteActive = true;
+
+	LOG_F(2, "GPU - Write to VRAM at [x: %d, y: %d]", dataDestination.x, dataDestination.y);
+	LOG_F(2, "GPU - Copy Size        [x: %d, y: %d]", dataSize.x, dataSize.y);
+	
 			 
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
@@ -1226,6 +1254,9 @@ bool GPU::gp0_CopyVRam2Ram()
 	dataPointer.x = dataSource.x;
 	dataPointer.y = dataSource.y;
 	dataReadActive = true;
+
+	LOG_F(2, "GPU - Read from VRAM at [x: %d, y: %d]", dataSource.x, dataSource.y);
+	LOG_F(2, "GPU - Copy Size         [x: %d, y: %d]", dataSize.x, dataSize.y);
 	 
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
@@ -1550,7 +1581,7 @@ bool GPU::gp1_DmaDirection()
 	data = gp1Command & 0x00000003;								//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000003 << 29)) | (data << 29);	//Set GPUSTAT.29-30 to data value
 
-	dmaDirection = data;
+	LOG_F(2, "GPU - Dma Direction Info [Direction: 0x%02x]", data);
 
 	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
@@ -1619,6 +1650,21 @@ bool GPU::gp1_DisplayMode()
 	data = (gp1Command & 0x00000008) >> 3;						//Extract bit value from GP1 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 20)) | (data << 20);	//Set GPUSTAT.20 to data value
 	videoMode = static_cast<VideoMode>(data);
+	switch(videoMode)
+	{
+		NTSC:
+			tickCountPerScanline = NTSC_GPU_CLOCK_PER_SCANLINE;
+			tickCountPerHBlank = NTSC_GPU_CLOCK_PER_HBLANK;
+			scanlinePerFrame = NTSC_SCANLINES_PER_FRAME;
+			scanlinePerVBlank = NTSC_SCANLINES_PER_VBLANK;
+			break;
+		PAL:
+			tickCountPerHBlank = PAL_GPU_CLOCK_PER_HBLANK;
+			tickCountPerScanline = PAL_GPU_CLOCK_PER_SCANLINE;
+			scanlinePerFrame = PAL_SCANLINES_PER_FRAME;
+			scanlinePerVBlank = PAL_SCANLINES_PER_VBLANK;
+			break;
+	}
 
 	//GPUSTAT.21 << GP1DATA.4									Display Area Color Depth: 0 = 15bit, 1 = 24bit
 	data = (gp1Command & 0x00000010) >> 4;						//Extract bit value from GP1 Command
@@ -1642,6 +1688,7 @@ bool GPU::gp1_DisplayMode()
 
 	//Set DotClock Divider according to new Horizontal Resolution configuration
 	dotClockRatio = decodeClockRatio(videoResolution.x);
+	tickCountPerDots = tickCountPerScanline / dotClockRatio;
 
 	//Update Renderer Resolution
 	pRenderer->SetResolution(videoResolution.x, videoResolution.y);

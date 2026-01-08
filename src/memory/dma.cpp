@@ -77,6 +77,7 @@ bool Dma::execute()
 
 		default:
 			LOG_F(ERROR, "DMA - Channel %d Unknown Sync Mode!", runningChannel);
+			return false;
 		}
 
 		return true;
@@ -116,7 +117,7 @@ bool Dma::execute()
 			default:
 				break;
 			}
-			LOG_F(1, "DMA - Active Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d, MemoryAddr %08x, Increment %d, FromMemory %d, Chopping %d", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize, runningAddr, runningIncrement, runningFromRam, (bool)dmaChannel[runningChannel].chanChcr.chopEnable);
+			LOG_F(2, "DMA - Start Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d, MemoryAddr %08x, Increment %d, FromMemory %d, Chopping %d", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize, runningAddr, runningIncrement, runningFromRam, (bool)dmaChannel[runningChannel].chanChcr.chopEnable);
 			
 			//Stop CPU access to Address Bus
 			psx->dataBusBusy = true;
@@ -134,6 +135,7 @@ bool Dma::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 	{
 		chn = (addr - 0x1f801080) >> 4;
 		dmaChannel[chn].writeAddr(addr, data);
+		LOG_F(3, "DMA - Write to Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return true;
 	}
 
@@ -164,6 +166,7 @@ bool Dma::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		return false;
 	}
 
+	LOG_F(3, "DMA - Write to Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 	return true;
 }
 
@@ -176,6 +179,7 @@ uint32_t Dma::readAddr(uint32_t addr, uint8_t bytes)
 	{
 		int chn = (addr - 0x1f801080) >> 4;
 		data = dmaChannel[chn].readAddr(addr);
+		LOG_F(3, "DMA - Read from Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return data;
 	}
 
@@ -194,6 +198,7 @@ uint32_t Dma::readAddr(uint32_t addr, uint8_t bytes)
 		return 0x0;
 	}
 	
+	LOG_F(3, "DMA - Read from Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 	return data;
 }
 
@@ -209,6 +214,7 @@ bool Dma::syncmode0()
 		//TODO
 		//Sync Mode 0 should not support reading From RAM
 		LOG_F(ERROR, "DMA - Channel %d - Sync Mode 0 read from Ram not supported!", runningChannel);
+		return false;
 	}
 	else
 	{
@@ -219,15 +225,17 @@ bool Dma::syncmode0()
 			data += (psx->cdrom->readAddr(0x1f801802, 1) << 8);
 			data += (psx->cdrom->readAddr(0x1f801802, 1) << 16);
 			data += (psx->cdrom->readAddr(0x1f801802, 1) << 24);
+			LOG_F(3, "DMA - Channel 3, Syncmode 0: Copying from CDROM to RAM [0x%08x: 0x%08x]", runningAddr, data);
 			break;
 		case 6:	//Channel 6 - Syncmode 0: OTC - Reset Linked List in RAM. Linked is list is used to send rendering Command to GPU with DMA Channel 2 - Syncmode 2
 			data = (runningSize == 1) ? 0x00ffffff : (runningAddr + runningIncrement) & 0x001ffffc;
-			LOG_F(3, "DMA - Channel 6, Syncmode 0: Writing to RAM [0x%08x: 0x%08x]", runningAddr, data);
+			LOG_F(3, "DMA - Channel 6, Syncmode 0: Writing OTC to RAM [0x%08x: 0x%08x]", runningAddr, data);
 			break;
 
 		default:
-			data = 0;
+			data = 0x0;
 			LOG_F(ERROR, "DMA - Channel %d not supported in Sync Mode 0", runningChannel);
+			return false;
 		}
 
 		//Write data to RAM
@@ -237,7 +245,10 @@ bool Dma::syncmode0()
 
 		//Check if all data have been written
 		if (runningSize == 0)
+		{
+			LOG_F(2, "DMA - Channel %d, Syncmode 0: Stop Writing Packet %s RAM", runningChannel, runningFromRam ? "from" : "to");
 			dmaStop();
+		}
 	}
 	
 	return true;
@@ -248,7 +259,7 @@ bool Dma::syncmode0()
 //------------------------------------------------------------------------------------------
 bool Dma::syncmode1()
 {
-	uint32_t data;
+	uint32_t data = 0;
 
 	if (runningFromRam)
 	{
@@ -259,32 +270,46 @@ bool Dma::syncmode1()
 		{
 		case 2:	//Channel 2 - Syncmode 1: GPU - Read 4 byte from RAM and write to GPU Command and Data (Used to copy data to VRAM)
 			psx->gpu->writeAddr(0x1f801810, data); //Write to GP0
+			LOG_F(3, "DMA - Channel 2, Syncmode 1: Copying from RAM to GPU [0x%08x: 0x%08x]", runningAddr, data);
 			break;
 
 		default:
 			LOG_F(ERROR, "DMA - Channel %d not supported in Sync Mode 0", runningChannel);
+			return false;
 		}
-
-		//Update Current Address and DMA Channel Registers
-		runningAddr += runningIncrement;
-		
-		dmaChannel[runningChannel].chanMadr = runningAddr;
-
-		if ((runningSize % dmaChannel[runningChannel].chanBcr.blockSize) == 0)
-		{
-			dmaChannel[runningChannel].chanBcr.blockAmount--;
-		}
-
-		runningSize--;
 	}
 	else
 	{
-		//TODO - to Ram, don't know if there's any case
-		LOG_F(ERROR, "DMA - Channel %d - Sync Mode 1 write to Ram not supported!", runningChannel);
+		switch (runningChannel)
+		{
+			case 2:	//Channel 2 - Syncmode 1: GPU - Read 4 byte from GPU Command and Data and write to RAM (Used to read data from VRAM)
+				
+				//Read data from GPU (VRAM)
+				data = psx->gpu->readAddr(0x1f801810);
+				//Write data to current Address
+				psx->mem->write(runningAddr, data);
+				LOG_F(3, "DMA - Channel 2, Syncmode 1: Copying from GPU to RAM [0x%08x] 0x%08x]", runningAddr, data);
+				break;
+			default:
+				LOG_F(ERROR, "DMA - Channel %d not supported in Sync Mode 1", runningChannel);
+		}
 	}
 
+	//Update Current Address and DMA Channel Registers
+	runningAddr += runningIncrement;
+	dmaChannel[runningChannel].chanMadr = runningAddr;
+	if ((runningSize % dmaChannel[runningChannel].chanBcr.blockSize) == 0)
+	{
+		dmaChannel[runningChannel].chanBcr.blockAmount--;
+	}
+	runningSize--;
+
 	if (runningSize == 0)
+	{
+		LOG_F(2, "DMA - Channel %d, Syncmode 1: Stop Writing Packet %s RAM", runningChannel, runningFromRam ? "from" : "to");
 		dmaStop();
+	}
+		
 
 	return true;
 }
@@ -302,8 +327,8 @@ bool Dma::syncmode2()
 		//Check if we are at the end of the linked list
 		if (dmaChannel[runningChannel].chanMadr == 0x00ffffff)
 		{
+			LOG_F(2, "DMA - Channel %d, Syncmode 2: Stop Writing Packet %s RAM", runningChannel, runningFromRam ? "from" : "to");
 			dmaStop();
-			LOG_F(2, "DMA - Channel 2, Syncmode 2: Stop Writing Packet to GPU");
 			return true;
 		}
 
@@ -311,7 +336,7 @@ bool Dma::syncmode2()
 		data = psx->mem->read(dmaChannel[runningChannel].chanMadr);					//Read from Channel Base Address the Header of the linked list
 		runningSize = data >> 24;													//Extract the size of the packet in words
 		runningAddr = (dmaChannel[runningChannel].chanMadr + 4) & 0x001ffffc;		//Contains address of the first word of the packet
-		LOG_F(2, "DMA - Channel 2, Syncmode 2: Start Writing Packet to GPU [Current Packet: 0x%08x, Size: %d] (Next Packet Header: 0x%08x)", dmaChannel[runningChannel].chanMadr, runningSize, data &0x00ffffff);
+		LOG_F(3, "DMA - Channel 2, Syncmode 2: Start Writing Packet to GPU [Current Packet: 0x%08x, Size: %d] (Next Packet Header: 0x%08x)", dmaChannel[runningChannel].chanMadr, runningSize, data &0x00ffffff);
 		
 		dmaChannel[runningChannel].chanMadr = data & 0x00ffffff;					//Update Channel Base Address to point the next Header
 	}
@@ -323,7 +348,7 @@ bool Dma::syncmode2()
 			{
 			case 2:	//Channel 2 - Syncmode 2: GPU - Read from Linked List write to GPU (Used for Rendering Command)
 				data = psx->mem->read(runningAddr);
-				LOG_F(2, "DMA - Channel 2, Syncmode 2: Writing Packet to GPU [0x%08x] 0x%08x]", runningAddr, data);
+				LOG_F(3, "DMA - Channel 2, Syncmode 2: Copying Linked List from RAM to GPU [0x%08x : 0x%08x]", runningAddr, data);
 				psx->gpu->writeAddr(0x1f801810, data); //Write to GP0
 				runningAddr = (runningAddr + runningIncrement) & 0x001ffffc; 
 				runningSize--;
@@ -331,7 +356,6 @@ bool Dma::syncmode2()
 
 			default:
 				LOG_F(ERROR, "DMA - Channel %d - Sync Mode 2 write From Ram not supported!", runningChannel);
-				break;
 			}
 		}
 		else
@@ -377,7 +401,7 @@ bool Dma::dmaStop()
 		dmaDicr.masterFlagIrq = ((bool)dmaDicr.forceIrq || ((bool)dmaDicr.masterEnableIrq && (dmaDicr.enableIrq && dmaDicr.flagsIrq))) ? 1 : 0;
 
 		if (dmaDicr.masterFlagIrq)
-			psx->interrupt->set(static_cast<uint32_t>(interruptCause::dma));
+			psx->interrupt->request(static_cast<uint32_t>(interrupt::Cause::dma));
 	}
 
 	return true;

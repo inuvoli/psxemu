@@ -323,6 +323,89 @@ bool CpuShort::wrInstrCache(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 	return false;
 }
 
+//-------------------------------------------------------------------------------------------------------------
+//Delay Memory Load Helper fFunctions
+//-------------------------------------------------------------------------------------------------------------
+
+// Write a general-purpose register immediately.
+// Parameters:
+// - id:	index of the GPR to write (0-31). Writes to register 0 should be ignored.
+// - value: value to store into the register.
+// Returns true on success, false on failure.
+bool CpuShort::writeRegister(uint8_t id, uint32_t value)
+{	
+	if (id == 0)
+		return true;
+
+	//Write value on the register
+	gpr[id] = value;
+
+	//Check if we are writing the same register on the Current Delay, in that case the Current Delay Load is discarded
+	if (currentDelayedRegisterLoad.id == id)
+	{
+		currentDelayedRegisterLoad.id = 0;
+		currentDelayedRegisterLoad.value = 0;
+	}
+
+	return true;
+}
+
+// Schedule a register write to occur after the next instruction (delayed load).
+// This models the MIPS load-delay behavior where loads take effect one
+// instruction later.
+// Parameters:
+// - id:	index of the GPR to write (0-31). Writes to register 0 should be ignored.
+// - value: value to store into the register.
+//Return true if the delayed write was scheduled.
+bool CpuShort::writeRegisterDelayed(uint8_t id, uint32_t value)
+{
+	if (id == 0)
+		return true;
+	
+	nextDelayedRegisterLoad.id = id;
+	nextDelayedRegisterLoad.value = value;
+
+	//Check if we are rewriting the same register on the Current Delay, in that case the Current Delay Load is discarded
+	if (currentDelayedRegisterLoad.id == id)
+	{
+		currentDelayedRegisterLoad.id = 0;
+		currentDelayedRegisterLoad.value = 0;
+	}
+
+	return true;
+}
+
+// Used by LWL and LWR, read rt in flight if is pending it's update for Memory Delay
+// Parameters:
+// - id:	index of the GPR to write (0-31). Writes to register 0 should be ignored.
+// Return:
+// In Flight register value if LWR or LWL uses the same register in the Current Delay Load for rt
+uint32_t CpuShort::readRegisterInFlight(uint8_t id)
+{
+	
+	// the content of the register otherwise
+
+	if (id == currentDelayedRegisterLoad.id)
+		return currentDelayedRegisterLoad.value;
+	else
+		return gpr[id];
+}
+
+// Commit any pending delayed register loads to the architectural register
+// file. Returns true if a delayed load was applied, false if there was
+// nothing to do.
+bool CpuShort::performDelayedLoad()
+{
+	gpr[currentDelayedRegisterLoad.id] = currentDelayedRegisterLoad.value;
+
+	currentDelayedRegisterLoad.id = nextDelayedRegisterLoad.id;
+	currentDelayedRegisterLoad.value = nextDelayedRegisterLoad.value;
+	nextDelayedRegisterLoad.id = 0;
+	nextDelayedRegisterLoad.value = 0;
+
+	return true;
+}
+
 //-----------------------------------------------------------------------------------------------------------------------------------
 //
 // Pipeline Implementation
@@ -369,7 +452,7 @@ bool CpuShort::execute()
 
 		return bResult;
 	};
-
+	
 	//Stall CPU if databus is busy
 	if (psx->dataBusBusy)
 		return true;
@@ -417,43 +500,46 @@ bool CpuShort::exception(uint32_t cause)
 	cop0::StatusRegister	statusReg;
 	cop0::CauseRegister		causeReg;
 	
-	//LOG_F(2, "CPU - Received Exception [PC: 0x%08x, Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", pc, cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
-	
 	//Get Current values of Cause Register and Status Register
 	statusReg.word = cop0->reg[12];
 	causeReg.word = cop0->reg[13];
 
 	
-	//Disable Interrupt (shift 2 position left bit [0, 5] for SR)
+	//Disable Interrupt (shift 2 position left Status Register bit [0, 5])
+	//Set Kernel Mode and Disable Interrupts
 	statusReg.stk = (statusReg.stk << 2) & 0x3f;
 	statusReg.iec = false;	//Disable Interrupts
 	statusReg.kuc = true;	//Set to Kernel Mode
-	
-	//Check if exception occurred in a branch delay slot
+
+	//Set Exception Code in CAUSE Register
+	causeReg.excode = static_cast<uint8_t>(cause & 0x1f);
+		
+	//Update EPC and BD bit on Status Register according to exception origin
+	//In case of exception in a delay slot, EPC is set to the branch instruction address
+	//and TAR is set to the branch destination address.
+	//In case of exception not in a delay slot, EPC is set to the failing instruction address
+	//Update TAR [Cop0r6] Cop0 Register 6 is always set to the address after the failing instruction
 	if (isInDelaySlot)
 	{
-		cop0->reg[14] = branchFunctionAddress;		//Set EPC to Jump Instruction if exception occurs in a Branch Delay Slot, we need to set EPC to the instruction before the delay slot
-		causeReg.bd = true;							//Set BD bit in cop0 CAUSE Register if exception occurs in a Branch Delay Slot
+		cop0->reg[14] = branchFunctionAddress;
+		cop0->reg[6] = branchAddress;
+		causeReg.bd = true;
 	}
 	else
 	{
-		if (cause == static_cast<uint8_t>(cpu::exceptionCause::interrupt))
-			cop0->reg[14] = pc;						//Set EPC to the istruction next to the one has received the interrupt
+		//An original R3000A CPU never sets EPC to the address of a memory delay load instruction (ie. LW)
+		//EPC is always set to the next istruction address in this cases.
+		if (currentDelayedRegisterLoad.id != 0)
+			cop0->reg[14] = pc; //Next instruction address
 		else
-			cop0->reg[14] = pc - 4;					//Set EPC to Failing Instruction if we are not in a Branch Delay Slot, we need to roll pc back by 4
-
-		causeReg.bd = false;						//Set BD bit in cop0 CAUSE Register if exception occurs in a Branch Delay Slot
+			cop0->reg[14] = pc - 4;	 //Failing instruction address
+		causeReg.bd = false;
 	}
-	
-	//Set Exception Code in CAUSE Register
-	causeReg.excode = static_cast<uint8_t>(cause & 0x1f);
 
-	//PSX normally jumps to 0x80000080 on exception, dont care about BEV bit
-	//Jump to exception handler
+	//PSX always jumps to 0x80000080 on exception, don't care about BEV bit
+	pc = 0x80000080;
 	//if (statusReg.bev)
 	//	pc = 0xbfc00180;
-	//else
-		pc = 0x80000080;
 
 	//Update Cause Register and Status Register
 	cop0->reg[13] = causeReg.word;
@@ -464,21 +550,23 @@ bool CpuShort::exception(uint32_t cause)
 	return true;
 }
 
-bool CpuShort::interrupt(uint8_t status)
+bool CpuShort::interrupt(uint8_t number, bool status)
 {
 	cop0::StatusRegister	statusReg;
 	cop0::CauseRegister		causeReg;
 
-	//Get Current values of Cause Register and Status Register
+	//Get Current values of Status Register and Cause Register
 	statusReg.word = cop0->reg[12];
 	causeReg.word = cop0->reg[13];
 
-	//Set cop0r13.bit10 (Cause Register) according to INTn pin value, PSX only use Hw INT0 (bit10)
-	causeReg.iphw = status;	
-	cop0->reg[13] = causeReg.word;		//Update Cause Register
+	//Update IP Field for Cause Register, it mirrors the value of i_stat & i_mask for HW Interrupt 0
+	causeReg.iphw = 0;
+	if (status)
+		causeReg.iphw = 1;
 
-	//Check COP0 for Pending non masked Interrupts with iEc enabled.
-	if ((bool)(statusReg.imhw & causeReg.iphw) && (bool)statusReg.iec)
+	//If the hw interrupt is enabled and the global interrupt are enabled throw an exception
+	//PSX only use HW Interrupt INT0
+	if ((causeReg.iphw && statusReg.imhw) && statusReg.iec)
 	{
 		LOG_F(2, "CPU - Hardware Interrupt 0 Triggered");
 		exception(static_cast<uint32_t>(cpu::exceptionCause::interrupt));		
@@ -1540,88 +1628,3 @@ void CpuShort::set_gpr(uint8_t regNum, uint32_t value)
 		gpr[regNum] = value;
 }
 
-//-------------------------------------------------------------------------------------------------------------
-//Delay Memory Load Helper fFunctions
-//-------------------------------------------------------------------------------------------------------------
-
-// Write a general-purpose register immediately.
-// Parameters:
-// - id:	index of the GPR to write (0-31). Writes to register 0 should be ignored.
-// - value: value to store into the register.
-// Returns true on success, false on failure.
-bool CpuShort::writeRegister(uint8_t id, uint32_t value)
-{	
-	if (id == 0)
-		return true;
-
-	//Write value on the register
-	gpr[id] = value;
-
-	//Check if we are writing the same register on the Current Delay, in that case the Current Delay Load is discarded
-	if (currentDelayedRegisterLoad.id == id)
-	{
-		currentDelayedRegisterLoad.id = 0;
-		currentDelayedRegisterLoad.value = 0;
-	}
-
-	return true;
-}
-
-// Schedule a register write to occur after the next instruction (delayed load).
-// This models the MIPS load-delay behavior where loads take effect one
-// instruction later.
-// Parameters:
-// - id:	index of the GPR to write (0-31). Writes to register 0 should be ignored.
-// - value: value to store into the register.
-//Return true if the delayed write was scheduled.
-bool CpuShort::writeRegisterDelayed(uint8_t id, uint32_t value)
-{
-	
-
-	if (id == 0)
-		return true;
-	
-		nextDelayedRegisterLoad.id = id;
-		nextDelayedRegisterLoad.value = value;
-
-	//Check if we are writing the same register on the Current Delay, in that case the Current Delay Load is discarded
-	if (currentDelayedRegisterLoad.id == id)
-	{
-		currentDelayedRegisterLoad.id = 0;
-		currentDelayedRegisterLoad.value = 0;
-	}
-
-	return true;
-}
-
-// Used by LWL and LWR, read rt in flight if is pending it's update for Memory Delay
-// Parameters:
-// - id:	index of the GPR to write (0-31). Writes to register 0 should be ignored.
-// Return:
-// In Flight register value if LWR or LWL uses the same register in the Current Delay Load for rt
-uint32_t CpuShort::readRegisterInFlight(uint8_t id)
-{
-	
-	// the content of the register otherwise
-
-	if (id == currentDelayedRegisterLoad.id)
-		return currentDelayedRegisterLoad.value;
-	else
-		return gpr[id];
-}
-
-// Commit any pending delayed register loads to the architectural register
-// file. Returns true if a delayed load was applied, false if there was
-// nothing to do.
-bool CpuShort::performDelayedLoad()
-{
-	
-	gpr[currentDelayedRegisterLoad.id] = currentDelayedRegisterLoad.value;
-
-	currentDelayedRegisterLoad.id = nextDelayedRegisterLoad.id;
-	currentDelayedRegisterLoad.value = nextDelayedRegisterLoad.value;
-	nextDelayedRegisterLoad.id = 0;
-	nextDelayedRegisterLoad.value = 0;
-
-	return true;
-}

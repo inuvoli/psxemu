@@ -2,98 +2,177 @@
 
 CdImage::CdImage()
 {
-    imageMode = 0;
-    imageForm = 0;
-    mmOffset = 0;
-    ssOffset = 0;
-    fracOffset = 0;
     sectorOffset = 0;
-    sectorTarget  = 0;
+    sectorTarget = 0;
+    sectorInfo.mm = 0;
+    sectorInfo.ss = 0;
+    sectorInfo.ff = 0;
+    sectorInfo.mode = 0;
+    sectorInfo.form = 0;
+    sectorInfo.lba = 0;
+}
+
+CdImage::~CdImage()
+{
+    closeImage();
+}
+
+uint8_t CdImage::bcdToDecimal(uint8_t bcd)
+{
+    return ((bcd >> 4) * 10) + (bcd & 0x0F);
+}
+
+uint32_t CdImage::calculateLBA(uint8_t mm, uint8_t ss, uint8_t ff)
+{
+    return (mm * 60 + ss) * 75 + ff;
+}
+
+bool CdImage::readSectorHeader()
+{
+    char header[sector_header_size];
+    char subheader[sector_subheader_size];
+
+    image.seekg(0, std::ios::beg);
+    image.read(header, sector_header_size);
+    
+    if (image.fail() || image.gcount() != sector_header_size)
+        return false;
+
+    // Extract header information
+    sectorInfo.mm = header[12];
+    sectorInfo.ss = header[13];
+    sectorInfo.ff = header[14];
+    sectorInfo.mode = header[15];
+    sectorInfo.lba = calculateLBA(bcdToDecimal(sectorInfo.mm), 
+                                   bcdToDecimal(sectorInfo.ss), 
+                                   bcdToDecimal(sectorInfo.ff));
+    sectorOffset = sectorInfo.lba;
+
+    // Read subheader for Mode 2 detection
+    image.read(subheader, sector_subheader_size);
+    
+    if (image.fail() || image.gcount() != sector_subheader_size)
+        return false;
+
+    uint8_t subMode = static_cast<uint8_t>(subheader[2]);
+    sectorInfo.form = (subMode & 0x20) ? 2 : 1;
+
+    return true;
 }
 
 bool CdImage::openImage(const std::string& fileName)
 {
-    //Check file extension
-    std::string _fileExtension;
-    std::string _fileName;
-    
-    //Separate Filename and Extension
-    _fileName = fileName.substr(0, fileName.find("."));
-    _fileExtension = fileName.substr(fileName.find(".") + 1, 3);
+    // Close any previously open image
+    closeImage();
 
-    //Check for supported file extensions
-    if (_fileExtension == "cue")
-    {
-        image.open(_fileName + ".bin", std::ifstream::binary);
-    }
-    else if (_fileExtension == "bin")
-    {
-        image.open(_fileName + "." + _fileExtension, std::ifstream::binary);
-    }
-    else if (_fileExtension == "img")
-    {
-        image.open(_fileName + "." + _fileExtension, std::ifstream::binary);
-    }
+    // Extract extension
+    size_t dotPos = fileName.find_last_of('.');
+    if (dotPos == std::string::npos)
+        return false;
+
+    std::string extension = fileName.substr(dotPos + 1);
+    std::string baseName = fileName.substr(0, dotPos);
+
+    // Determine actual image file to open
+    std::string imageFile;
+    
+    if (extension == "cue")
+        imageFile = baseName + ".bin";
+    else if (extension == "bin" || extension == "img")
+        imageFile = fileName;
     else
+        return false; // Unsupported format
+
+    // Open the image file
+    image.open(imageFile, std::ios::binary | std::ios::in);
+    
+    if (!image.is_open() || image.fail())
+        return false;
+
+    // Read and parse first sector header
+    if (!readSectorHeader())
     {
-        //File Extension not Supported
+        closeImage();
         return false;
     }
 
-    //If CDROM Image File was open succesfully, Check for the First Sector Header
-    if (!image.fail())
-    {
-        //Check Header and SubHeader for Mode2 Sector
-        char sectorHeader[sector_header_size];
-        image.seekg(0, image.beg);
-        image.read(sectorHeader, sector_header_size);
-        mmOffset = sectorHeader[12];
-        ssOffset = sectorHeader[13];
-        fracOffset = sectorHeader[14];
-        imageMode = sectorHeader[15];
-        sectorOffset = (mmOffset * 60 + ssOffset) * 75 + fracOffset;
-
-        char sectorSubHeader[sector_subheader_size];
-        uint8_t subMode;
-        image.read(sectorSubHeader, sector_subheader_size);
-        subMode = (uint8_t)sectorSubHeader[2];
-        imageForm = (subMode & 0x20) ? 2 : 1;
-
-        image.seekg(0, image.beg);      
-    }
-
-    return !image.fail();
+    this->fileName = imageFile;
+    return true;
 }
 
 bool CdImage::closeImage()
 {
-    image.close();
+    if (image.is_open())
+    {
+        image.close();
+    }
     return !image.fail();
 }
 
-bool CdImage::setLocation(int min, int sec, int frac)
+void CdImage::setLocation(uint8_t min, uint8_t sec, uint8_t frac)
 {
-    sectorTarget = (min * 60 + sec) * 75 + frac;
-    return true;
+    // Convert BCD to decimal
+    uint8_t minDec = bcdToDecimal(min);
+    uint8_t secDec = bcdToDecimal(sec);
+    uint8_t fracDec = bcdToDecimal(frac);
+
+    // Calculate target LBA
+    uint32_t targetLBA = calculateLBA(minDec, secDec, fracDec);
+    
+    // Calculate actual sector position
+    sectorTarget = targetLBA;
 }
 
 bool CdImage::seekSector()
 {
-    //Seek Sector in Cd Image
-    image.seekg(sector_size*(sectorTarget - sectorOffset), image.beg);
+    if (!image.is_open())
+        return false;
+
+    // Calculate file position based on target sector and offset
+    uint32_t sectorIndex = sectorTarget - sectorOffset;
+    std::streampos position = static_cast<std::streampos>(sectorIndex) * sector_size;
+
+    image.seekg(position, std::ios::beg);
+    
     return !image.fail();
 }
 
-bool CdImage::readSector(char* buf)
+int CdImage::readSector(char* buf)
 {
-    char sectorHeader[sector_header_size];
-    char sectorSubHeader[sector_subheader_size];
-    char sectorTail[sector_tail_size];
+    if (!image.is_open() || buf == nullptr)
+        return 0;
 
-    //Read Sector starting from current position
-     image.read(sectorHeader, sector_header_size);
-     image.read(sectorSubHeader, sector_subheader_size);
-     image.read(buf, sector_payload_size);
-     image.read(sectorTail, sector_tail_size);
-    return !image.fail();
+    // Read full sector into temporary buffer
+    char sectorData[sector_size];
+    
+    image.read(sectorData, sector_size);
+    
+    if (image.fail())
+        return 0;
+
+    int bytesRead = static_cast<int>(image.gcount());
+    
+    //if read less than full sector, return 0
+    if (bytesRead < sector_size)
+        return 0;
+
+    // Determine payload offset based on mode
+    int payloadOffset;
+    if (sectorInfo.mode == 1)
+    {
+        // Mode 1: payload starts after header only
+        payloadOffset = sector_header_size;
+    }
+    else
+    {
+        // Mode 2: payload starts after header and subheader
+        payloadOffset = sector_header_size + sector_subheader_size;
+    }
+
+    // Copy exactly sector_payload_size bytes
+    std::copy(sectorData + payloadOffset, 
+              sectorData + payloadOffset + sector_payload_size, 
+              buf);
+
+    return sector_payload_size;
 }

@@ -94,7 +94,7 @@ target_include_directories(psxemu
 		${PROJECT_SOURCE_DIR}/src/peripherals
 		${PROJECT_SOURCE_DIR}/src/spu
 		${PROJECT_SOURCE_DIR}/src/timers
-		${SDL2_INCLUDE_DIRS}
+		${SDL3_INCLUDE_DIRS}
 		${GLEW_INCLUDE_DIRS}
 		${OPENGL_INCLUDE_DIRS}
 		${GLM_INCLUDE_DIRS}

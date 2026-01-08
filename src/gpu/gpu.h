@@ -14,16 +14,16 @@
 class Psx;
 
 //PAL Magic Numbers
-constexpr auto PAL_VISIBLE_SCANLINES = 288;
-constexpr auto PAL_VBLANK_SCANLINES = 25+1;
-constexpr auto PAL_HBLANK_GPU_TICK = 638;
-constexpr auto PAL_ACTIVE_GPU_TICK = 2766;
+constexpr auto PAL_GPU_CLOCK_PER_SCANLINE = 3406;
+constexpr auto PAL_GPU_CLOCK_PER_HBLANK = 641;
+constexpr auto PAL_SCANLINES_PER_FRAME = 263;
+constexpr auto PAL_SCANLINES_PER_VBLANK = 25;
 
 //NTSC Magic Numbers
-constexpr auto NTSC_VISIBLE_SCANLINES = 240;
-constexpr auto NTSC_VBLANK_SCANLINES = 23+1;
-constexpr auto NTSC_HBLANK_GPU_TICK = 585;
-constexpr auto NTSC_ACTIVE_GPU_TICK = 2827;
+constexpr auto NTSC_GPU_CLOCK_PER_SCANLINE = 3413;
+constexpr auto NTSC_GPU_CLOCK_PER_HBLANK = 575;
+constexpr auto NTSC_SCANLINES_PER_FRAME = 314;
+constexpr auto NTSC_SCANLINES_PER_VBLANK = 23;
 
 //GPU Constants
 constexpr auto VRAM_SIZE = 1024 * 512;
@@ -122,6 +122,7 @@ public:
 private:
 	void writeVRAM(uint32_t& data);
 	uint32_t readVRAM();
+	bool updateVHBlank();
 
 private:
 	//Link to Bus Object
@@ -169,7 +170,6 @@ private:
 	
 	bool						textureDisabled;			//Debug Only - set by GP1(09h), Texture Disable (0=Normal, 1=Allow Disable via GP0(E1h).11)
 	
-	uint8_t				dmaDirection;			//Set by GP1(04h), Contains actual value for GPUSTAT.29-30 (0 = off, 1 = FIFO, 2 =  RAM to VRAM, 3 = VRAM to RAM)
 	bool				recvCommand;			//True if a GP0/GP1 command has been received
 	bool				recvParameters;			//True if all GP0 Parameters has been received or if current OpCode has zero parameters 
 	bool				gp0CommandAvailable;	//A full GP0 command is available with all parameters
@@ -183,11 +183,16 @@ private:
 	uint8_t				gp1Opcode;				//Current available GP1 Opcode
 	uint32_t			gp1Command;				//Current Available GP1 Command
 
-	uint32_t			hCount;				//Count GPU Ticks per Scanline
-	uint32_t			vCount;				//Count the number of Scanlines
-	bool				newScanline;		//Set if a new Scanline has startes
-	bool				newFrameReady;		//Set if a new Frame has started
-	uint64_t			frameCount;			//Count the number of Frames rendered
+	uint32_t			hCount;					//Count GPU Ticks per Scanline
+	uint32_t			vCount;					//Count the number of Scanlines
+	uint32_t			tickCountPerScanline;	//The number of GPU Clock Ticks per Scanline, updated by GP1(08h) - Display Mode
+	uint32_t			tickCountPerDots;		//The number of GPU Clock Ticks per Dots, updated by by GP1(08h) - Display Mode
+	uint32_t			tickCountPerHBlank;		//The number of GPU Clock Ticks per HBlank, updated by by GP1(08h) - Display Mode
+	uint32_t			scanlinePerFrame;		//The number of scanlines per frame, updated by by GP1(08h) - Display Mode
+	uint32_t			scanlinePerVBlank;		//The number of scanlines per VBlank, updated by by GP1(08h) - Display Mode
+	bool				newScanline;			//Set if a new Scanline has startes
+	bool				newFrameReady;			//Set if a new Frame has started
+	uint64_t			frameCount;				//Count the number of Frames rendered
 		
 	//Memory Transfer Status
 	lite::vec2t<uint16_t>		dataDestination;	//Framebuffer destination start point: x is offset in halfwords, y is offset in rows
@@ -214,6 +219,7 @@ private:
 	{
 		std::string mnemonic;
 		bool(GPU::* operate)() = nullptr;
+		uint8_t parameters;
 	};
 
 	std::vector<INSTRGP0> gp0InstrSet;		//Full GP0 Instruction Set
