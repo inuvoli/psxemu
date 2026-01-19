@@ -7,6 +7,7 @@
 #include "litelib.h"
 #include "debugger.h"
 #include "commandline.h"
+#include "renderer.h"
 
 #include "cpu_short_pipe.h"
 #include "cpu_full_pipe.h"

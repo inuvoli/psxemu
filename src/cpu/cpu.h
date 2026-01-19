@@ -7,6 +7,9 @@
 #include "cpu_registers.h"
 #include "cop0.h"
 #include "cop2.h"
+#include "debugger.h"
+
+using KernelCallCallback = std::function<void(KernelCallEvent &e)>;
 
 class Psx;
 
@@ -45,6 +48,9 @@ public:
 	virtual uint32_t get_gpr(uint8_t regNumber) const = 0;
 	virtual void	 set_gpr(uint8_t regNumber, uint32_t value) = 0;
 
+	// Debug Call Stack Callback
+	virtual void     setKernelCallCallback(KernelCallCallback cb) = 0;
+
 public:
 	//CPU Internal Registers
 	uint32_t	pc;					//Program Counter
@@ -55,12 +61,6 @@ public:
 
     //Internal Status Flags
     bool        isInDelaySlot;     	//Indicates if the current instruction is in a delay slot
-
-	//Branch/Jump Debugger Flags
-	bool		branchHasReturnAddress;	//Set if a JR o JALR jump instruction is executed. It is reset by the debugger
-    bool        isBranchCompleted;		//It is set after the execution of the delay slot instruction after a branch/jump instruction.
-										//Used by the debugger to check if a branch was taken and completed to Update the CallStack.
-										//It is reset by the debugger while updatating the CallStack status.
 
     //Additional Info
     uint32_t    branchAddress;      	//branch target address for jump/branch instructions

@@ -35,7 +35,9 @@ Psx::Psx()
 
 #ifdef DEBUGGER_ENABLED
     //Init PSX Debugger
-    debugger::instance().link(this);
+    Debugger::link(this);
+	Debugger::init();
+	cpu->setKernelCallCallback([this](KernelCallEvent e){ Debugger::instance().getCallStackInfo(e); });
 #endif
 
 	//Data Bus Status
@@ -111,6 +113,7 @@ bool Psx::execute()
 	cpu->execute();
 	gpu->runticks();
 	dma->execute();
+	controller->execute();
 	timers->execute(ClockSource::System);
 
 	if (!(masterClock % 2))
@@ -121,12 +124,7 @@ bool Psx::execute()
 	if (!(masterClock % 8))
 	{
 		timers->execute(ClockSource::System8);
-	}
-
-	if (!(masterClock % 135))
-	{
-		controller->execute();
-	}
+	}	
 
 	interrupt->execute();
 

@@ -1,17 +1,19 @@
 # filter_lines.py
 
 KEYWORDS_INCLUDE = [
-    "INT - Request Hardware Interrupt",
-    "INT - Cancel Hardware Interrupt",
-    "CPU - Throw Exception",
-    "COP0 - Executed RFE",
-    "CP0 - mfc0",
-    "CP0 - mtc0",
-    "KRN - Calling",
-    "INT - Write I_STAT Register",
-    "INT - Read I_STAT Register",
-    "INT - Write I_MASK Register",
-    "INT - Read I_MASK Register"
+    #"INT - Request Hardware Interrupt",
+    #"INT - Cancel Hardware Interrupt",
+    #"CPU - Throw Exception",
+    #"COP0 - Executed RFE",
+    #"CP0 - mfc0",
+    #"CP0 - mtc0",
+    #"KRN - Calling",
+    #"INT - Write I_STAT Register",
+    #"INT - Read I_STAT Register",
+    #"INT - Write I_MASK Register",
+    #"INT - Read I_MASK Register"
+    "RND - ",
+    "INT - Request Hardware Interrupt (vBlank)"
 ]
 
 KEYWORDS_EXCLUDE = [

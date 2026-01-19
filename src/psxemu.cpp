@@ -15,10 +15,59 @@ MessageCallback( GLenum source,
                  GLsizei length,
                  const GLchar* message,
                  const void* userParam )
+
+
 {
-    LOG_F(WARNING,  "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s",
-                    ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
-                    type, severity, message );
+    std::string severityString;
+
+    switch (severity)
+    {
+    case GL_DEBUG_SEVERITY_HIGH:
+        severityString = "HIGH";
+        break;
+
+    case GL_DEBUG_SEVERITY_MEDIUM:
+        severityString = "MEDIUM";
+        break;
+
+    case GL_DEBUG_SEVERITY_LOW:
+        severityString = "LOW";
+        break;
+
+    case GL_DEBUG_SEVERITY_NOTIFICATION:
+        severityString = "MODIFICATION";
+        break;
+
+    default:
+        severityString = "UNKNOWN";
+    }
+
+    if (type == GL_DEBUG_TYPE_ERROR)
+        LOG_F(ERROR,  "OPENGL ERROR - Severity = %s, Message = %s", severityString.c_str(), message);
+    
+    if (type == GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR)
+        LOG_F(WARNING, "OPENGL DEPRECATED BEHAVIOR - Severity = %s, Message = %s", severityString.c_str(), message);
+    
+    if (type == GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR)
+        LOG_F(WARNING, "OPENGL UNDEFINED BEHAVIOR - Severity = %s, Message = %s", severityString.c_str(), message);
+    
+    if (type == GL_DEBUG_TYPE_PORTABILITY)
+        LOG_F(WARNING, "OPENGL PORTABILITY - Severity = %s, Message = %s", severityString.c_str(), message);
+    
+    if (type == GL_DEBUG_TYPE_PERFORMANCE)
+        LOG_F(WARNING, "OPENGL PERFORMANCE - Severity = %s, Message = %s", severityString.c_str(), message);
+    
+    if (type == GL_DEBUG_TYPE_OTHER)
+        LOG_F(3, "OPENGL OTHER - Severity = %s, Message = %s", severityString.c_str(), message);
+    
+    if (type == GL_DEBUG_TYPE_MARKER)
+        LOG_F(2, "OPENGL MARKER - Severity = %s, Message = %s", severityString.c_str(), message);
+    
+    if (type == GL_DEBUG_TYPE_PUSH_GROUP)
+        LOG_F(2, "OPENGL PUSH GROUP - Severity = %s, Message = %s", severityString.c_str(), message);
+    
+    if (type == GL_DEBUG_TYPE_POP_GROUP)
+        LOG_F(2, "OPENGL POP GROUP - Severity = %s, Message = %s", severityString.c_str(), message);
 }
 
 psxemu::psxemu()
@@ -67,10 +116,11 @@ bool psxemu::init(int wndWidth, int wndHeight)
 
     }
 
-    // set OpenGL Version
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    // set OpenGL Version and Mode
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, opengl_major_version);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, opengl_minor_version);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
 
     // Create window with graphics context
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -117,7 +167,7 @@ bool psxemu::init(int wndWidth, int wndHeight)
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;         // Enable Docking
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
            
     // Setup Dear ImGui style
@@ -136,12 +186,12 @@ bool psxemu::init(int wndWidth, int wndHeight)
     ImGui_ImplOpenGL3_Init(glsl_version);
         
     //Init OpenGL Debug Callback
-    //glEnable(GL_DEBUG_OUTPUT);
-    //glDebugMessageCallback(MessageCallback, 0);
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(MessageCallback, 0);
 
     //Init PSX Emulator Object
     isRunning = true;
-    pPsx = std::make_shared<Psx>();
+    psx = std::make_shared<Psx>();
 
     return true;
 }
@@ -157,7 +207,7 @@ bool psxemu::run()
 
         //Update Emulator Status
 #ifdef DEBUGGER_ENABLED
-        update(debugger::instance().getStepMode());
+        update(Debugger::getStepMode());
 #else
         update();
 #endif
@@ -167,7 +217,7 @@ bool psxemu::run()
 
         uint64_t timerActual = SDL_GetPerformanceCounter();
         uint16_t framePerSecond = static_cast<uint16_t>(SDL_GetPerformanceFrequency() / (timerActual - timerStart));
-        debugger::instance().setFrameRate(framePerSecond);
+        Debugger::setFrameRate(framePerSecond);
     }
 
     return true;
@@ -210,52 +260,49 @@ bool psxemu::handleEvents()
                 isRunning = false;
                 break;
             case SDLK_R:
-                pPsx->reset();
+                psx->reset();
                 break;
             case SDLK_SPACE:
-                debugger::instance().setStepMode(StepMode::Manual);
+                Debugger::setStepMode(StepMode::Manual);
                 break;
             case SDLK_P:
-                debugger::instance().setStepMode(StepMode::Halt);
+                Debugger::setStepMode(StepMode::Halt);
                 break;
             case SDLK_I:
-                debugger::instance().setStepMode(StepMode::Instruction);
+                Debugger::setStepMode(StepMode::Instruction);
                 break;
             case SDLK_Y:
-                debugger::instance().setStepMode(StepMode::Frame);
-                break;
-            case SDLK_M:
-                pPsx->cpu->cop0->reg[12] = 0x00000401;
+                Debugger::setStepMode(StepMode::Frame);
                 break;
             case SDLK_1:
-                debugger::instance().toggleDebugModuleStatus(DebugModule::Bios);
+                Debugger::toggleDebugModuleStatus(DebugModule::Bios);
                 break;
             case SDLK_2:
-                debugger::instance().toggleDebugModuleStatus(DebugModule::Ram);
+                Debugger::toggleDebugModuleStatus(DebugModule::Ram);
                 break;
             case SDLK_3:
-                debugger::instance().toggleDebugModuleStatus(DebugModule::Cpu);
+                Debugger::toggleDebugModuleStatus(DebugModule::Cpu);
                 break;
             case SDLK_4:
-                debugger::instance().toggleDebugModuleStatus(DebugModule::Code);
+                Debugger::toggleDebugModuleStatus(DebugModule::Code);
                 break;
             case SDLK_5:
-                debugger::instance().toggleDebugModuleStatus(DebugModule::Dma);
+                Debugger::toggleDebugModuleStatus(DebugModule::Dma);
                 break;
             case SDLK_6:
-                debugger::instance().toggleDebugModuleStatus(DebugModule::Timers);
+                Debugger::toggleDebugModuleStatus(DebugModule::Timers);
                 break;
             case SDLK_7:
-                debugger::instance().toggleDebugModuleStatus(DebugModule::Gpu);
+                Debugger::toggleDebugModuleStatus(DebugModule::Gpu);
                 break;
             case SDLK_8:
-                debugger::instance().toggleDebugModuleStatus(DebugModule::Spu);
+                Debugger::toggleDebugModuleStatus(DebugModule::Spu);
                 break;
             case SDLK_9:
-                debugger::instance().toggleDebugModuleStatus(DebugModule::Cdrom);
+                Debugger::toggleDebugModuleStatus(DebugModule::Cdrom);
                 break;
             case SDLK_0:
-                debugger::instance().toggleDebugModuleStatus(DebugModule::Tty);
+                Debugger::toggleDebugModuleStatus(DebugModule::Tty);
                 break;
             }    
             break;
@@ -268,8 +315,8 @@ bool psxemu::handleEvents()
 bool psxemu::update()
 {
     //Run PSX Emulator in Normal mode
-    while (!pPsx->gpu->isFrameReady())
-        pPsx->execute();
+    while (!Renderer::FrameReady())
+        psx->execute();
 
     return true;
 }
@@ -283,25 +330,26 @@ bool psxemu::update(StepMode stepMode)
             break;
 
         case StepMode::Manual:
-            pPsx->execute();
-            debugger::instance().update();
-            debugger::instance().setStepMode(StepMode::Halt);
+            psx->execute();
+            Debugger::update();
+            Debugger::setStepMode(StepMode::Halt);
             break;
 
         case StepMode::Instruction:
-            pPsx->execute();
-            debugger::instance().update();
-            if (debugger::instance().isBreakpoint()) debugger::instance().setStepMode(StepMode::Halt);
+            psx->execute();
+            Debugger::update();
+            if (Debugger::isBreakpoint())
+                Debugger::setStepMode(StepMode::Halt);
             break;
 
         case StepMode::Frame:
-            while (!pPsx->gpu->isFrameReady())
+            while (!Renderer::FrameReady())
             {
-                pPsx->execute();
-                debugger::instance().update();
-                if (debugger::instance().isBreakpoint())
+                psx->execute();
+                Debugger::update();
+                if (Debugger::isBreakpoint())
                 {
-                    debugger::instance().setStepMode(StepMode::Halt);
+                    Debugger::setStepMode(StepMode::Halt);
                     break;
                 }
             }
@@ -312,15 +360,13 @@ bool psxemu::update(StepMode stepMode)
 
 bool psxemu::render()
 {
-    //Clear Frame Buffer
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    
     //Render Current PSX Frame
-    pPsx->gpu->pRenderer->RenderDrawData(); 
- 
+    Renderer::ScreenUpdate();
+    
 #ifdef DEBUGGER_ENABLED
     //Render ImGUI Debug Widgets
-    debugger::instance().render();
+    SDL_GL_MakeCurrent(pWindow, glContext);
+    Debugger::render();
 #endif
  
     //Swap OpenGL FrameBuffer

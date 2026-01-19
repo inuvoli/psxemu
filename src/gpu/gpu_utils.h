@@ -2,13 +2,25 @@
 
 #include <cstdint>
 #include <cstdio>
+#include "GL/glew.h"
 #include <glm/glm.hpp>
+
 #include "litelib.h"
 
+//GPU Vertex Structure
+struct GpuVertex
+{
+	uint16_t    x;      // Screen X
+	uint16_t    y;      // Screen Y
+	uint8_t     r;      // Red
+	uint8_t     g;      // Green
+	uint8_t     b;      // Blue
+	uint8_t     u;      // Texture U
+	uint8_t     v;      // Texture V
+};
+
 //-------------------------------------------------------------
-//
 //GPU Parameters Decode Helper Functions
-//
 //-------------------------------------------------------------
 inline uint16_t rgb24torgb15(uint32_t data, uint8_t alpha = 0x00)
 {
@@ -26,42 +38,40 @@ inline uint16_t rgb24torgb15(uint32_t data, uint8_t alpha = 0x00)
 	return rgb15Out;
 }
 
-inline void decodeColor(const uint32_t param, glm::vec3 &color)
+inline void decodeColor(const uint32_t param, GpuVertex &color)
 {
-	color.r = (GLfloat)(param & 0x000000ff);			//RED
-	color.g = (GLfloat)((param >> 8) & 0x000000ff);		//GREEN
-	color.b = (GLfloat)((param >> 16) & 0x000000ff);	//BLUE
+	color.r = (uint8_t)(param & 0x000000ff);				//RED
+	color.g = (uint8_t)((param >> 8) & 0x000000ff);			//GREEN
+	color.b = (uint8_t)((param >> 16) & 0x000000ff);		//BLUE
 }
 
-inline void decodePosition(const uint32_t param, glm::vec2 &position)
+inline void decodePosition(const uint32_t param, GpuVertex &position)
 {
-	int16_t _x, _y;
-	_x = (int16_t)(param & 0x0000ffff);
-	_y = (int16_t)((param >> 16) & 0x0000ffff);
-	position.x = (GLfloat)_x;
-	position.y = (GLfloat)_y;
+	position.x = (uint16_t)(param & 0x0000ffff);
+	position.y = (uint16_t)((param >> 16) & 0x0000ffff);
 }
 
-inline uint16_t decodeTexture(const uint32_t param, glm::vec2 &texCoords)
+inline uint16_t decodeTexture(const uint32_t param, GpuVertex &texCoords)
 {
-	texCoords.x = (GLfloat)(param & 0x000000ff);			//U Coordinates
-	texCoords.y = (GLfloat)((param >> 8) & 0x000000ff); 	//V Coordinate
+	texCoords.u = (uint8_t)(param & 0x000000ff);			//U Coordinates
+	texCoords.v = (uint8_t)((param >> 8) & 0x000000ff); 	//V Coordinate
 
 	return (uint16_t)(param >> 16);
 }
 
-inline void decodeClut(const uint16_t param, glm::vec2 &clutCoords)
+inline void decodeClut(const uint16_t param, lite::vec2t<uint16_t> &clutCoords)
 {
-	clutCoords.x = (GLfloat)((param & 0x003f) * 16);			//X Coordinates for CLUT in halfwords (16 bits) on the framebuffer
-	clutCoords.y = (GLfloat)((param >> 6) & 0x01ff);			//y Coordinates for CLUT in Lines on the framebuffer
+	clutCoords.x = (uint16_t)((param & 0x003f) * 16);		//X Coordinates for CLUT in halfwords (16 bits) on the framebuffer
+	clutCoords.y = (uint16_t)((param >> 6) & 0x01ff);		//y Coordinates for CLUT in Lines on the framebuffer
 }
 
-inline void decodeTexPage(const uint16_t param, glm::vec2 &texPageCoords, glm::float32 &texColorDepth, glm::float32 transMode)
+inline void decodeTexPage(const uint16_t param, lite::vec2t<uint16_t> &texPageCoords, uint8_t &texColorMode, uint8_t semiTransMode)
 {
-	texPageCoords.x = (GLfloat)((param & 0xf) * 64);			
-	texPageCoords.y = (GLfloat)(((param >> 4) & 0x1) * 256);
-	transMode = (GLfloat)((param >> 5) & 0x3);
-	texColorDepth = (GLfloat)((param >> 7) & 0x3);
+	texPageCoords.x = (uint16_t)((param & 0xf) * 64);			
+	texPageCoords.y = (uint16_t)(((param >> 4) & 0x1) * 256);
+	semiTransMode = (uint8_t)((param >> 5) & 0x3);  
+	texColorMode = (uint8_t)((param >> 7) & 0x3);
+	//texDisabled = (bool)((param >> 10) & 0x1);
 }
 
 inline lite::vec2t<uint16_t> decodeResolution(uint32_t gpuStat)
@@ -74,6 +84,7 @@ inline lite::vec2t<uint16_t> decodeResolution(uint32_t gpuStat)
 	vRes1 = (gpuStat >> 19) & 0x1;
 	vMode = (gpuStat >> 20) & 0x1;  //Video Mode (PAL/NTSC)
 	iMode = (gpuStat >> 22) & 0x1;	//Interlace Mode (On/Off)
+	resolution = { 0,0 };
 
 
 	if (hRes2 == 1)
@@ -111,11 +122,13 @@ inline lite::vec2t<uint16_t> decodeResolution(uint32_t gpuStat)
 	return resolution;
 }
 
-inline uint8_t decodeClockRatio(uint16_t hRes)
+inline uint8_t decodeDotClockRatio(uint32_t gpuStat)
 {
 	uint8_t dotClockRatio = 0;
+	lite::vec2t<uint16_t> res;
 
-	switch (hRes)
+	res = decodeResolution(gpuStat);
+	switch(res.x)
 	{
 	case 256:
 		dotClockRatio = 10;	//H Res = 256

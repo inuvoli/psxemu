@@ -22,7 +22,7 @@ public:
 public:
 	//Emulator Status
 	bool	isRunning;
-	std::shared_ptr<Psx>	pPsx;
+	std::shared_ptr<Psx>	psx;
 
 private:
 	bool handleEvents();

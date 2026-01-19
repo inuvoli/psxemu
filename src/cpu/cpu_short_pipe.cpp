@@ -20,8 +20,9 @@ CpuShort::CpuShort()
 	isInDelaySlot = false;
 	branchAddress = 0x00000000;
 	branchFunctionAddress = 0x00000000;
-	branchHasReturnAddress = false;
-	isBranchCompleted = false;
+
+	//Init Call Stack Callback
+	kernelCallCb = nullptr;
 
 	//Init Memory Delay Load Status
 	currentDelayedRegisterLoad.id = 0;
@@ -194,8 +195,6 @@ bool CpuShort::reset()
 	isInDelaySlot = false;
 	branchAddress = 0x00000000;
 	branchFunctionAddress = 0x00000000;
-	branchHasReturnAddress = false;
-	isBranchCompleted = false;
 
 	//Init Memory Delay Load Status
 	currentDelayedRegisterLoad.id = 0;
@@ -484,7 +483,21 @@ bool CpuShort::execute()
 		pc = branchAddress;
 		runInstruction();
 		isInDelaySlot = false;
-		isBranchCompleted = true;
+		
+		//Check for Kernel Call and trigger Callback
+		if(kernelCallCb)
+		{
+			KernelCallEvent e;
+			e.pc = pc;
+			e.sp = gpr[29];
+			e.ra = gpr[31];
+			e.t1 = gpr[9];
+			e.a0 = gpr[4];
+			e.a1 = gpr[5];
+			e.a2 = gpr[6];
+			e.a3 = gpr[7];
+			kernelCallCb(e);
+		}
 	}
 	else
 	{
@@ -625,13 +638,11 @@ bool CpuShort::op_bxx()
 	case 0x10:
 		//BLTZAL
 		branch = ((int32_t)currentOpcode.regA < 0);
-		branchHasReturnAddress = true;
 		writeRegister(31, pc + 4); //Return to the istruction after the delay slot
 		break;
 	case 0x11:
 		//BGEZAL
 		branch = ((int32_t)currentOpcode.regA >= 0);
-		branchHasReturnAddress = true;
 		writeRegister(31, pc + 4); //Return to the istruction after the delay slot
 		break;
 	default:
@@ -670,7 +681,6 @@ bool CpuShort::op_jal()
 	branchAddress = (pc & 0xf0000000) + (currentOpcode.tgt << 2);
 	branchFunctionAddress = pc - 4;
 	isInDelaySlot = true;
-	branchHasReturnAddress = true;
 
 	//Set Return Address
 	//Should return to the istruction after the delay slot instruction. PC already point at the delay slot at this stage
@@ -1325,7 +1335,6 @@ bool CpuShort::op_jalr()
     branchAddress = targetAddress;
 	branchFunctionAddress = pc - 4;
 	isInDelaySlot = true;
-	branchHasReturnAddress = true;
 
 	//Set Return Address
 	//Should return to the istruction after the delay slot instruction. PC already point at the delay slot at this stage

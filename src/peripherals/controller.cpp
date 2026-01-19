@@ -6,10 +6,13 @@
 //Cnstructor & Destructor
 Controller::Controller()
 {
-    joyStat = 0x00000000;
-    joyMode = 0x00000000;
-    joyCntr = 0x00000000;
-    txData = 0x0;
+    //Reset Registers
+    statRegister.word = 0;
+    modeRegister.word = 0;
+    ctrlRegister.word = 0;
+    baudRegister = 0;
+    txData = 0;
+    rxFifo.flush();
 }
 
 Controller::~Controller()
@@ -19,15 +22,23 @@ Controller::~Controller()
 //External Signals
 bool Controller::execute()
 {
+    //Update Baudrate Timer
+    statRegister.baudratetimer = statRegister.baudratetimer - 1;
+    if (statRegister.baudratetimer == 0)
+        statRegister.baudratetimer = baudCounter;
+
     return true;
 }
 
 bool Controller::reset()
 {
-    joyStat = 0x00000000;
-    joyMode = 0x00000000;
-    joyCntr = 0x00000000;
-    txData = 0x0;
+    //Reset Registers
+    statRegister.word = 0;
+    modeRegister.word = 0;
+    ctrlRegister.word = 0;
+    baudRegister = 0;
+    txData = 0;
+    rxFifo.flush();
 
     return true;
 }
@@ -35,25 +46,52 @@ bool Controller::reset()
 //Internal Register Access
 bool Controller::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 {   
+    controller::StatusRegister statusReg;
+
     switch (addr)
     {
-        case 0x1f801040:
-        txData = static_cast<uint8_t>(data);
-        //LOG_F(3, "CTR - Write Joy TX Data:   0x%08x", data);
-        break;
+        case 0x1f801040:    //Write JOY_TX_DATA Register
+            txData = data & 0x000000ff;
+            LOG_F(3, "CTR - Write JOY_TX_DATA Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            break;
 
-        case 0x1f80104a:
-        joyCntr = static_cast<uint16_t>(data);
-        //LOG_F(3, "CTR - Write Joy Control Data:   0x%08x", data);
-        break;
+        case 0x1f801048:
+            modeRegister.word = static_cast<uint16_t>(data) & 0x013f;
+            LOG_F(INFO, "CTR - Write JOY_MODE Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            break;
+
+        case 0x1f80104a:    //Write JOY_CTRL Register
+            ctrlRegister.word = static_cast<uint16_t>(data) & 0x3f7f;
+            LOG_F(INFO, "CTR - Write JOY_CTRL Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            break;
+
+        case 0x1f80104e:    //Write JOY_BAUD Register
+            baudRegister = static_cast<uint16_t>(data);
+            switch(modeRegister.baudmult)
+            {
+                case 0:
+                case 1:
+                    baudCounter = (baudRegister * 1) / 2;
+                    break;
+                case 2:
+                    baudCounter = (baudRegister * 16) / 2;
+                    break;
+                case 3:
+                    baudCounter = (baudRegister * 64) / 2;
+                    break;
+            }
+            if (baudCounter == 0)
+                baudCounter = 1; //avoid division by zero in further calculations
+            statRegister.baudratetimer = baudCounter;
+            LOG_F(INFO, "CTR - Write JOY_BAUD Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            break;
 
         default:
-        LOG_F(ERROR, "CTR - Unknown Parameter Set addr: 0x%08x (%d)", addr, bytes);
-        return false;
-        break;
+            LOG_F(ERROR, "CTR - Write Unknown Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            return false;
+            break;
     }
 
-    LOG_F(3, "CTR - Write to Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
     return true;
 }
 
@@ -65,35 +103,35 @@ uint32_t Controller::readAddr(uint32_t addr, uint8_t bytes)
     {
         case 0x1f801040:
             uint8_t tmp;
-            if (rxfifo.pop(tmp))
+            if (rxFifo.pop(tmp))
                 data = tmp;
-            //LOG_F(3, "CTR - Read Joy RX Data:   0x%08x", data);
+            LOG_F(INFO, "CTR - Read JOY_RX_DATA Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
 
         case 0x1f801044:
-            data = joyStat;
-            //LOG_F(3, "CTR - Read Joy Stat:   0x%08x, [0x%08x]", data, psx->cpu->pc);
+            data = statRegister.word;
+            LOG_F(3, "CTR - Read JOY_STAT Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
 
         case 0x1f801048:
-            data = joyMode;
-            //LOG_F(3, "CTR - Read Joy Mode:   0x%08x", data);
+            data = modeRegister.word;
+            LOG_F(INFO, "CTR - Read JOY_MODE Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
         case 0x1f80104a:
-            data = joyCntr;
-            //LOG_F(3, "CTR - Read Joy Control:   0x%08x", data);
+            data = ctrlRegister.word;
+            LOG_F(INFO, "CTR - Read JOY_CTRL Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
-        case 0x1f80104c:
-            //LOG_F(3, "CTR - Read Unknown register: 0x%08x", data);
+        case 0x1f80104e:    //Read JOY_BAUD Register
+            data = baudRegister;
+            LOG_F(INFO, "CTR - Read JOY_BAUD Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
 
         default:
-            LOG_F(ERROR, "CTR - Unknown Parameter Get addr: 0x%08x (%d)", addr, bytes);
+            LOG_F(ERROR, "CTR - Read Unknown Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             return false;
             break;
     }
 
-    LOG_F(3, "CTR - Read from Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
     return data;
 }
 

@@ -91,17 +91,66 @@ void Shader::setUniformb(const std::string &name, bool value) const
     glUniform1i(glGetUniformLocation(this->programId, name.c_str()), (int)value); 
 }
 
+// Overloaded setUniform methods for different int types
 void Shader::setUniformi(const std::string &name, int value) const
 { 
     glUniform1i(glGetUniformLocation(this->programId, name.c_str()), value); 
 }
 
+void Shader::setUniformi(const std::string &name, const glm::ivec2& value) const
+{ 
+    glUniform2i(glGetUniformLocation(this->programId, name.c_str()), value.x, value.y); 
+}
+
+void Shader::setUniformi(const std::string &name, const glm::ivec3& value) const
+{ 
+    glUniform3i(glGetUniformLocation(this->programId, name.c_str()), value.x, value.y, value.z); 
+}
+
+void Shader::setUniformi(const std::string &name, const glm::ivec4& value) const
+{ 
+    glUniform4i(glGetUniformLocation(this->programId, name.c_str()), value.x, value.y, value.z, value.w); 
+}
+
+// Overloaded setUniform methods for different unsigned int types
 void Shader::setUniformui(const std::string &name, unsigned int value) const
 { 
     glUniform1ui(glGetUniformLocation(this->programId, name.c_str()), value); 
 }
 
-void Shader::setUniformf(const std::string &name, float value) const
+void Shader::setUniformui(const std::string &name, const glm::uvec2& value) const
+{ 
+    glUniform2ui(glGetUniformLocation(this->programId, name.c_str()), value.x, value.y); 
+}
+
+void Shader::setUniformui(const std::string &name, const glm::uvec3& value) const
+{ 
+    glUniform3ui(glGetUniformLocation(this->programId, name.c_str()), value.x, value.y, value.z); 
+}
+
+void Shader::setUniformui(const std::string &name, const glm::uvec4& value) const
+{ 
+    glUniform4ui(glGetUniformLocation(this->programId, name.c_str()), value.x, value.y, value.z, value.w); 
+}
+
+// Overloaded setUniform methods for different float types
+void Shader::setUniform(const std::string &name, float value) const
 { 
     glUniform1f(glGetUniformLocation(this->programId, name.c_str()), value); 
+}
+
+void Shader::setUniform(const std::string &name, const glm::vec2 &value) const
+{ 
+    glUniform2f(glGetUniformLocation(this->programId, name.c_str()), value.x, value.y); 
 } 
+
+void Shader::setUniform(const std::string &name, const glm::vec3 &value) const
+{ 
+    glUniform3f(glGetUniformLocation(this->programId, name.c_str()), value.x, value.y, value.z); 
+} 
+
+void Shader::setUniform(const std::string &name, const glm::vec4 &value) const
+{ 
+    glUniform4f(glGetUniformLocation(this->programId, name.c_str()), value.x, value.y, value.z, value.w); 
+} 
+

@@ -7,58 +7,63 @@
 #include "functions_name.h"
 #include "registers_name.h"
 
-bool debugger::isBreakpoint()
+bool Debugger::isBreakpoint()
 {
-    return ((psx->cpu->pc) == breakPoint);
+    return (instance().psx->cpu->pc == instance().breakPoint);
 }
 
-void debugger::toggleDebugModuleStatus(DebugModule module)
+void Debugger::toggleDebugModuleStatus(DebugModule module)
 {
     int index = static_cast<int>(module);
 
     //Toggle Module Debug Status
-    debugModuleStatus[index] = (debugModuleStatus[index]) ? false : true;
+    instance().debugModuleStatus[index] = (instance().debugModuleStatus[index]) ? false : true;
 };
 
-bool debugger::getDebugModuleStatus(DebugModule module)
+bool Debugger::getDebugModuleStatus(DebugModule module)
 {
     int index = static_cast<int>(module);
 
-    return debugModuleStatus[index];
+    return instance().debugModuleStatus[index];
 };
 
-bool debugger::update()
+bool Debugger::init()
 {
-    getInterruptDebugInfo();
-    getTimerDebugInfo();
-    getGpuDebugInfo();
-    getCdromDebugInfo();
-    updateCallStack();
+    return true;
+}
+
+bool Debugger::update()
+{
+    instance().getInterruptDebugInfo();
+    instance().getTimerDebugInfo();
+    instance().getGpuDebugInfo();
+    instance().getCdromDebugInfo();
  
     return true;
 };
 
-bool debugger::render()
+bool Debugger::render()
 {
+
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
 
     ImGui::NewFrame();
 
-    renderMenuBar();
-    renderFpsWidget();
+    instance().renderMenuBar();
+    instance().renderFpsWidget();
 
-    if (getDebugModuleStatus(DebugModule::Bios))     renderBiosWidget();
-    if (getDebugModuleStatus(DebugModule::Ram))      renderRamWidget();
-    if (getDebugModuleStatus(DebugModule::Cpu))      renderCpuWidget();
-    if (getDebugModuleStatus(DebugModule::Code))     renderCodeWidget();
-    if (getDebugModuleStatus(DebugModule::Dma))      renderDmaWidget();
-    if (getDebugModuleStatus(DebugModule::Timers))   renderTimersWidget();
-    if (getDebugModuleStatus(DebugModule::Gpu))      renderGpuWidget();
-    if (getDebugModuleStatus(DebugModule::Spu))      renderSpuWidget();
-    if (getDebugModuleStatus(DebugModule::Cdrom))    renderCdromWidget();
-    if (getDebugModuleStatus(DebugModule::Tty))      renderTtyWidget();
+    if (instance().getDebugModuleStatus(DebugModule::Bios))     instance().renderBiosWidget();
+    if (instance().getDebugModuleStatus(DebugModule::Ram))      instance().renderRamWidget();
+    if (instance().getDebugModuleStatus(DebugModule::Cpu))      instance().renderCpuWidget();
+    if (instance().getDebugModuleStatus(DebugModule::Code))     instance().renderCodeWidget();
+    if (instance().getDebugModuleStatus(DebugModule::Dma))      instance().renderDmaWidget();
+    if (instance().getDebugModuleStatus(DebugModule::Timers))   instance().renderTimersWidget();
+    if (instance().getDebugModuleStatus(DebugModule::Gpu))      instance().renderGpuWidget();
+    if (instance().getDebugModuleStatus(DebugModule::Spu))      instance().renderSpuWidget();
+    if (instance().getDebugModuleStatus(DebugModule::Cdrom))    instance().renderCdromWidget();
+    if (instance().getDebugModuleStatus(DebugModule::Tty))      instance().renderTtyWidget();
     
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     ImGui::Render();
@@ -82,7 +87,7 @@ bool debugger::render()
     return true;
 }
 
-bool debugger::renderFpsWidget()
+bool Debugger::renderFpsWidget()
 {
     ImGui::SetNextWindowSize(ImVec2(100, 30));
     ImVec2 widgetPosition = ImGui::GetMainViewport()->WorkPos;
@@ -106,19 +111,19 @@ bool debugger::renderFpsWidget()
     return true;
 }
 
-bool debugger::renderBiosWidget()
+bool Debugger::renderBiosWidget()
 {
     dbgRom.DrawWindow("BIOS", psx->bios->rom, BIOS_SIZE);
     return true;
 }
 
-bool debugger::renderRamWidget()
+bool Debugger::renderRamWidget()
 {
     dbgRam.DrawWindow("RAM", psx->mem->ram, RAM_SIZE);
     return true;
 }
 
-bool debugger::renderCpuWidget()
+bool Debugger::renderCpuWidget()
 {
     ImGui::Begin("CPU Registers");
         ImGui::BeginTabBar("#tabs");
@@ -246,52 +251,78 @@ bool debugger::renderCpuWidget()
     return true;
 }
 
-bool debugger::renderCodeWidget()
+bool Debugger::renderCodeWidget()
 {
     ImGui::Begin("Assembler");
+
     uint32_t addr = psx->cpu->pc;
 
-    //Debug on the fly software in RAM
-    //Check if code is already disassembled, if not disassemble starting from current Program Counter.
+    // Debug on-the-fly software in RAM
+    // Check if code is already disassembled, if not disassemble starting from current Program Counter.
     if (asmCode.find(addr) == asmCode.end() || std::get<2>(asmCode[addr]) == "")
     {
         AsmCode newDisassembledCode = mipsDisassembler.disassemble(psx->bios->rom, psx->mem->ram, addr);
         for (auto& e : newDisassembledCode)
             asmCode.insert_or_assign(e.first, e.second);
     }
-    
+
     addr -= (15 * 4);
-    for (int line = 0; line < 32; line++)
+
+    // Begin table with 3 columns: Label / Address / Assembler
+    if (ImGui::BeginTable("AssemblerTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
     {
-        if (addr == psx->cpu->pc)
+        // Setup headers
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+        ImGui::TableSetupColumn("Address", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+        ImGui::TableSetupColumn("Assembler", ImGuiTableColumnFlags_WidthFixed, 2000.0f);
+        ImGui::TableHeadersRow();
+
+        for (int line = 0; line < 32; line++)
         {
-            ImGui::TextColored(red_color, "0x%08x", addr);
-            ImGui::SameLine();
-            ImGui::TextColored(red_color, "0x%08x", std::get<0>(asmCode[addr]));
-            ImGui::SameLine();
-            ImGui::TextColored(red_color, "%s", std::get<1>(asmCode[addr]).c_str());
-            ImGui::SameLine();
-            ImGui::TextColored(red_color, "%s", std::get<2>(asmCode[addr]).c_str());
+            ImGui::TableNextRow();
+
+            // Column 1: Label (empty)
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text(""); // intentionally empty
+
+            // Column 2: Address
+            ImGui::TableSetColumnIndex(1);
+            if (addr == psx->cpu->pc)
+                ImGui::TextColored(white_color, "0x%08x", addr);
+            else
+                ImGui::TextColored(yellow_color, "0x%08x", addr);
+
+            // Column 3: Assembler
+            ImGui::TableSetColumnIndex(2);
+            if (addr == psx->cpu->pc)
+            {
+                ImGui::TextColored(white_color, "0x%08x  %s  %s",
+                    std::get<0>(asmCode[addr]),
+                    std::get<1>(asmCode[addr]).c_str(),
+                    std::get<2>(asmCode[addr]).c_str()
+                );
+            }
+            else
+            {
+                ImGui::TextColored(green_color, "0x%08x", std::get<0>(asmCode[addr]));
+                ImGui::SameLine();
+                ImGui::TextColored(grey_color, "%s", std::get<1>(asmCode[addr]).c_str());
+                ImGui::SameLine();
+                ImGui::TextColored(grey_color, "%s", std::get<2>(asmCode[addr]).c_str());
+            }
+
+            addr += 4;
         }
-        else
-        {
-            ImGui::TextColored(yellow_color, "0x%08x", addr);
-            ImGui::SameLine();
-            ImGui::TextColored(green_color, "0x%08x", std::get<0>(asmCode[addr]));
-            ImGui::SameLine();
-            ImGui::TextColored(grey_color, "%s", std::get<1>(asmCode[addr]).c_str());
-            ImGui::SameLine();
-            ImGui::TextColored(grey_color, "%s", std::get<2>(asmCode[addr]).c_str());
-        }
-        
-        addr += 4;
+
+        ImGui::EndTable();
     }
+
     ImGui::End();
 
     return true;
 }
 
-bool debugger::renderDmaWidget()
+bool Debugger::renderDmaWidget()
 {
     ImGui::Begin("DMA");
             
@@ -312,62 +343,234 @@ bool debugger::renderDmaWidget()
     return true;
 }
 
-bool debugger::renderTimersWidget()
+bool Debugger::renderTimersWidget()
 {
     ImGui::Begin("TIMERS");
-    for (int i = 0; i < TIMER_NUMBER; i++)
+
+    const char* rowLabels[] = { "Mode", "Value", "Target", "Sync Mode", "Clock Source" };
+    ImVec4 greenColor = ImVec4(0.0f, 1.0f, 0.0f, 1.0f); // Green for headers and row labels
+
+    // Begin table with 4 columns: Row Label + Timer0/1/2
+    if (ImGui::BeginTable("TimersTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
     {
-        ImGui::Text("Timer %d: Value  0x%08x  ", i, timerInfo.timerStatus[i].counterValue);
-        ImGui::SameLine();
-        ImGui::Text("Timer %d: Mode   0x%08x  ", i, timerInfo.timerStatus[i].counterMode.word);
-        ImGui::SameLine();
-        ImGui::Text("Timer %d: Target 0x%08x  ", i, timerInfo.timerStatus[i].counterTarget);
+        // Setup columns with fixed width 150
+        ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupColumn("Timer0", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupColumn("Timer1", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupColumn("Timer2", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+
+        // Table headers (green)
+        ImGui::TableHeadersRow();
+        for (int col = 0; col < 4; col++)
+        {
+            ImGui::TableSetColumnIndex(col);
+            ImGui::TextColored(greenColor, "%s",
+                col == 0 ? "Property" : (col == 1 ? "Timer0" : (col == 2 ? "Timer1" : "Timer2")));
+        }
+
+        // Fill rows
+        for (int row = 0; row < 5; row++)
+        {
+            ImGui::TableNextRow();
+
+            // First column = row label (green)
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextColored(greenColor, "%s", rowLabels[row]);
+
+            // Columns 1-3 = Timer0/1/2 values
+            for (int timer = 0; timer < TIMER_NUMBER; timer++)
+            {
+                ImGui::TableSetColumnIndex(timer + 1);
+
+                uint32_t mode = timerInfo.timerStatus[timer].counterMode.word;
+
+                switch (row)
+                {
+                case 0: // Mode
+                    ImGui::Text("0x%08x", mode);
+                    break;
+                case 1: // Value
+                    ImGui::Text("0x%08x", timerInfo.timerStatus[timer].counterValue);
+                    break;
+                case 2: // Target
+                    ImGui::Text("0x%08x", timerInfo.timerStatus[timer].counterTarget);
+                    break;
+                case 3: // Sync Mode
+                {
+                    bool syncEnable = (mode & 0x1) != 0;
+                    uint32_t syncModeBits = (mode >> 1) & 0x3;
+                    const char* syncText = "";
+
+                    if (!syncEnable)
+                    {
+                        syncText = "Free Run";
+                    }
+                    else
+                    {
+                        switch (timer)
+                        {
+                        case 0: // Timer 0
+                            switch (syncModeBits)
+                            {
+                            case 0: syncText = "Pause during Hblank(s)"; break;
+                            case 1: syncText = "Reset 0000h at Hblank(s)"; break;
+                            case 2: syncText = "Reset 0000h at Hblank(s), pause outside"; break;
+                            case 3: syncText = "Pause until 1 Hblank, then Free Run"; break;
+                            }
+                            break;
+                        case 1: // Timer 1
+                            switch (syncModeBits)
+                            {
+                            case 0: syncText = "Pause during Vblank(s)"; break;
+                            case 1: syncText = "Reset 0000h at Vblank(s)"; break;
+                            case 2: syncText = "Reset 0000h at Vblank(s), pause outside"; break;
+                            case 3: syncText = "Pause until 1 Vblank, then Free Run"; break;
+                            }
+                            break;
+                        case 2: // Timer 2
+                            if (syncModeBits == 0 || syncModeBits == 3)
+                                syncText = "Stop counter at current value";
+                            else
+                                syncText = "Free Run (Sync disabled behavior)";
+                            break;
+                        }
+                    }
+
+                    ImGui::Text("%s", syncText);
+                    break;
+                }
+                case 4: // Clock Source
+                {
+                    uint32_t clockBits = (mode >> 8) & 0x3;
+                    const char* clockText = "";
+
+                    switch (timer)
+                    {
+                    case 0:
+                        clockText = (clockBits == 0 || clockBits == 2) ? "System Clock" : "Dotclock";
+                        break;
+                    case 1:
+                        clockText = (clockBits == 0 || clockBits == 2) ? "System Clock" : "Hblank";
+                        break;
+                    case 2:
+                        clockText = (clockBits == 0 || clockBits == 1) ? "System Clock" : "System Clock/8";
+                        break;
+                    }
+
+                    ImGui::Text("%s", clockText);
+                    break;
+                }
+                }
+            }
+        }
+
+        ImGui::EndTable();
     }
+
     ImGui::End();
 
     return true;
 }
 
-bool debugger::renderGpuWidget()
+
+
+
+bool Debugger::renderGpuWidget()
 {
     ImGui::Begin("GPU");
-    ImGui::Text("GPUSTAT: Value  0x%08x  ", gpuInfo.gpuStat);
-    ImGui::Text("VideoMode     : %dx%d   (%s)", gpuInfo.videoResolution.x, gpuInfo.videoResolution.y, gpuInfo.videoStandard.c_str());
 
-    ImGui::Text("Display Start : (%4d, %4d)\t\t\t\t\t\t", gpuInfo.displayStart.x, gpuInfo.displayStart.y);
-    ImGui::SameLine();
-    ImGui::Text("Texture Page           : (%4d, %4d)", gpuInfo.texturePage.x, gpuInfo.texturePage.y);
+    // Create a table with 2 columns: Label / Value
+    if (ImGui::BeginTable("GPU Info Table", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn("Register", ImGuiTableColumnFlags_WidthFixed, 190.0f);
+        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 200.0f);
 
-    ImGui::Text("Display Range : (%4d, %4d) to (%4d, %4d)\t\t", gpuInfo.displayRange.x1, gpuInfo.displayRange.y1, gpuInfo.displayRange.x2, gpuInfo.displayRange.y2);
-    ImGui::SameLine();
-    ImGui::Text("Texture Page Color Mode: %s", gpuInfo.textureColorDepth.c_str());
+        // Row 1: GPUSTAT
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::PushStyleColor(ImGuiCol_Text, green_color); ImGui::Text("GPUSTAT"); ImGui::PopStyleColor();// Label
+        ImGui::TableNextColumn(); ImGui::Text("0x%08x", gpuInfo.gpuStat); // Value
 
-    ImGui::Text("Drawing Offset: (%4d, %4d)\t\t\t\t\t\t", (int16_t)gpuInfo.drawingOffset.x, (int16_t)gpuInfo.drawingOffset.y);
-    ImGui::SameLine();
-    ImGui::Text("Texture Windows Mask   : (%4d, %4d)", gpuInfo.textureMask.x, gpuInfo.textureMask.y);
+        // Row 2: Video Mode
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::Text("Video Mode");
+        ImGui::TableNextColumn(); ImGui::Text("%dx%d (%s - %s)", gpuInfo.videoResolution.x, gpuInfo.videoResolution.y, gpuInfo.videoStandard.c_str(), gpuInfo.interlaced ? "Interlaced" : "Progressive");
 
-    ImGui::Text("Drawing Area  : (%4d, %4d) to (%4d, %4d)\t\t", gpuInfo.drawingArea.x1, gpuInfo.drawingArea.y1, gpuInfo.drawingArea.x2, gpuInfo.drawingArea.y2);
-    ImGui::SameLine();
-    ImGui::Text("Texture Windows Offset : (%4d, %4d)", gpuInfo.textureOffset.x, gpuInfo.textureOffset.y); 
+        // Row 3: Display Enabled
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::Text("Display Enabled");
+        ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.displayDisabled ? "Disabled" : "Enabled");
+
+        // Row 3: Display Start
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::Text("Display Start");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayStart.x, gpuInfo.displayStart.y);
+
+        // Row 4: Display Horizontal Range
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::Text("Display Horizontal Range");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayRange.x1, gpuInfo.displayRange.y1);
+
+        // Row 5: Display Vertical Range
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::Text("Display Vertical Range");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayRange.x2, gpuInfo.displayRange.y2);
+
+        // Row 6: Drawing Area
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::Text("Drawing Area");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d] - [%4d, %4d]", gpuInfo.drawingArea.x1, gpuInfo.drawingArea.y1, gpuInfo.drawingArea.x2, gpuInfo.drawingArea.y2);
+
+        // Row 7: Drawing Offset
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::Text("Drawing Offset");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", (int16_t)gpuInfo.drawingOffset.x, (int16_t)gpuInfo.drawingOffset.y);
+
+        // Row 8: Texture Page
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::Text("Texture Page");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.texturePage.x, gpuInfo.texturePage.y);
+        
+        // Row 9: Texture Color Mode
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::Text("Texture Color Mode");
+        ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.colorMode.c_str());      
+
+        // Row 10: Texture Windows Mask
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::Text("Texture Windows Mask");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.textureMask.x, gpuInfo.textureMask.y);
+
+        // Row 11: Texture Windows Offset
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); ImGui::Text("Texture Windows Offset");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.textureOffset.x, gpuInfo.textureOffset.y);
+
+        ImGui::EndTable(); // End of table
+    }
     
-    glBindTexture(GL_TEXTURE_2D, vramTexture);
+    auto& r = instance();  // Alias al singleton
+    ImVec2 imageSize(1024, 512);
+    ImVec2 imagePos = ImGui::GetCursorScreenPos(); // top-left corner
+        
+    ImGui::Image((void*)(intptr_t)Renderer::GetVRAMTextureObject(), imageSize);
+    
+    // Draw Image Border
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    ImVec2 bottomRight = ImVec2(imagePos.x + imageSize.x, imagePos.y + imageSize.y);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 512, 0, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, (const void*)gpuInfo.vRam);
-            
-    ImGui::Image((void*)(intptr_t)vramTexture, ImVec2(1024, 512));
+    // Disegna un rettangolo bordo esterno (color = RGBA)
+    drawList->AddRect(imagePos, bottomRight, IM_COL32(60, 60, 60, 255), 1.0f, 0, 1.0f);
     ImGui::End();
 
     return true;      
 }
 
-bool debugger::renderSpuWidget()
+bool Debugger::renderSpuWidget()
 {
     return false;
 }
 
-bool debugger::renderCdromWidget()
+bool Debugger::renderCdromWidget()
 {
     ImGui::Begin("CDROM");
 
@@ -567,7 +770,7 @@ bool debugger::renderCdromWidget()
     return true;
 }
 
-bool debugger::renderTtyWidget()
+bool Debugger::renderTtyWidget()
 {
     ImGui::Begin("TTY");
     for (std::string s : psx->tty->bufferA)
@@ -577,7 +780,7 @@ bool debugger::renderTtyWidget()
     return true;
 }
 
-bool debugger::renderMenuBar()
+bool Debugger::renderMenuBar()
 {
     // Menu Bar
     if (ImGui::BeginMainMenuBar())
@@ -710,30 +913,30 @@ bool debugger::renderMenuBar()
     return true;
 }
 
-void debugger::dumpRam()
+void Debugger::dumpRam()
 {
     std::ofstream fs("ramdump.bin", std::ios::out | std::ios::binary);
-    fs.write(reinterpret_cast<const char*>(psx->mem->ram), 0x200000);
+    fs.write(reinterpret_cast<const char*>(instance().psx->mem->ram), 0x200000);
     fs.close();
 }
 
 //------------------------------------------------------------------------------------------
 // Debug Info Update Functions
 //------------------------------------------------------------------------------------------
-void debugger::getInterruptDebugInfo()
+void Debugger::getInterruptDebugInfo()
 {
     interruptInfo.i_mask = psx->interrupt->getMaskRegister();
     interruptInfo.i_stat = psx->interrupt->getStatusRegister();
 }
 
-void debugger::getTimerDebugInfo()
+void Debugger::getTimerDebugInfo()
 {
     timerInfo.timerStatus[0] = psx->timers->getTimerStatus(0);
     timerInfo.timerStatus[1] = psx->timers->getTimerStatus(1);
     timerInfo.timerStatus[2] = psx->timers->getTimerStatus(2);
 }
 
-void debugger::getGpuDebugInfo()
+void Debugger::getGpuDebugInfo()
 {
     gpuInfo.gpuStat =  psx->gpu->getGPUStat();
     gpuInfo.videoResolution = psx->gpu->getVideoResolution();
@@ -745,12 +948,13 @@ void debugger::getGpuDebugInfo()
     gpuInfo.texturePage = psx->gpu->getTexturePage();
     gpuInfo.textureMask = psx->gpu->getTextureMask();
     gpuInfo.textureOffset = psx->gpu->getTextureOffset();
-    gpuInfo.vRam = psx->gpu->getVRAM();
-    gpuInfo.textureColorDepth = psx->gpu->getTextureColorDepth();
+    gpuInfo.colorMode = psx->gpu->getTextureColorDepth();
     gpuInfo.videoStandard = psx->gpu->getVideoStandard();
+    gpuInfo.interlaced = psx->gpu->getVerticalInterlace();
+    gpuInfo.displayDisabled = psx->gpu->getDisplayDisabled();
 }
 
-void debugger::getCdromDebugInfo()
+void Debugger::getCdromDebugInfo()
 {
     cdromInfo.statusRegister = psx->cdrom->getStatusRegister();
     cdromInfo.requestRegister = psx->cdrom->getRequestRegister();
@@ -758,65 +962,62 @@ void debugger::getCdromDebugInfo()
     cdromInfo.interruptStatusRegister = psx->cdrom->getInterruptStatusRegister();   
 }
 
-void debugger::updateCallStack()
+void Debugger::getCallStackInfo(KernelCallEvent &e)
 {
-    if (!psx->cpu->isBranchCompleted)
-        return; 
 
     CallStackInfo callInfo;
-    callInfo.pc = (psx->cpu->pc);
-    callInfo.sp = psx->cpu->gpr[29];    //Stack Pointer
-    if (psx->cpu->branchHasReturnAddress)
-        callInfo.ra = psx->cpu->gpr[31];
-    else
-        callInfo.ra = 0x0;
-    
+    callInfo.pc = e.pc;   //Program Counter
+    callInfo.sp = e.sp;   //Stack Pointer
+    callInfo.ra = e.ra;   //Return Address
+
     //Generate Generic Function Name    
     std::stringstream functionName;
-    functionName << "function_" << std::hex << callInfo.pc;
-    callInfo.func = functionName.str();
+    //functionName << "function_" << std::hex << callInfo.pc;
+    //callInfo.func = functionName.str();
 
-    uint8_t funcIndex = psx->cpu->gpr[9] & 0xff;
     //A Functions Name Resolution
     if (callInfo.pc == 0x000000a0)
     {
         //Skip putchar function
-        if (funcIndex == 0x3c) 
+        if (e.t1 == 0x3c) 
             return;
         
         functionName.str("");
-        functionName << function_A[funcIndex];
-        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), psx->cpu->gpr[4], psx->cpu->gpr[5], psx->cpu->gpr[6], psx->cpu->gpr[7]);
+        functionName << function_A[e.t1];
+        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), e.a0, e.a1, e.a2, e.a3);
         callInfo.func = functionName.str();
+        
+        callStack.write(callInfo);
+        return;
     }
 
     //B Functions Name Resolution
     if (callInfo.pc == 0x000000b0)
     {
         //Skip putchar function
-        if (funcIndex == 0x3d) 
+        if (e.t1 == 0x3d) 
             return;
 
         functionName.str("");
-        functionName << function_B[funcIndex];
-        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), psx->cpu->gpr[4], psx->cpu->gpr[5], psx->cpu->gpr[6], psx->cpu->gpr[7]);
+        functionName << function_B[e.t1];
+        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), e.a0, e.a1, e.a2, e.a3);
         callInfo.func = functionName.str();
+
+        callStack.write(callInfo);
+        return;
     }
 
     //C Functions Name Resolution
     if (callInfo.pc == 0x000000c0)
     {
         functionName.str("");
-        functionName << function_C[funcIndex];
-        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), psx->cpu->gpr[4], psx->cpu->gpr[5], psx->cpu->gpr[6], psx->cpu->gpr[7]);
+        functionName << function_C[e.t1];
+        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), e.a0, e.a1, e.a2, e.a3);
         callInfo.func = functionName.str();
+
+        callStack.write(callInfo);
+        return;
     }
-
-    callStack.write(callInfo);
-
-    //Reset Branch Completed Flag
-    psx->cpu->isBranchCompleted = false;
-    psx->cpu->branchHasReturnAddress = false;
 
     return;
 }

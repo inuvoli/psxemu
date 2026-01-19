@@ -1,5 +1,5 @@
 #pragma once
-//#define DEBUGGER_ENABLED
+#define DEBUGGER_ENABLED
 
 #include <cstdint>
 #include <memory>
@@ -17,6 +17,18 @@ enum class StepMode { Halt = 0, Manual = 1, Instruction = 2, Frame = 3 };
 enum class DebugModule { Bios = 0, Ram = 1, Cpu = 2, Code = 3, Dma = 4, Timers = 5, Gpu = 6, Spu = 7, Cdrom = 8, Tty = 9};
 
 //DebugInfo
+struct KernelCallEvent
+{
+	uint32_t		pc;		//Program Counter (Address of the Kernel Call)
+	uint32_t		sp;		//Stack Pointer
+	uint32_t		ra;		//Return Address
+	uint32_t		t1;		//Function Identifier
+	uint32_t		a0;		//Argument 1
+	uint32_t		a1;		//Argument 2
+	uint32_t		a2;		//Argument 3
+	uint32_t		a3;		//Argument 4
+};
+
 struct InterruptDebugInfo
 {
 	uint32_t		i_stat;
@@ -31,7 +43,6 @@ struct TimerDebugInfo
 struct GpuDebugInfo
 {
 	uint32_t					gpuStat;
-	void*						vRam;
 	lite::vec2t<uint16_t>		displayStart; 
 	lite::vec4t<uint16_t>		displayRange; 
 	lite::vec2t<uint16_t>		drawingOffset; 
@@ -39,11 +50,12 @@ struct GpuDebugInfo
 	lite::vec2t<uint16_t>		videoResolution; 
 	std::string					videoStandard; 
 	std::string					textureDisabled;
-	uint16_t					texturePageYBase2;
 	lite::vec2t<uint16_t>		texturePage;
-	std::string					textureColorDepth;
+	std::string					colorMode;
 	lite::vec2t<uint8_t>		textureMask;
 	lite::vec2t<uint8_t>		textureOffset;
+	bool						displayDisabled;
+	bool						interlaced;
 };
 
 struct CdromDebugInfo
@@ -65,34 +77,48 @@ struct CallStackInfo
 //Class Psx forward declaration
 class Psx;
 
-class debugger
+class Debugger
 {
 public:
-	static debugger& instance()
+	static Debugger& instance()
     {
-        static debugger *instance = new debugger();
+        static Debugger *instance = new Debugger();
         return *instance;
     }
 
-	bool isBreakpoint (); 
-    void setBreakpoint(uint32_t addr) { breakPoint = addr; };
-    uint32_t getBreakPoint() { return breakPoint; };
+	//Debugger Interface
+	static bool init();
+	static bool update();
+    static bool render();
 
-    void setStepMode(StepMode mode) { stepMode = mode; };
-    StepMode getStepMode() { return stepMode; };
+	//Connect to PSX Instance
+	static void link(Psx* psxInstance) { instance().psx = psxInstance; }
 
-	void setFrameRate(uint16_t framerate) {framePerSecond = framerate;};
-	uint16_t getFrameRate() {return framePerSecond;};
+	//Debug Controls
+	static bool isBreakpoint (); 
+    static void setBreakpoint(uint32_t addr) { instance().breakPoint = addr; };
+    static uint32_t getBreakPoint() { return instance().breakPoint; };
+    static void setStepMode(StepMode mode) { instance().stepMode = mode; };
+    static StepMode getStepMode() { return instance().stepMode; };
+	static void setFrameRate(uint16_t framerate) { instance().framePerSecond = framerate; };
+	static uint16_t getFrameRate() { return instance().framePerSecond; };
+    static void toggleDebugModuleStatus(DebugModule module);
+    static bool getDebugModuleStatus(DebugModule module);
+	static void dumpRam();
 
-    void toggleDebugModuleStatus(DebugModule module);
-    bool getDebugModuleStatus(DebugModule module);
+	//Kernel Call Callback
+	void getCallStackInfo(KernelCallEvent &e);
 
-	void dumpRam();
+private:
+	Debugger() {}
 
-    bool update();
-    bool render();
-
-    //Debugger Widgets Functions
+	//Debug Info
+	void getInterruptDebugInfo();
+	void getTimerDebugInfo();
+	void getGpuDebugInfo();
+	void getCdromDebugInfo();
+	
+	//Render Widgets Functions
     bool renderFpsWidget();
 	bool renderBiosWidget();
 	bool renderRamWidget();
@@ -106,22 +132,12 @@ public:
 	bool renderTtyWidget();
 	bool renderMenuBar();
 
-	//Connect to PSX Instance
-	void link(Psx* psxInstance) { psx = psxInstance; }
-
-private:
-	debugger() {}
-
-	//Debug Info
-	void getInterruptDebugInfo();
-	void getTimerDebugInfo();
-	void getGpuDebugInfo();
-	void getCdromDebugInfo();
-	void updateCallStack();
-
 private:
 	//Link to Bus Object
     Psx* psx;
+
+	//VRAM Texture Debug Copy
+	GLuint				vramDebugTexture;
 
 	//Debug Info
 	lite::circularbuffer<CallStackInfo, 31>	callStack;		//Call Stack
@@ -140,7 +156,6 @@ private:
     //Debug Helper
 	MipsDisassembler	mipsDisassembler;
 	AsmCode             asmCode;
-	GLuint              vramTexture;
 	MemoryEditor		dbgRom;
 	MemoryEditor		dbgRam;
 	MemoryEditor		dbgVRam;
@@ -151,6 +166,7 @@ private:
 	ImVec4 darkgrey_color = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
 	ImVec4 red_color = ImVec4(0.90f, 0.00f, 0.00f, 1.00f);
 	ImVec4 black_color = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+	ImVec4 white_color = ImVec4(1.0f, 1.00f, 1.00f, 1.00f);
 
 	//Debug State names
 	std::string debugStates[4] = { "Halt", "Manual", "Instruction", "Frame"};

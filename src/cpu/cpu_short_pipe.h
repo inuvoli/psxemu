@@ -77,6 +77,9 @@ public:
 	//Connect to PSX Instance
 	void link(Psx* instance);
 
+	//Debug Call Stack Callback
+	void     setKernelCallCallback(KernelCallCallback cb) override { kernelCallCb = std::move(cb); };
+
 private:
 	//CPU Instructions
 	bool op_bxx();
@@ -166,6 +169,8 @@ private:
 		bool(CpuShort::* operate)() = nullptr;
 	};
 
+	KernelCallCallback		kernelCallCb;					//Callback to Debugger for Kernel Calls;
+	
 	DelayedLoadRegister		currentDelayedRegisterLoad;		//Contains the register that is going to be updated after Memory Delay
 	DelayedLoadRegister		nextDelayedRegisterLoad;		//Contains the next register that is going to be updated after Memory Delay
 

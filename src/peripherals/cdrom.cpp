@@ -547,7 +547,7 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		break;
 
 	default:
-		LOG_F(ERROR, "CDR - Unknown Parameter Set addr:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+		LOG_F(ERROR, "CDR - Write Unknown Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return false;
 	}
 
@@ -596,7 +596,7 @@ uint32_t Cdrom::readAddr(uint32_t addr, uint8_t bytes)
 		break;
 
 	default:
-		LOG_F(ERROR, "CDR - Unknown Parameter Get addr: 0x%08x (%d), data: 0x%08x", addr, bytes, data);
+		LOG_F(ERROR, "CDR - Read Unknown Register:\t 0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		return 0x0;
 	}
 	
@@ -816,7 +816,7 @@ bool Cdrom::cmd_test()
 			ie.delay = 68000; //about 4ms
 			ie.interruptNumber = cdrom::INT3;
 			interruptFifo.push(ie);
-			responseFifo.push( {0x94, 0x11, 0x18, 0xc0} );
+			responseFifo.push( {0x94, 0x09, 0x19, 0xc0} );
 			break;
 		default:
 			//Unknown Sub Command
@@ -846,7 +846,7 @@ bool Cdrom::cmd_getid()
 	ie.delay = 1500; //about 80 us
 	ie.interruptNumber = cdrom::INT2;
 	interruptFifo.push(ie);
-	responseFifo.push( {0x02, 0x00, 0x20, 0x00, 0x53, 0x43, 0x45, 0x45} ); //SCEA 0x41, SCEE 0x45
+	responseFifo.push( {0x02, 0x00, 0x20, 0x00, 0x53, 0x43, 0x45, 0x41} ); //SCEA 0x41, SCEE 0x45
 	
 	return true;
 };
