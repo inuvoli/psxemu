@@ -24,4 +24,3 @@ psxemu.exe --bios <bios file path> --exe <executable path>
 - CPU COP2/GTE implementation
 - Controllers Implementation
 - SPU Implementation
-- 
