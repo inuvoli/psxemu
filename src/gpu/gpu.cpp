@@ -131,10 +131,10 @@ GPU::GPU()
 		{"Monocrome 4 Point Polygon, Opaque", &GPU::gp0_Polygons, 4, true, true},
 		{"Monocrome 4 Point Polygon, Semi-Transparent", &GPU::gp0_Polygons, 4, true, true},
 		{"Monocrome 4 Point Polygon, Semi-Transparent", &GPU::gp0_Polygons, 4, true, true},
-		{"Textured 3 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 8, true, true},
-		{"Textured 3 Point polygon, opaque, raw texture", &GPU::gp0_Polygons, 8, true, true},
-		{"Textured 3 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 8, true, true},
-		{"Textured 3 Point polygon, semi-transparent, raw texture", &GPU::gp0_Polygons, 8, true, true},
+		{"Textured 4 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 8, true, true},
+		{"Textured 4 Point polygon, opaque, raw texture", &GPU::gp0_Polygons, 8, true, true},
+		{"Textured 4 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 8, true, true},
+		{"Textured 4 Point polygon, semi-transparent, raw texture", &GPU::gp0_Polygons, 8, true, true},
 		{"Shaded 3 Point polygon, opaque", &GPU::gp0_Polygons, 5, true, true},
 		{"Shaded 3 Point polygon, opaque", &GPU::gp0_Polygons, 5, true, true},
 		{"Shaded 3 Point polygon, semi-transparent", &GPU::gp0_Polygons, 5, true, true},
@@ -956,6 +956,13 @@ bool GPU::gp0_Rectangles()
 	// Parse all Polygon Command Parameters from FIFO directly into Triangle vertex temporaries
 	param = gp0Command;
 
+	LOG_F(2, "GPU - Rectangle Type: %d, Textured: %d, SemiTransparent: %d, TextureBlending: %d", recType, textured, semiTransparent, texblending);
+	LOG_F(2, "GPU - Rectangle Parameter [0]: 0x%08x", param);
+	for(int i = 0; i<fifo.lenght(); ++i)
+	{
+		LOG_F(2, "GPU - Rectangle Parameter [%d]: 0x%08x", i+1, fifo[i]);
+	}
+
 	//Set Vertex Buffer
 	GpuVertex verts[MAX_VERTEX_NUMBER];
 	
@@ -963,26 +970,28 @@ bool GPU::gp0_Rectangles()
 	decodeColor(param, verts[0]);
 	fifo.pop(param);
 	decodePosition(param, verts[0]);
-	fifo.pop(param);
 	
 	//Texture info, only for textured rectangles
 	if (textured)										
 	{
-		clutInfo = decodeTexture(param, verts[0]);
 		fifo.pop(param);
+		clutInfo = decodeTexture(param, verts[0]);
 	}
-
-	//Rectangle Dimension. Only for variable size rectangles types
-	if (recType == 0)								
+	else
 	{
-		decodePosition(param, recDimension);
+		for(int i = 0; i < 4; ++i)
+		{
+			verts[i].u = 0;
+			verts[i].v = 0;
+		}
 	}
-
-	//Set Rectangle according to type
+	
+	//Set Rectangle Size according to type
 	switch (recType)
 	{
 		case 0:			//Variable Size
-			//Nothing to do, Rectagle dimensions parsed from command parameters
+			fifo.pop(param);
+			decodePosition(param, recDimension);
 			break;
 		case 1:			//Single pixel
 			recDimension.x = 1;
@@ -1005,24 +1014,29 @@ bool GPU::gp0_Rectangles()
 	//Generate All remaining vertex
 	verts[1] = verts[0];  //Start from first vertex values
 	verts[1].x += recDimension.x;
-	verts[1].u += recDimension.x;
-
 	verts[2] = verts[0];  //Start from first vertex values
 	verts[2].x += recDimension.x;
-	verts[2].u += recDimension.x;
 	verts[2].y += recDimension.y;
-	verts[2].v += recDimension.y;
-
 	verts[3] = verts[0];  //Start from first vertex values
 	verts[3].y += recDimension.y;
-	verts[3].v += recDimension.y;
+	
+	if (textured)
+	{
+		verts[1].u += recDimension.x;
+		verts[2].u += recDimension.x;
+		verts[2].v += recDimension.y;
+		verts[3].v += recDimension.y;
+	}
 
 	//Set Renderer Status
+	if (textured)
+	{
+		Renderer::SetTextureMode(textured, texblending);
+		Renderer::SetTextureColorMode(colorMode);
+		Renderer::SetClutTable(clutCoords);
+	}
 	Renderer::SetTransparency(semiTransparent);
-	Renderer::SetTextureMode(textured, texblending);
-	Renderer::SetTextureColorMode(colorMode);
-	Renderer::SetClutTable(clutCoords);
-
+	
 	//Draw Rectangle
 	if (recType == 1)
 		Renderer::DrawPoint(verts);
@@ -1050,13 +1064,14 @@ bool GPU::gp0_Polygons()
 	bool		semiTransparent  = (gp0Opcode & 0x02) ? true : false;
 	bool		texblending  = (gp0Opcode & 0x01) ? false : true;
 	uint8_t		vertexNum = (gp0Opcode & 0x08) ? 4 : 3;		
+	
 	uint16_t	texPageInfo = 0;
 	uint16_t	clutInfo = 0;
 	uint32_t 	param;
 	
 	// Parse all Polygon Command Parameters from FIFO directly into Triangle vertex temporaries
 	param = gp0Command;
-
+	
 	//Set Vertex Buffer
 	GpuVertex verts[MAX_VERTEX_NUMBER];
 
@@ -1068,38 +1083,53 @@ bool GPU::gp0_Polygons()
 			switch (j)
 			{
 			case 0: // COLOR
-				if (shaded || i == 0) { decodeColor(param, verts[i]); fifo.pop(param);} // Shaded Polygons have a different colour for each vertex
-				else { decodeColor(gp0Command, verts[i]); }  // Monocrome Polygons use first vertex color for all vertex
+				if (shaded || i == 0)
+				{
+					decodeColor(param, verts[i]);
+					fifo.pop(param);
+				} // Shaded Polygons have a different colour for each vertex
+				else
+				{
+					decodeColor(gp0Command, verts[i]);
+				}  // Monocrome Polygons use first vertex color for all vertex
 				break;
+
 			case 1: // POSITION
-				decodePosition(param, verts[i]); fifo.pop(param); break;
+				decodePosition(param, verts[i]);
+				fifo.pop(param);
+				break;
 			case 2: // TEXTURE
-				if (textured && i == 0) { clutInfo = decodeTexture(param, verts[i]); fifo.pop(param); }
-				else if (textured && i == 1) { texPageInfo = decodeTexture(param, verts[i]); fifo.pop(param); }
-				else if (textured && i > 1) { decodeTexture(param, verts[i]); fifo.pop(param); }
+				if (textured && i == 0) { clutInfo = decodeTexture(param, verts[i]); fifo.pop(param);}
+				else if (textured && i == 1) { texPageInfo = decodeTexture(param, verts[i]); fifo.pop(param);}
+				else if (textured && i > 1) { decodeTexture(param, verts[i]); fifo.pop(param);}
+				else { verts[i].u = 0; verts[i].v = 0;}
 				break;
 			}
 		}
 	}
 	
-	//Extract Texture Page Info if present
-	lite::vec2t<uint16_t> texPageCoords{0, 0};
-	uint8_t colorMode = 0;
-	uint8_t semiTransMode = 0;
-	decodeTexPage(texPageInfo, texPageCoords, colorMode, semiTransMode);
+	if (textured)
+	{
+		//Extract Texture Page Info if present
+		lite::vec2t<uint16_t> texPageCoords{0, 0};
+		uint8_t colorMode = 0;
+		uint8_t semiTransMode = 0;
+		decodeTexPage(texPageInfo, texPageCoords, colorMode, semiTransMode);
 
-	//Extract CLUT Info if present
-	lite::vec2t<uint16_t> clutCoords{0, 0};
-	decodeClut(clutInfo, clutCoords);
+		//Extract CLUT Info if present
+		lite::vec2t<uint16_t> clutCoords{0, 0};
+		decodeClut(clutInfo, clutCoords);
 
+		Renderer::SetTransparencyMode(semiTransMode);	
+		Renderer::SetTextureColorMode(colorMode);
+		Renderer::SetTexturePage(texPageCoords);
+		Renderer::SetClutTable(clutCoords);
+	}
+	
 	//Set Renderer Status
 	Renderer::SetTransparency(semiTransparent);
-	Renderer::SetTransparencyMode(semiTransMode);
 	Renderer::SetTextureMode(textured, texblending);
-	Renderer::SetTextureColorMode(colorMode);
-	Renderer::SetTexturePage(texPageCoords);
-	Renderer::SetClutTable(clutCoords);
-
+	
 	//Draw Polygon depending on number of vertices
 	Renderer::DrawPolygon(verts, vertexNum);
 
@@ -1572,6 +1602,9 @@ bool GPU::gp1_StartDisplayArea()
 	displayStart.x = gp1Command & 0x000003ff;
 	displayStart.y = (gp1Command & 0x0007fc00) >> 10;
 
+	//Update Renderer Status
+	Renderer::SetDisplayStart(displayStart);
+
 	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
 
@@ -1689,6 +1722,8 @@ bool GPU::gp1_NewTextureDisable()
 	//GPUSTAT.15 << GP1DATA.0
 	data = (gp1Command & 0x00000001);							//Extract bit value from GP1 Command
 	textureDisabled = (bool)data;
+
+	//TODO: if New Texture are disabled, ignore texture information from Primitive Rendering Commands
 
 	//Reset GPUSTAT Flag to receive next GP1 command
 	gp1_ResetStatus();

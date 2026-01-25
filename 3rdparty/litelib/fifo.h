@@ -24,6 +24,8 @@ namespace lite
         bool    isempty();                             //check if the fifo is empty
         T       head();                                //return the first record on the fifo without pop it from the queue
         T*      getheadptr();                          //return a pointer to the first record on the fifo without pop it from the queue
+        T&      operator[](size_t index);              //access element by index
+        const T& operator[](size_t index) const;       //const access element by index
 
     private:
         uint32_t readPtr;
@@ -129,6 +131,18 @@ namespace lite
     inline T* fifo<T, size>::getheadptr()
     {
         return &data[readPtr % size];
+    };
+
+    template<typename T, size_t size>
+    inline T& fifo<T, size>::operator[](size_t index)
+    {
+        return data[(readPtr + index) % size];
+    };
+
+    template<typename T, size_t size>
+    inline const T& fifo<T, size>::operator[](size_t index) const
+    {
+        return data[(readPtr + index) % size];
     };
 };
 

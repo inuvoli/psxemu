@@ -12,7 +12,8 @@
 #include "shader.h"
 #include "gpu_utils.h"
 
-static constexpr size_t MAX_VERTICES = 65536;
+static constexpr auto MAX_VERTICES = 65536;
+static constexpr auto GL_SYNC_TIMEOUT = 500000;
 
 struct RendererVertex
 {
@@ -77,8 +78,11 @@ class Renderer
         static void vBlank();
         static void ScreenUpdate();
         
+        //Set Output Window Size
+        static void SetWindowsSize(int width, int height);
+
         //Set Video Display Status
-        static void SetDisplayArea(lite::vec4t<uint16_t> displayArea);
+        static void SetDisplayStart(lite::vec2t<uint16_t> displayStart);
         static void SetDisplayDisable(bool disabled);
         static void SetDisplayResolution(lite::vec2t<uint16_t> resolution);
         static void SetDisplayColorMode(uint8_t colorMode);
@@ -116,20 +120,25 @@ class Renderer
         Renderer() {}
 
         void BeginBatch();
-        void FlushBatch();
+        bool FlushBatch();
         void PushVertex(const RendererVertex& v);
+        void PushTriangle(const RendererVertex& v0, const RendererVertex& v1, const RendererVertex& v2);
+        void PushQuad(const RendererVertex& v0, const RendererVertex& v1, const RendererVertex& v2, const RendererVertex& v3);
+        void WaitForFence();
         void SetupRenderShader();
         void SetupFramebufferShader();
-        void UpdateDebugTexture();
                 
         //Frame Status
         bool                    frameReady;
+
+        //Windows Size
+        int                     windowWidth;                //Main Window Width - Set and Updated by psxemu
+        int                     windowHeight;               //Main Window Height - Set and Updated by psxemu
 
         //Renderer State
         VideoState              videoState;                 //Current Video Display configuration
         RendererState           currentState;               //Current State being set
         RendererState           renderingState;             //Actual State used for rendering
-
 
         //Internal Structures
         GLuint                  vaoRenderBuffer;            //VAO for Rendering
@@ -151,7 +160,7 @@ class Renderer
         std::unique_ptr<Shader> FramebufferShader;          //Framebuffer Rendering Shader Program   
         std::unique_ptr<Shader> RenderShader;               //Primitive Rendering Shader Program
 
-        //Helper Arrays
+        //Helpers
         static constexpr auto DEFAULT_HRES = 256.0f;
         static constexpr auto DEFAULT_VRES = 240.0f; 
 };  

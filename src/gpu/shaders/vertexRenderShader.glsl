@@ -25,9 +25,9 @@ uniform ivec2 uDrawOffset;
 
 out vec2 vUV;
 out vec3 vColor;
+out vec2 vFragPos; // Pixel position after offset (used for mask/dither)
 
-// Pixel position after offset (used for mask/dither)
-out vec2 vFragPos;
+
 // ------------------------------------------------------------
 // MAIN
 // ------------------------------------------------------------
@@ -45,7 +45,7 @@ void main()
     // --------------------------------------------------------
     vec2 ndc;
     ndc.x = (float(pos.x) / 1024.0) * 2.0 - 1.0;
-    ndc.y = 1.0 - (float(pos.y) / 512.0) * 2.0;
+    ndc.y = (float(pos.y) / 512.0) * 2.0 - 1.0;
 
     gl_Position = vec4(ndc, 0.0, 1.0);
 
@@ -53,6 +53,7 @@ void main()
     // Pass-through attributes
     // --------------------------------------------------------
     vUV       = aUV;
-    vColor    = aColor;
-    vFragPos  = vec2(pos);
+    //vColor    = aColor / 255.0;
+    vColor = floor((aColor * (31.0 / 255.0)) + 0.5);
+    vFragPos  = vec2(pos.x, pos.y);
 }

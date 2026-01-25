@@ -13,7 +13,8 @@ KEYWORDS_INCLUDE = [
     #"INT - Write I_MASK Register",
     #"INT - Read I_MASK Register"
     "RND - ",
-    "INT - Request Hardware Interrupt (vBlank)"
+    #"INT - Request Hardware Interrupt (vBlank)"
+    "GPU -"
 ]
 
 KEYWORDS_EXCLUDE = [

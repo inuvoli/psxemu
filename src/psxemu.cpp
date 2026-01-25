@@ -91,6 +91,10 @@ psxemu::~psxemu()
 
 bool psxemu::init(int wndWidth, int wndHeight)
 {
+    //Init Window Size
+    windowWidth = wndWidth;
+    windowHeight = wndHeight;
+
     //Initialize SDL
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
     {
@@ -127,7 +131,7 @@ bool psxemu::init(int wndWidth, int wndHeight)
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    pWindow = SDL_CreateWindow("PSXemu", wndWidth, wndHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    pWindow = SDL_CreateWindow("PSXemu", windowWidth, windowHeight, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (pWindow == nullptr)
     {
         LOG_F(ERROR, "Window could not be created! SDL_Error: %s", SDL_GetError());
@@ -136,7 +140,7 @@ bool psxemu::init(int wndWidth, int wndHeight)
     LOG_F(INFO, "PSXEMU Window Created...");
      
     //Set window minimum size
-    SDL_SetWindowMinimumSize(pWindow, wndWidth, wndHeight);
+    SDL_SetWindowMinimumSize(pWindow, MINIMUM_SCREEN_WIDTH, MINIMUM_SCREEN_HEIGHT);
 
     //Set OpenGL Context
     glContext = SDL_GL_CreateContext(pWindow);
@@ -186,12 +190,15 @@ bool psxemu::init(int wndWidth, int wndHeight)
     ImGui_ImplOpenGL3_Init(glsl_version);
         
     //Init OpenGL Debug Callback
-    glEnable(GL_DEBUG_OUTPUT);
-    glDebugMessageCallback(MessageCallback, 0);
+    //glEnable(GL_DEBUG_OUTPUT);
+    //glDebugMessageCallback(MessageCallback, 0);
 
     //Init PSX Emulator Object
     isRunning = true;
     psx = std::make_shared<Psx>();
+
+    //Init Renderer Window Size
+    Renderer::SetWindowsSize(windowWidth, windowHeight);
 
     return true;
 }
@@ -230,9 +237,6 @@ bool psxemu::run()
 //----------------------------------------------------------------------------------------------------------------------
 bool psxemu::handleEvents()
 {
-    int wndWidth;
-    int wndHeight;
-
     //Handle events on queue
     while (SDL_PollEvent(&sdlEvent))
     {
@@ -246,11 +250,11 @@ bool psxemu::handleEvents()
             break;
 
         case SDL_EVENT_WINDOW_RESIZED:
-            wndWidth = sdlEvent.window.data1;
-            wndHeight = sdlEvent.window.data2;
-            wndWidth = wndHeight * 4 / 3;
-            SDL_SetWindowSize(pWindow, wndWidth, wndHeight);
-            glViewport(0, 0, wndWidth, wndHeight);
+            windowWidth = sdlEvent.window.data1;
+            windowHeight = sdlEvent.window.data2;
+            windowWidth = windowHeight * 4 / 3;  //Force 4/3 Ratio
+            SDL_SetWindowSize(pWindow, windowWidth, windowHeight);
+            Renderer::SetWindowsSize(windowWidth, windowHeight);
             break;
     
         case SDL_EVENT_KEY_DOWN:          
@@ -331,13 +335,11 @@ bool psxemu::update(StepMode stepMode)
 
         case StepMode::Manual:
             psx->execute();
-            Debugger::update();
             Debugger::setStepMode(StepMode::Halt);
             break;
 
         case StepMode::Instruction:
             psx->execute();
-            Debugger::update();
             if (Debugger::isBreakpoint())
                 Debugger::setStepMode(StepMode::Halt);
             break;
@@ -346,7 +348,6 @@ bool psxemu::update(StepMode stepMode)
             while (!Renderer::FrameReady())
             {
                 psx->execute();
-                Debugger::update();
                 if (Debugger::isBreakpoint())
                 {
                     Debugger::setStepMode(StepMode::Halt);

@@ -29,21 +29,21 @@ bool Debugger::getDebugModuleStatus(DebugModule module)
 
 bool Debugger::init()
 {
-    return true;
+    //Nothing to Do
+    return false;
 }
 
 bool Debugger::update()
 {
-    instance().getInterruptDebugInfo();
-    instance().getTimerDebugInfo();
-    instance().getGpuDebugInfo();
-    instance().getCdromDebugInfo();
- 
-    return true;
+    //Nothing to Do
+    //Debug Info updated inside each widget render function in order reduce unnecessary updates
+
+    return false;
 };
 
 bool Debugger::render()
 {
+    auto& r = instance();  // Alias al singleton
 
     // Start the Dear ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
@@ -51,19 +51,19 @@ bool Debugger::render()
 
     ImGui::NewFrame();
 
-    instance().renderMenuBar();
-    instance().renderFpsWidget();
+    r.renderMenuBar();
+    r.renderFpsWidget();
 
-    if (instance().getDebugModuleStatus(DebugModule::Bios))     instance().renderBiosWidget();
-    if (instance().getDebugModuleStatus(DebugModule::Ram))      instance().renderRamWidget();
-    if (instance().getDebugModuleStatus(DebugModule::Cpu))      instance().renderCpuWidget();
-    if (instance().getDebugModuleStatus(DebugModule::Code))     instance().renderCodeWidget();
-    if (instance().getDebugModuleStatus(DebugModule::Dma))      instance().renderDmaWidget();
-    if (instance().getDebugModuleStatus(DebugModule::Timers))   instance().renderTimersWidget();
-    if (instance().getDebugModuleStatus(DebugModule::Gpu))      instance().renderGpuWidget();
-    if (instance().getDebugModuleStatus(DebugModule::Spu))      instance().renderSpuWidget();
-    if (instance().getDebugModuleStatus(DebugModule::Cdrom))    instance().renderCdromWidget();
-    if (instance().getDebugModuleStatus(DebugModule::Tty))      instance().renderTtyWidget();
+    if (r.getDebugModuleStatus(DebugModule::Bios))     r.renderBiosWidget();
+    if (r.getDebugModuleStatus(DebugModule::Ram))      r.renderRamWidget();
+    if (r.getDebugModuleStatus(DebugModule::Cpu))      r.renderCpuWidget();
+    if (r.getDebugModuleStatus(DebugModule::Code))     r.renderCodeWidget();
+    if (r.getDebugModuleStatus(DebugModule::Dma))      r.renderDmaWidget();
+    if (r.getDebugModuleStatus(DebugModule::Timers))   r.renderTimersWidget();
+    if (r.getDebugModuleStatus(DebugModule::Gpu))      r.renderGpuWidget();
+    if (r.getDebugModuleStatus(DebugModule::Spu))      r.renderSpuWidget();
+    if (r.getDebugModuleStatus(DebugModule::Cdrom))    r.renderCdromWidget();
+    if (r.getDebugModuleStatus(DebugModule::Tty))      r.renderTtyWidget();
     
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     ImGui::Render();
@@ -125,6 +125,10 @@ bool Debugger::renderRamWidget()
 
 bool Debugger::renderCpuWidget()
 {
+    //Update Interrupt Debug Info
+    auto& r = instance();  // Alias al singleton
+    r.getInterruptDebugInfo();
+
     ImGui::Begin("CPU Registers");
         ImGui::BeginTabBar("#tabs");
             if (ImGui::BeginTabItem("CPU"))
@@ -345,6 +349,10 @@ bool Debugger::renderDmaWidget()
 
 bool Debugger::renderTimersWidget()
 {
+    //Update Timer Debug Info
+    auto& r = instance();  // Alias al singleton
+    r.getTimerDebugInfo();
+
     ImGui::Begin("TIMERS");
 
     const char* rowLabels[] = { "Mode", "Value", "Target", "Sync Mode", "Clock Source" };
@@ -472,11 +480,12 @@ bool Debugger::renderTimersWidget()
     return true;
 }
 
-
-
-
 bool Debugger::renderGpuWidget()
 {
+    //Update GPU Debug Info
+    auto& r = instance();  // Alias al singleton
+    r.getGpuDebugInfo();
+
     ImGui::Begin("GPU");
 
     // Create a table with 2 columns: Label / Value
@@ -508,12 +517,12 @@ bool Debugger::renderGpuWidget()
         // Row 4: Display Horizontal Range
         ImGui::TableNextRow();
         ImGui::TableNextColumn(); ImGui::Text("Display Horizontal Range");
-        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayRange.x1, gpuInfo.displayRange.y1);
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayRange.x1, gpuInfo.displayRange.x2);
 
         // Row 5: Display Vertical Range
         ImGui::TableNextRow();
         ImGui::TableNextColumn(); ImGui::Text("Display Vertical Range");
-        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayRange.x2, gpuInfo.displayRange.y2);
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayRange.y1, gpuInfo.displayRange.y2);
 
         // Row 6: Drawing Area
         ImGui::TableNextRow();
@@ -548,10 +557,9 @@ bool Debugger::renderGpuWidget()
         ImGui::EndTable(); // End of table
     }
     
-    auto& r = instance();  // Alias al singleton
     ImVec2 imageSize(1024, 512);
     ImVec2 imagePos = ImGui::GetCursorScreenPos(); // top-left corner
-        
+    
     ImGui::Image((void*)(intptr_t)Renderer::GetVRAMTextureObject(), imageSize);
     
     // Draw Image Border
@@ -572,6 +580,10 @@ bool Debugger::renderSpuWidget()
 
 bool Debugger::renderCdromWidget()
 {
+    //Update CDROM Debug Info
+    auto& r = instance();  // Alias al singleton
+    r.getCdromDebugInfo();
+
     ImGui::Begin("CDROM");
 
     // Status Register Table

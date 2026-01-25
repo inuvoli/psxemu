@@ -10,8 +10,8 @@ int main(int argc, char* argv[])
 
     //Init Log Library
     loguru::init(argc, argv);
-    loguru::g_stderr_verbosity = loguru::Verbosity_INFO; 
-    loguru::add_file("debug.log", loguru::Truncate, 2);
+    loguru::g_stderr_verbosity = loguru::Verbosity_ERROR; 
+    //loguru::add_file("debug.log", loguru::Truncate, 1);
 
     if (!commandline::instance().parse(argc, argv))
         return 0;

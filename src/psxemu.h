@@ -8,6 +8,8 @@
 #include "videolib.h"
 #include "psx.h"
 
+constexpr auto MINIMUM_SCREEN_WIDTH = 640;
+constexpr auto MINIMUM_SCREEN_HEIGHT = 480;
 
 class psxemu
 {
@@ -31,6 +33,11 @@ private:
 	bool render();
 
 private:
+	//Main Window Size
+	int					windowWidth;
+	int					windowHeight;
+
+	//SDL Environment Objects
 	SDL_Event			sdlEvent;
 	SDL_Window*			pWindow;
 	SDL_GLContext		glContext;

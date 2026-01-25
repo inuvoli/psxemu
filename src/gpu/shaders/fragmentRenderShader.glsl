@@ -5,14 +5,14 @@
 // ------------------------------------------------------------
 
 in vec2 vUV;          // texture coordinates in VRAM pixel space [0,0 - 1024, 512]
-in vec3 vColor;       // vertex color normalized to (0..1)
+in vec3 vColor;       // vertex color in RGB5 format
 in vec2 vFragPos;     // pixel position in VRAM pixel space (after draw offset)
 
 // ------------------------------------------------------------
 // Output to VRAM texture
 // ------------------------------------------------------------
 
-out uint outColor;   // RGB555 + mask bit
+layout(location = 0) out uvec4 outColor;   // RGB555 + mask bit
 
 // ------------------------------------------------------------
 // Uniforms (PSX GPU state)
@@ -34,11 +34,11 @@ uniform ivec2 uTexOffset;           // Set by renderer but not used yet
 
 // Texture flags
 uniform bool uTextured;
-uniform bool uTexBlending;          // bit24
+uniform bool uTexBlending;         
 
 // Semi-transparency
 uniform bool uSemiTrans;
-uniform int  uSemiTransMode;        // 0..3
+uniform int  uSemiTransMode;        
 
 // Mask bit
 uniform bool uCheckMask;
@@ -86,24 +86,28 @@ uint pack555(uvec3 c, bool mask)
 
 uint fetchTexel(ivec2 uv)
 {
-    if (uTexColorMode == 16)           //Raw 1-5-5-5 format
+    uvec2 p;
+    if (uTexColorMode == 16)            //Raw 1-5-5-5 format
     {
-        return texelFetch(uVRAM, uTPage + uv, 0).r;
+        p = uTPage + uv;
+        return texelFetch(uVRAM, ivec2(p.x, p.y), 0).r;
     }
-    else if (uTexColorMode == 8)       //CLUT 8bit
+    else if (uTexColorMode == 8)        //CLUT 8bit
     {
-        ivec2 p = uTPage + ivec2(uv.x / 2, uv.y);
-        uint w = texelFetch(uVRAM, p, 0).r;
+        p = uTPage + uvec2(uv.x / 2, uv.y);
+        uint w = texelFetch(uVRAM, ivec2(p.x, p.y), 0).r;
         uint idx = (uv.x & 1) == 0 ? (w & 0xffu) : (w >> 8);
-        return texelFetch(uVRAM, uClut + ivec2(int(idx), 0), 0).r;
+        p = uClut + uvec2(int(idx), 0);
+        return texelFetch(uVRAM, ivec2(p.x, p.y), 0).r;
     }
-    else                            //CLUT 4bit
+    else                                //CLUT 4bit
     {
-        ivec2 p = uTPage + ivec2(uv.x / 4, uv.y);
-        uint w = texelFetch(uVRAM, p, 0).r;
+        p = uTPage + ivec2(uv.x / 4, uv.y);
+        uint w = texelFetch(uVRAM, ivec2(p.x, p.y), 0).r;
         uint shift = uint((uv.x & 3) * 4);
         uint idx = (w >> shift) & 0x0fu;
-        return texelFetch(uVRAM, uClut + ivec2(int(idx), 0), 0).r;
+        p = uClut + uvec2(int(idx), 0);
+        return texelFetch(uVRAM, ivec2(p.x, p.y), 0).r;
     }
 }
 
@@ -113,19 +117,20 @@ uint fetchTexel(ivec2 uv)
 
 void main()
 {
-    ivec2 p = ivec2(vFragPos);
+    uvec2 pos = uvec2(vFragPos);
+    uvec3 color = uvec3(vColor);
 
     // --------------------------------------------------------
     // Drawing area clipping (pixel-accurate)
     // --------------------------------------------------------
-    if (p.x < uDrawArea.x || p.x > uDrawArea.z ||
-        p.y < uDrawArea.y || p.y > uDrawArea.w)
+    if (pos.x < uDrawArea.x || pos.x > uDrawArea.z ||
+        pos.y < uDrawArea.y || pos.y > uDrawArea.w)
         discard;
 
     // --------------------------------------------------------
     // Background pixel (for blending & mask test)
     // --------------------------------------------------------
-    uint dstRaw = texelFetch(uVRAM, p, 0).r;
+    uint dstRaw = texelFetch(uVRAM, ivec2(pos.x, pos.y), 0).r;
 
     if (uCheckMask && ((dstRaw & 0x8000u) != 0u))
         discard;
@@ -135,7 +140,7 @@ void main()
     // --------------------------------------------------------
     // Source color
     // --------------------------------------------------------
-    uvec3 src;
+    uvec3 src = color;
 
     if (uTextured)
     {
@@ -143,20 +148,19 @@ void main()
 
         // Texture transparency (index 0)
         if ((texel & 0x7fffu) == 0u)
-            discard;
+           discard;
 
         src = unpack555(texel);
 
-        // Texture blending (bit24 = 0)
+        // Texture blending
         if (uTexBlending)
         {
-            uvec3 vc = uvec3(vColor.rgb * 31.0);
-            src = (src * vc) >> 7;
+            src = (src * color) / 31u;
         }
     }
     else
     {
-        src = uvec3(vColor.rgb * 31.0);
+        src = color;
     }
 
     // --------------------------------------------------------
@@ -179,21 +183,20 @@ void main()
     // --------------------------------------------------------
     if (uDither)
     {
-        int d = dither[int(p.y & 3) * 4 + int(p.x & 3)];
-        uvec3 src8 = src * 8;
+        int d = dither[int(pos.y & 3) * 4 + int(pos.x & 3)];
+        uvec3 src8 = (src << 3) | (src >> 2);
         src = uvec3(
             clamp(int(src8.r) + d, 0, 255),
             clamp(int(src8.g) + d, 0, 255),
             clamp(int(src8.b) + d, 0, 255)
         );
-        src = src / 8;
+        src = src >> 3;
     }
 
     // --------------------------------------------------------
     // Write mask bit
     // --------------------------------------------------------
-    bool mask = uForceMask;
+    bool mask = uForceMask; 
 
-    outColor = pack555(src, mask);
-    //outColor = uint(0x81f0);
+    outColor = uvec4(pack555(src, mask), 0u, 0u, 1u);
 }
