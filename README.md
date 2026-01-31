@@ -26,4 +26,4 @@ psxemu.exe --bios <bios file path> --exe <executable path>
 - RENDERER: Support for Ring Buffer on Vertex Arrays
 - CPU COP2/GTE implementation
 - CONTROLLER: Some bug fixing needed for the Session FSM.
-- SPU: To ddo
+- SPU: To do
