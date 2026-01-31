@@ -12,13 +12,14 @@ KEYWORDS_INCLUDE = [
     #"INT - Read I_STAT Register",
     #"INT - Write I_MASK Register",
     #"INT - Read I_MASK Register"
-    "RND - ",
+    #"RND - ",
     #"INT - Request Hardware Interrupt (vBlank)"
-    "GPU -"
+    #"GPU -"
+    "CTR -" 
 ]
 
 KEYWORDS_EXCLUDE = [
-    "KRN - Calling: std_out_putchar(char)",
+    "CTR - Read JOY_STAT Register",
 ]
 
 def filter_file(input_path, output_path):

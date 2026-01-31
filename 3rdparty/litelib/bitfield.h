@@ -56,6 +56,7 @@ namespace lite
             return *this;
         }
 
+        operator T() const { return (value_ >> Index) & Mask; }
         explicit operator bool() const { return value_ & (Mask << Index); }    
     };
 }

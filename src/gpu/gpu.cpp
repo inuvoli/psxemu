@@ -958,7 +958,7 @@ bool GPU::gp0_Rectangles()
 
 	LOG_F(2, "GPU - Rectangle Type: %d, Textured: %d, SemiTransparent: %d, TextureBlending: %d", recType, textured, semiTransparent, texblending);
 	LOG_F(2, "GPU - Rectangle Parameter [0]: 0x%08x", param);
-	for(int i = 0; i<fifo.lenght(); ++i)
+	for(int i = 0; i<fifo.length(); ++i)
 	{
 		LOG_F(2, "GPU - Rectangle Parameter [%d]: 0x%08x", i+1, fifo[i]);
 	}

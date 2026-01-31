@@ -72,8 +72,14 @@ MessageCallback( GLenum source,
 
 psxemu::psxemu()
 {
-	pGamepadA = nullptr;
-	pGamepadB = nullptr; 
+    numGamepads = 0;
+    for (int i = 0; i < MAX_GAMEPADS; i++)
+    {
+        GamepadIDs[i] = -1;
+        Gamepad[i] = nullptr;
+    }
+		
+
     pWindow = nullptr;
 }
 
@@ -103,24 +109,8 @@ bool psxemu::init(int wndWidth, int wndHeight)
     }
 
     LOG_F(INFO, "SDL Initialized...");
-
-    //Create Gamepads
-    int GamepadsIDs;
-    SDL_GetGamepads(&GamepadsIDs);
-    LOG_F(INFO, "Scanning Gamepads....detected [%d]", GamepadsIDs);
-
-
-    for (int i = 0; i < GamepadsIDs; i++)
-    {
-        if (SDL_IsGamepad(i))
-        {
-            LOG_F(INFO, "Configuring Gamepad [%d]", i + 1);
-            pGamepadA = SDL_OpenGamepad(i);
-        }
-
-    }
-
-    // set OpenGL Version and Mode
+    
+    // Set OpenGL Version and Mode
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, opengl_major_version);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, opengl_minor_version);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -256,6 +246,47 @@ bool psxemu::handleEvents()
             SDL_SetWindowSize(pWindow, windowWidth, windowHeight);
             Renderer::SetWindowsSize(windowWidth, windowHeight);
             break;
+
+        case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+		case SDL_EVENT_GAMEPAD_BUTTON_UP:
+			updateGamepadsButtonsState(sdlEvent.gbutton.which, sdlEvent.gbutton.button, sdlEvent.gbutton.down);
+            break;
+
+        case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+            updateGamepadsAxisMotion(sdlEvent.gaxis.which, sdlEvent.gaxis.axis, sdlEvent.gaxis.value);            
+			break;
+
+        case SDL_EVENT_GAMEPAD_REMOVED:
+            for (int i = 0; i < MAX_GAMEPADS; i++)
+            {
+                if (GamepadIDs[i] == sdlEvent.gdevice.which)
+                {
+                    LOG_F(INFO, "Disconnected Gamepad [%d] - %s", i + 1, SDL_GetGamepadName(Gamepad[i]));
+                    SDL_CloseGamepad(Gamepad[i]);
+                    Gamepad[i] = nullptr;
+                    numGamepads--;
+                }
+            }
+			break;
+
+        case SDL_EVENT_GAMEPAD_ADDED:
+            for (int i = 0; i < MAX_GAMEPADS; i++)
+            {
+                if (Gamepad[i] == nullptr)
+                {
+                    Gamepad[i] = SDL_OpenGamepad(sdlEvent.gdevice.which);
+                    if (Gamepad[i] != nullptr)
+                    {
+
+                        GamepadIDs[i] = sdlEvent.gdevice.which;
+                        LOG_F(INFO, "Connected Gamepad [%d] - %s", i + 1, SDL_GetGamepadName(Gamepad[i]));
+                        numGamepads++;
+                    }
+                    break;
+                }
+            }
+			break;
+
     
         case SDL_EVENT_KEY_DOWN:          
             switch (sdlEvent.key.key)
@@ -374,4 +405,100 @@ bool psxemu::render()
     SDL_GL_SwapWindow(pWindow);
     
     return true;
+}
+
+void psxemu::updateGamepadsButtonsState(SDL_JoystickID id, int button, bool pressed) const
+{   
+	//Identify Gamepad Index
+	int gamepadIndex = -1;
+    for (int i = 0; i < MAX_GAMEPADS; i++)
+    {
+        if (GamepadIDs[i] == id)
+        {
+            gamepadIndex = i;
+            break;
+        }
+    }
+    
+    switch (button)
+    {
+        case SDL_GAMEPAD_BUTTON_SOUTH:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::CROSS, pressed);
+            break;
+        case SDL_GAMEPAD_BUTTON_EAST:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::CIRCLE, pressed);
+            break;
+        case SDL_GAMEPAD_BUTTON_WEST:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::SQUARE, pressed);
+            break;
+        case SDL_GAMEPAD_BUTTON_NORTH:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::TRIANGLE, pressed);
+            break;
+        case SDL_GAMEPAD_BUTTON_BACK:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::SELECT, pressed);
+            break;
+        case SDL_GAMEPAD_BUTTON_START:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::START, pressed);
+            break;
+        case SDL_GAMEPAD_BUTTON_DPAD_UP:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::UP, pressed);
+            break;
+        case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::DOWN, pressed);
+            break;
+        case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::LEFT, pressed);
+            break;
+        case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::RIGHT, pressed);
+            break;
+        case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::L1, pressed);
+            break;
+        case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
+            psx->controller->setButtonState(gamepadIndex, ControllerButton::R1, pressed);
+            break;
+	}
+}
+
+void psxemu::updateGamepadsAxisMotion(SDL_JoystickID id, int axis, int value) const
+{
+    //Identify Gamepad Index
+    int gamepadIndex = -1;
+    for (int i = 0; i < MAX_GAMEPADS; i++)
+    {
+        if (GamepadIDs[i] == id)
+        {
+            gamepadIndex = i;
+            break;
+        }
+    }
+
+    switch (axis)
+    {
+        case SDL_GAMEPAD_AXIS_LEFTX:
+			psx->controller->setLeftAnalogStickX(gamepadIndex, value);
+            break;
+     
+        case SDL_GAMEPAD_AXIS_LEFTY:
+			psx->controller->setLeftAnalogStickY(gamepadIndex, value);
+            break;
+
+        case SDL_GAMEPAD_AXIS_RIGHTX:
+			psx->controller->setRightAnalogStickX(gamepadIndex, value);
+			break;
+        
+        case SDL_GAMEPAD_AXIS_RIGHTY:
+			psx->controller->setRightAnalogStickY(gamepadIndex, value);
+            break;
+
+        case SDL_GAMEPAD_AXIS_LEFT_TRIGGER:
+            psx->controller->setLeftTrigger(gamepadIndex, value);
+            break;
+        
+        case SDL_GAMEPAD_AXIS_RIGHT_TRIGGER:
+            psx->controller->setRightTrigger(gamepadIndex, value);
+			break;
+            
+	}
 }

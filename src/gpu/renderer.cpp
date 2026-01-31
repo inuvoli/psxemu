@@ -358,7 +358,7 @@ void Renderer::DrawLine(GpuVertex *vertex)
         return;
 
     dir = glm::normalize(d);
-    n = glm::vec2(-dir.y, dir.x) * 0.5f;
+    n = glm::vec2(-dir.y, dir.x) * 0.5f; //Perpendicular Normal scaled to half pixel size
 
     v[0].pos = p0 + n;
     v[0].uv = glm::vec2((float)vertex[0].u, (float)vertex[0].v);
@@ -381,6 +381,7 @@ void Renderer::DrawLine(GpuVertex *vertex)
     r.PushTriangle(v[2], v[3], v[0]);
     
     LOG_F(2, "RND - Draw LINE");
+    LOG_F(2, "RND - Line from [%d, %d] to [%d, %d]", vertex[0].x, vertex[0].y, vertex[1].x, vertex[1].y);
     LOG_F(2, "RND - Vertex 1 - Pos: [%f, %f], Color: [%f, %f, %f], UV: [%f, %f]", v[0].pos.x, v[0].pos.y, v[0].color.x, v[0].color.y, v[0].color.z, v[0].uv.x, v[0].uv.y);
     LOG_F(2, "RND - Vertex 2 - Pos: [%f, %f], Color: [%f, %f, %f], UV: [%f, %f]", v[1].pos.x, v[1].pos.y, v[1].color.x, v[1].color.y, v[1].color.z, v[1].uv.x, v[1].uv.y);
     LOG_F(2, "RND - Vertex 3 - Pos: [%f, %f], Color: [%f, %f, %f], UV: [%f, %f]", v[2].pos.x, v[2].pos.y, v[2].color.x, v[2].color.y, v[2].color.z, v[2].uv.x, v[2].uv.y);

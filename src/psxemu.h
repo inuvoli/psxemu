@@ -10,6 +10,7 @@
 
 constexpr auto MINIMUM_SCREEN_WIDTH = 640;
 constexpr auto MINIMUM_SCREEN_HEIGHT = 480;
+constexpr auto MAX_GAMEPADS = 2;
 
 class psxemu
 {
@@ -31,6 +32,8 @@ private:
 	bool update(StepMode stepMode);
 	bool update();
 	bool render();
+	void updateGamepadsButtonsState(SDL_JoystickID id, int button, bool pressed) const;
+	void updateGamepadsAxisMotion(SDL_JoystickID id, int axis, int value) const;
 
 private:
 	//Main Window Size
@@ -44,7 +47,8 @@ private:
 	SDL_AudioDeviceID	sdlAudioDevice;
 
 	//Gamepads
-	SDL_Gamepad* pGamepadA;
-	SDL_Gamepad* pGamepadB;
+	int					numGamepads;
+	SDL_JoystickID      GamepadIDs[MAX_GAMEPADS];
+	SDL_Gamepad*		Gamepad[MAX_GAMEPADS];
 };
 
