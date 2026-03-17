@@ -220,22 +220,22 @@ private:
 	std::vector<INSTRGP1> gp1InstrSet;						//Full GP1 Instruction Set
 
 	//GP0 Instructions
-	bool gp0_NoOperation();
-	bool gp0_ClearTextureCache();
-	bool gp0_FillVRam();
-	bool gp0_InterruptRequest();
-	bool gp0_Polygons();
-	bool gp0_Lines();
-	bool gp0_Rectangles();
-	bool gp0_CopyVRam2VRam();
-	bool gp0_CopyRam2VRam();
-	bool gp0_CopyVRam2Ram();
-	bool gp0_DrawMode();
-	bool gp0_TextureSetting();
-	bool gp0_SetDrawAreaTop();
-	bool gp0_SetDrawAreaBottom();
-	bool gp0_SetDrawOffset();
-	bool gp0_SetMaskBit();
+	bool gp0_NoOperation();									//GP0(00h), No Operation, does nothing. Can be used for delay or synchronization.
+	bool gp0_ClearTextureCache();							//GP0(01h), Clear Texture Cache
+	bool gp0_FillVRam();									//GP0(02h), Fill VRAM
+	bool gp0_InterruptRequest();							//GP0(1Fh), Interrupt Request
+	bool gp0_Polygons();									//GP0(20h - 3Fh), Draw Polygons
+	bool gp0_Lines();										//GP0(40h - 5Fh), Draw Lines
+	bool gp0_Rectangles();									//GP0(60h - 7Fh), Draw Rectangles
+	bool gp0_CopyVRam2VRam();								//GP0(80h - 9Fh), Copy VRAM to VRAM
+	bool gp0_CopyRam2VRam();								//GP0(A0h - BFh), Copy RAM to VRAM
+	bool gp0_CopyVRam2Ram();								//GP0(C0h - DFh), Copy VRAM to RAM
+	bool gp0_DrawMode();									//GP0(E1h), Set Draw Mode
+	bool gp0_TextureSetting();								//GP0(E2h), Set Texture Settings
+	bool gp0_SetDrawAreaTop();								//GP0(E3h), Set Draw Area Top
+	bool gp0_SetDrawAreaBottom();							//GP0(E4h), Set Draw Area Bottom
+	bool gp0_SetDrawOffset();								//GP0(E5h), Set Draw Offset
+	bool gp0_SetMaskBit();									//GP0(E6h), Set Mask Bit
 	
 	void gp0_ResetStatus();
 
