@@ -13,6 +13,7 @@ psxemu.exe --bios <bios file path> --exe <executable path>
 
 ## What's working...
 - CPU: full core and CP0 implementation, it pass all psxtest_cpu exe tests!
+- EXCEPTIONS: fixed timing and value responses for all exceptions, including interrupts. It pass all psxtest
 - GPU: full implementation, need to be tested
 - RENDERER: Open GL Renderer full implementation, need to be tested
 - SHADERS: Full PSX rendering pipeline emulation
@@ -26,4 +27,4 @@ psxemu.exe --bios <bios file path> --exe <executable path>
 - RENDERER: Support for Ring Buffer on Vertex Arrays
 - CPU COP2/GTE implementation
 - CONTROLLER: Some bug fixing needed for the Session FSM.
-- SPU: To do
+- SPU: To Do
