@@ -1,4 +1,6 @@
 #include "mipsdisassembler.h"
+#include "functions_name.h"
+#include "registers_name.h"
 
 MipsDisassembler::MipsDisassembler()
 {
@@ -175,7 +177,7 @@ AsmCode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, ui
 			opcode = ram[res.first] + (ram[res.first + 1] << 8) + (ram[res.first + 2] << 16) + (ram[res.first + 3] << 24);
 		}
 		
-		asmLine = decodeOpcode(opcode, isJump);
+		asmLine = decodeOpcode(opcode, isJump, currentAddr);
 		asmLabel = ""; //TODO
 		asmCode.insert(std::make_pair(currentAddr, std::make_tuple(opcode, asmLabel, asmLine)));
 
@@ -215,7 +217,7 @@ AsmCode MipsDisassembler::disassemble(const uint8_t* rom, const uint8_t* ram, ui
 			opcode = ram[res.first] + (ram[res.first + 1] << 8) + (ram[res.first + 2] << 16) + (ram[res.first + 3] << 24);
 		}
 
-		asmLine = decodeOpcode(opcode, isJump);
+		asmLine = decodeOpcode(opcode, isJump, currentAddr);
 		asmLabel = ""; //TODO
 		asmCode.insert(std::make_pair(currentAddr, std::make_tuple(opcode, asmLabel, asmLine)));
 
@@ -249,7 +251,7 @@ bool MipsDisassembler::isJumpInstruction(const uint8_t* rom, const uint8_t* ram,
 		opcode = ram[res.first] + (ram[res.first + 1] << 8) + (ram[res.first + 2] << 16) + (ram[res.first + 3] << 24);
 	}
 
-	decodeOpcode(opcode, isJump);
+	decodeOpcode(opcode, isJump, pc);
 
     return isJump;
 }
@@ -266,7 +268,7 @@ std::pair<uint32_t, bool> MipsDisassembler::decodeAddress(uint32_t vAddr)
 	return res;
 }
 
-std::string MipsDisassembler::decodeOpcode(uint32_t data, bool& isJump)
+std::string MipsDisassembler::decodeOpcode(uint32_t data, bool& isJump, uint32_t vAddr)
 {
 
 	auto cond = [](uint8_t flag)
@@ -339,16 +341,16 @@ std::string MipsDisassembler::decodeOpcode(uint32_t data, bool& isJump)
 			switch (opcode.rs)
 			{
 			case 0x00:
-				asmLine += "mfc0 rt, rd";
+				asmLine += "mfc0 rt, rdc0";
 				break;
 			case 0x02:
-				asmLine += "cfc0 rt, rd";
+				asmLine += "cfc0 rt, rdc0";
 				break;
 			case 0x04:
-				asmLine += "mtc0 rt, rd";
+				asmLine += "mtc0 rt, rdc0";
 				break;
 			case 0x06:
-				asmLine += "ctc0 rt, rd";
+				asmLine += "ctc0 rt, rdc0";
 				break;
 			}
 		}
@@ -385,16 +387,16 @@ std::string MipsDisassembler::decodeOpcode(uint32_t data, bool& isJump)
 			switch (opcode.rs)
 			{
 			case 0x00:
-				asmLine += "mfc2 rt, rd";
+				asmLine += "mfc2 rt, rdc2";
 				break;
 			case 0x02:
-				asmLine += "cfc2 rt, rd";
+				asmLine += "cfc2 rt, rdc2";
 				break;
 			case 0x04:
-				asmLine += "mtc2 rt, rd";
+				asmLine += "mtc2 rt, rdc2";
 				break;
 			case 0x06:
-				asmLine += "ctc2 rt, rd";
+				asmLine += "ctc2 rt, rdc2";
 				break;
 			}
 		}
@@ -429,39 +431,58 @@ std::string MipsDisassembler::decodeOpcode(uint32_t data, bool& isJump)
 		break;
 	}
 
-	//Replace Placeholders
+	auto replaceToken = [](std::string& str, const std::string& token, const std::string& replacement)
+	{
+		size_t pos = 0;
+		while ((pos = str.find(token, pos)) != std::string::npos)
+		{
+			// Check word boundaries: token should not be preceded or followed by alphanumeric chars
+			bool validStart = (pos == 0) || !std::isalnum(str[pos - 1]);
+			bool validEnd = (pos + token.length() >= str.length()) || !std::isalnum(str[pos + token.length()]);
+
+			if (validStart && validEnd)
+			{
+				str.replace(pos, token.length(), replacement);
+				pos += replacement.length();
+			}
+			else
+			{
+				pos += token.length();
+			}
+		}
+	};
+
+	auto formatSignedHex = [](uint16_t value) -> std::string
+	{
+		int16_t signed_val = static_cast<int16_t>(value);
+		std::stringstream ss;
+		if (signed_val < 0)
+		{
+			ss << "-0x" << std::hex << (-signed_val);
+		}
+		else
+		{
+			ss << "0x" << std::hex << signed_val;
+		}
+		return ss.str();
+	};
+
+	//Replace Branch Type Placeholder with actual condition
 	strPos = asmLine.find("xx");
 	if (opcode.op == 0x1 && strPos != std::string::npos)
 		asmLine.replace(strPos, 2, cond(opcode.rt));
 
-	strPos = asmLine.find("rs");
-	if (strPos != std::string::npos)
-		asmLine.replace(strPos, 2, cpuRegisterName[opcode.rs]);
+	//Replace Other Placeholders with actual values
+	replaceToken(asmLine, "rs", cpuRegisterName[opcode.rs]);
+	replaceToken(asmLine, "rt", cpuRegisterName[opcode.rt]);
+	replaceToken(asmLine, "rd", cpuRegisterName[opcode.rd]);
+	replaceToken(asmLine, "rdc0", cop0RegisterName[opcode.rd]);
+	replaceToken(asmLine, "rdc2", cop2RegisterName[opcode.rd]);
+	replaceToken(asmLine, "imm", formatSignedHex(opcode.imm));
+	replaceToken(asmLine, "shamt", "0x" + hex(opcode.shamt, 2));
+	replaceToken(asmLine, "tgt", "0x" + hex((vAddr & 0xf0000000) + (opcode.tgt << 2), 8));
+	replaceToken(asmLine, "cofun", "0x" + hex(opcode.cofun, 7));
 
-	strPos = asmLine.find("rt");
-	if (strPos != std::string::npos)
-		asmLine.replace(strPos, 2, cpuRegisterName[opcode.rt]);
-
-	strPos = asmLine.find("rd");
-	if (strPos != std::string::npos)
-		asmLine.replace(strPos, 2, cpuRegisterName[opcode.rd]);
-
-	strPos = asmLine.find("imm");
-	if (strPos != std::string::npos)
-		asmLine.replace(strPos, 3, "0x" + hex(opcode.imm, 4));
-
-	strPos = asmLine.find("shamt");
-	if (strPos != std::string::npos)
-		asmLine.replace(strPos, 5, "0x" + hex(opcode.shamt, 2));
-
-	strPos = asmLine.find("tgt");
-	if (strPos != std::string::npos)
-		asmLine.replace(strPos, 3, "0x" + hex(opcode.tgt, 7));
-
-	strPos = asmLine.find("cofun");
-	if (strPos != std::string::npos)
-		asmLine.replace(strPos, 5, "0x" + hex(opcode.cofun, 7));
-	
 	return asmLine;
 }
 

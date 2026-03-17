@@ -5,6 +5,8 @@
 Cdrom::Cdrom()
 {
 	//Initialize Internal Registers
+	statusCode.byte = 0;
+	statusRegister.byte = 0;
 	requestRegister.byte = 0;
 	modeRegister.byte = 0;
 	interruptMaskRegister.byte = 0;
@@ -22,19 +24,19 @@ Cdrom::Cdrom()
 	cdShellOpen = false;
 	cdMotorOn = false;
 	isStreamingData = false;
-	streamingINT1Delay = 0;
+	int1DelayTime = 0;
 
 	//Init COMMAND Dictionary
 	commandSet = 
 	{
 		{"Unused", &Cdrom::cmd_unused},
-		{"Getstat", &Cdrom::cmd_getstat},
+		{"Nop", &Cdrom::cmd_nop},
 		{"Setloc", &Cdrom::cmd_setloc},
 		{"Play", &Cdrom::cmd_play},
 		{"Forward", &Cdrom::cmd_forward},
 		{"Backward", &Cdrom::cmd_backward},
 		{"ReadN", &Cdrom::cmd_readn},
-		{"MotorOn", &Cdrom::cmd_motoron},
+		{"Standby", &Cdrom::cmd_standby},
 		{"Stop", &Cdrom::cmd_stop},
 		{"Pause", &Cdrom::cmd_pause},
 		{"Init", &Cdrom::cmd_init},
@@ -107,22 +109,22 @@ Cdrom::Cdrom()
 		{"Unused", &Cdrom::cmd_unused},
 		{"Unused", &Cdrom::cmd_unused},
 		{"Unused", &Cdrom::cmd_unused},
-		{"Secret 1", &Cdrom::cmd_secret},
-		{"Secret 2", &Cdrom::cmd_secret},
-		{"Secret 3", &Cdrom::cmd_secret},
-		{"Secret 4", &Cdrom::cmd_secret},
-		{"Secret 5", &Cdrom::cmd_secret},
-		{"Secret 6", &Cdrom::cmd_secret},
-		{"Secret 7", &Cdrom::cmd_secret},
-		{"Secret Lock", &Cdrom::cmd_secretlock},
-		{"Crash", &Cdrom::cmd_crash},
-		{"Crash", &Cdrom::cmd_crash},
-		{"Crash", &Cdrom::cmd_crash},
-		{"Crash", &Cdrom::cmd_crash},
-		{"Crash", &Cdrom::cmd_crash},
-		{"Crash", &Cdrom::cmd_crash},
-		{"Crash", &Cdrom::cmd_crash},
-		{"Crash", &Cdrom::cmd_crash},
+		{"Unlock0", &Cdrom::cmd_unlock0},
+		{"Unlock1", &Cdrom::cmd_unlock1},
+		{"Unlock2", &Cdrom::cmd_unlock2},
+		{"Unlock3", &Cdrom::cmd_unlock3},
+		{"Unlock4", &Cdrom::cmd_unlock4},
+		{"Unlock5", &Cdrom::cmd_unlock5},
+		{"Unlock6", &Cdrom::cmd_unlock6},
+		{"Lock", &Cdrom::cmd_lock},
+		{"Unused", &Cdrom::cmd_unused},
+		{"Unused", &Cdrom::cmd_unused},
+		{"Unused", &Cdrom::cmd_unused},
+		{"Unused", &Cdrom::cmd_unused},
+		{"Unused", &Cdrom::cmd_unused},
+		{"Unused", &Cdrom::cmd_unused},
+		{"Unused", &Cdrom::cmd_unused},
+		{"Unused", &Cdrom::cmd_unused},
 		{"Unused", &Cdrom::cmd_unused},
 		{"Unused", &Cdrom::cmd_unused},
 		{"Unused", &Cdrom::cmd_unused},
@@ -321,6 +323,8 @@ bool Cdrom::loadImage(const std::string& fileName)
 bool Cdrom::reset()
 {
 	//Initialize Internal Registers
+	statusCode.byte = 0;
+	statusRegister.byte = 0;
 	requestRegister.byte = 0;
 	modeRegister.byte = 0;
 	interruptMaskRegister.byte = 0;
@@ -337,7 +341,7 @@ bool Cdrom::reset()
 	cdShellOpen = false;
 	cdMotorOn = false;
 	isStreamingData = false;
-	streamingINT1Delay = 0;
+	int1DelayTime = 0;
 	
 	return true;
 }
@@ -354,47 +358,39 @@ bool Cdrom::execute()
 	statusRegister.rslrrdy = (responseFifo.isempty()) ? 0 : 1;
 	statusRegister.drqsts = (dataFifo.isempty()) ? 0 : 1;
 
+	//Update Status Code
+	statusCode.spindlemotor = cdMotorOn;
+	statusCode.shellopen = cdShellOpen;
+
 	//Check for pending Interrupts
 	if (!interruptFifo.isempty())
 	{
 		//Check for other Interrupt still running
 		if ((interruptStatusRegister.byte & 0x1f) == 0x00)
 		{
-			//Get Interrupt Event at the head of the Fifo
-			cdrom::InterruptEvent* ie;
-			ie = interruptFifo.getheadptr();
+			//Get Interrupt Event if delay is over
+			if (interruptFifo.pop(interruptNum))
+			{
+				//Set controller to idle (TODO: check if this is the correct behavior for all interrupts, maybe only some of them should set the controller to idle)
+				if (interruptNum == cdrom::INT3)
+					statusRegister.busysts = 0;
+								
+				interruptStatusRegister.intsts = interruptNum;
 
-			//Check if it's time to trigger the Interrupt
-			if (ie->delay > 0)
-			{
-				ie->delay--;
-			}
-			else
-			{
-				//Check if the current Interrupt is enabled
-				if ((interruptMaskRegister.enint & ie->interruptNumber) == ie->interruptNumber)
+				//Trigger HW interrupt if enabled (HINTMSK & HINTSTS is non-zero)
+				if ((interruptMaskRegister.byte & interruptStatusRegister.byte) & 0x1f)
+				//if ((interruptMaskRegister.enint & interruptNum) == interruptNum)
 				{
-					//Reset busysts in case of INT3 (Command Complete)
-					if (ie->interruptNumber == cdrom::INT3)
-						statusRegister.busysts = 0;
-					
-					//Set Interrupt Status
-					interruptStatusRegister.intsts = ie->interruptNumber;
+					//Trigger Hardware Interrupt on PSX
 					LOG_F(2, "CDR - Requesting Interrupt [INT%d]", interruptStatusRegister.intsts & 0x07);
 					psx->interrupt->request(static_cast<uint32_t>(interrupt::Cause::cdrom));
-
-					//Remove Interrupt from Fifo
-					cdrom::InterruptEvent tmp;
-					interruptFifo.pop(tmp);
 				}
-
-				
 			}
 		}
 	}
 
-	//Check for available commands
-	if (!commandFifo.isempty())
+	//Check for available commands and execute it only if there's no pending interrupt
+	if (!commandFifo.isempty() && interruptFifo.isempty())
 	{
 		uint8_t command;
 
@@ -410,8 +406,8 @@ bool Cdrom::execute()
 	//If we are in Streaming mode, continue reading sectors and respond with INT1
 	if (isStreamingData)
 	{
-		streamingINT1Delay--;
-		if (streamingINT1Delay == 0)
+		int1DelayTime--;
+		if (int1DelayTime == 0)
 		{
 			int sectorSize = (modeRegister.sector_size) ? payload_size_raw : payload_size_mode2;
 			char sectorData[total_sector_size];
@@ -424,21 +420,13 @@ bool Cdrom::execute()
 				dataFifo.push((uint8_t)sectorData[i]);
 
 			//Push INT1(stat)
-			cdrom::InterruptEvent ie;
-			ie.delay = 0; //Fire immediately, delay is already handled by streamingINT1Delay
-			ie.interruptNumber = cdrom::INT1;
-			interruptFifo.push(ie);
+			interruptFifo.push(cdrom::INT1, 0); //Fire immediately, delay is already handled by streamingINT1Delay
 
 			//Prepare Response and push to Response Fifo
-			cdrom::StatusCode sc;
-			sc.byte = 0;
-			sc.spindlemotor = cdMotorOn;
-			sc.shellopen = cdShellOpen;
-			sc.read = 1;
-			responseFifo.push(sc.byte);
+			responseFifo.push(statusCode.byte);
 			
 			//Reset Streaming INT1 Delay for next sector
-			streamingINT1Delay = modeRegister.speed ? 112900 : 225800; //Set delay according to speed mode
+			int1DelayTime = modeRegister.speed ? 112900 : 225800; //Set delay according to speed mode
 		}
 	}
 
@@ -450,7 +438,7 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 	switch (addr)
 	{
 	case 0x1f801800:
-		LOG_F(3, "CDR - Write HSTS Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+		LOG_F(3, "CDR - Write ADDRESS Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		statusRegister.index = data & 0x3;
 		break;
 	
@@ -460,7 +448,7 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		case 0:
 			commandFifo.push(data);
 			statusRegister.busysts = 1;
-			LOG_F(3, "CDR - Write COMMAND Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+			LOG_F(3, "CDR - Write COMMAND Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 			break;
 
 		case 1:
@@ -517,8 +505,10 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 
 		case 1:
 			//Update Interrupt Status Register
-			interruptStatusRegister.byte = (interruptStatusRegister.byte & 0xe0) | 
-			                               ((interruptStatusRegister.byte & 0x1f) & ~(data & 0x1f));
+			//interruptStatusRegister.byte = (interruptStatusRegister.byte & 0xe0) | 
+			//                               ((interruptStatusRegister.byte & 0x1f) & ~(data & 0x1f));
+			if (data & 0x07)
+				interruptStatusRegister.intsts = 0; //Clear current interrupt if bit 0,1 or 2 is set
 
 			//If bit 5 is set, clear sound map XA-ADPCM buffer
 			if (data & 0x20)
@@ -531,7 +521,7 @@ bool Cdrom::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 			//if bit 7 is set, reset decoder chip
 				//TODO - implement decoder reset
 
-			LOG_F(3, "CDR - Write HCLRCTL Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);	
+			LOG_F(3, "CDR - Write HCLRCTL Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);	
 			break;
 
 		case 2:
@@ -563,19 +553,19 @@ uint32_t Cdrom::readAddr(uint32_t addr, uint8_t bytes)
 	{
 	case 0x1f801800:
 		data = statusRegister.byte;
-		LOG_F(3, "CDR - Read HSTS Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+		LOG_F(3, "CDR - Read HSTS Register:\t\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
 		break;
 
 	case 0x1f801801:
 		if (responseFifo.pop(tmp))
 			data = tmp;
-		LOG_F(3, "CDR - Read RESULT Fifo:\t\t0x%08x (%d), data: 0x%02x", addr, bytes, data); 	 
+		LOG_F(3, "CDR - Read RESULT Fifo:\t\t\t0x%08x (%d), data: 0x%02x", addr, bytes, data);
 		break;
 	
 	case 0x1f801802:
 		if (dataFifo.pop(tmp))
 			data = tmp;
-		LOG_F(3, "CDR - Read RDDATA Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data); 	
+		LOG_F(3, "CDR - Read RDDATA Register:\t\t0x%08x (%d, %d), data: 0x%08x", addr, bytes,dataFifo.length(), data); 	
 		break;
 
 	case 0x1f801803:
@@ -590,7 +580,7 @@ uint32_t Cdrom::readAddr(uint32_t addr, uint8_t bytes)
 		case 1:
 		case 3:
 			data = interruptStatusRegister.byte | 0xe0; //top 3 bits are unused, read return always 1
-			LOG_F(3, "CDR - Read HINTSTS Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);  
+			LOG_F(3, "CDR - Read HINTSTS Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);  
 			break;
 		};
 		break;
@@ -609,29 +599,17 @@ uint32_t Cdrom::readAddr(uint32_t addr, uint8_t bytes)
 //-----------------------------------------------------------------------------------------------
 bool Cdrom::cmd_unused() { return false; };
 
-bool Cdrom::cmd_getstat()
+bool Cdrom::cmd_nop()
 { 
-	cdrom::StatusCode sc;
-	
 	//Acknowledge with INT3(stat)
-	cdrom::InterruptEvent ie;
-	ie.delay = 102; //about 6us
-	ie.interruptNumber = cdrom::INT3;
-	interruptFifo.push(ie);	
-
-	//Prepare Status Code and push to Response Fifo
-	sc.byte = 0;
-	sc.shellopen = cdShellOpen; 		
-	sc.spindlemotor = cdMotorOn;
-	responseFifo.push(sc.byte);
-
+	interruptFifo.push(cdrom::INT3, int3_delay_time);
+	responseFifo.push(statusCode.byte);
+	
 	return true;
 };
 
 bool Cdrom::cmd_setloc()
 { 
-	cdrom::StatusCode sc;
-
 	//Get All Parameters
 	uint8_t amm, ass, asect;
 	parameterFifo.pop(amm);
@@ -644,16 +622,13 @@ bool Cdrom::cmd_setloc()
 	LOG_F(1, "CDR - Sector Target: %d", cdImage.getSectorTarget());
 
 	//Acknowledge with INT3(stat)
-	cdrom::InterruptEvent ie;
-	ie.delay = 102; //about 6us
-	ie.interruptNumber = cdrom::INT3;
-	interruptFifo.push(ie);
+	interruptFifo.push(cdrom::INT3, int3_delay_time);
 
 	//Prepare Status Code and push to Response Fifo
-	sc.byte = 0;
-	sc.shellopen = cdShellOpen;
-	sc.spindlemotor = cdMotorOn; 
-	responseFifo.push(sc.byte);
+	statusCode.read = 0;
+	statusCode.play = 0;
+	statusCode.seek = 1;
+	responseFifo.push(statusCode.byte);
 
 	return true;
 };
@@ -664,59 +639,45 @@ bool Cdrom::cmd_backward() { return false; };
 
 bool Cdrom::cmd_readn()
 { 
-	cdrom::StatusCode sc;
-
 	//Acknowledge with INT3(stat)
-	cdrom::InterruptEvent ie;
-	ie.delay = 102; //about 6us
-	ie.interruptNumber = cdrom::INT3;
-	interruptFifo.push(ie);
+	interruptFifo.push(cdrom::INT3, int3_delay_time);
 
 	//Prepare Status Code and push to Response Fifo
-	sc.byte = 0;
-	sc.shellopen = cdShellOpen;
-	sc.spindlemotor = cdMotorOn;
-	sc.read = 1;
-	responseFifo.push(sc.byte);
+	statusCode.read = 1;
+	statusCode.play = 0;
+	statusCode.seek = 0;
+	responseFifo.push(statusCode.byte);
 
 	//Set the CDROM in Streaming mode, receives sectors continuously until Pause/Stop command
 	isStreamingData = true;
-	streamingINT1Delay = modeRegister.speed ? 112900 : 225800; //Set delay according to speed mode
+	int1DelayTime = modeRegister.speed ? 112900 : 225800; //Set delay according to speed mode
 
 	return true;
 };
 
-bool Cdrom::cmd_motoron() { return false; };
+bool Cdrom::cmd_standby() { return false; };
 bool Cdrom::cmd_stop() { return false; };
 
 bool Cdrom::cmd_pause()
 {	
-	cdrom::StatusCode sc;
-
 	//Acknowledge with INT3(stat)
-	cdrom::InterruptEvent ie;
-	ie.delay = 102; //about 6us
-	ie.interruptNumber = cdrom::INT3;
-	interruptFifo.push(ie);
+	interruptFifo.push(cdrom::INT3, int3_delay_time); //Push INT3 with delay of about 6us
 
 	//Prepare Status Code and push to Response Fifo
-	sc.byte = 0;
-	sc.spindlemotor = cdMotorOn;
-	sc.shellopen = cdShellOpen;
-	sc.read = 1;  //TODO, support forn play/pause status
-	responseFifo.push(sc.byte);
+	statusCode.read = 1; //TODO, support forn play/pause status
+	statusCode.play = 0;
+	statusCode.seek = 0;
+	responseFifo.push(statusCode.byte);
 
 	//Command COmplete with INT2(stat)
-	ie.delay = modeRegister.speed ? (112900/2) : (225800/2); //Set delay according to speed mode, assuming it occurs after half sector read
-	ie.interruptNumber = cdrom::INT2;
-	interruptFifo.push(ie);
+	//interruptFifo.push(cdrom::INT2, modeRegister.speed ? (112900 / 2) : (225800 / 2)); //Set delay according to speed mode, assuming it occurs after half sector read
+	interruptFifo.push(cdrom::INT2, int2_delay_time);
 
 	//Prepare Status Code and push to Response Fifo
-	sc.byte = 0;
-	sc.spindlemotor = cdMotorOn;
-	sc.shellopen = cdShellOpen;
-	sc.read  = 0;
-	responseFifo.push(sc.byte);
+	statusCode.read = 0;
+	statusCode.play = 0;
+	statusCode.seek = 0;
+	responseFifo.push(statusCode.byte);
 
 	//Stop Streaming Data
 	isStreamingData = false;
@@ -730,8 +691,6 @@ bool Cdrom::cmd_setfilter() { return false; };
 
 bool Cdrom::cmd_setmode()
 { 
-	cdrom::StatusCode sc;
-
 	//Get All Parameters
 	uint8_t mode;
 	parameterFifo.pop(mode);
@@ -742,17 +701,9 @@ bool Cdrom::cmd_setmode()
 	modeRegister.byte = mode;
 
 	//Acnowkledge with INT3(stat)
-	cdrom::InterruptEvent ie;
-	ie.delay = 102; //about 6us
-	ie.interruptNumber = cdrom::INT3;
-	interruptFifo.push(ie);
-
-	//Prepare Status Code and push to Response Fifo
-	sc.byte = 0;
-	sc.shellopen = cdShellOpen;
-	sc.spindlemotor = cdMotorOn;
-	responseFifo.push(sc.byte);
-
+	interruptFifo.push(cdrom::INT3, int3_delay_time);
+	responseFifo.push(statusCode.byte);
+	
 	return true;
 };
 
@@ -765,34 +716,26 @@ bool Cdrom::cmd_cettd() { return false; };
 
 bool Cdrom::cmd_seekl()
 {
-	cdrom::StatusCode sc;
-
 	//Acknowledge with INT3(stat)
-	cdrom::InterruptEvent ie;
-	ie.delay = 102; //about 6us
-	ie.interruptNumber = cdrom::INT3;
-	interruptFifo.push(ie);
+	interruptFifo.push(cdrom::INT3, int3_delay_time);
 
 	//Prepare Status Code and push to Response Fifo
-	sc.byte = 0;
-	sc.shellopen = cdShellOpen;
-	sc.spindlemotor = cdMotorOn;
-	sc.seek = 1;
-	responseFifo.push(sc.byte);
+	statusCode.read = 0;
+	statusCode.play = 0;
+	statusCode.seek = 1;
+	responseFifo.push(statusCode.byte);
 
 	//Search Sector on CdRom Image according to sector target set by setloc
 	cdImage.seekSector();
 
 	//Complete Command with INT2(stat)
-	ie.delay = 677500; //about 40ms
-	ie.interruptNumber = cdrom::INT2;
-	interruptFifo.push(ie);
+	interruptFifo.push(cdrom::INT2, int2_delay_time);
 
 	//Prepare Status Code and push to Response Fifo
-	sc.byte = 0;
-	sc.shellopen = cdShellOpen;
-	sc.spindlemotor = cdMotorOn;
-	responseFifo.push(sc.byte);
+	statusCode.read = 0;
+	statusCode.play = 0;
+	statusCode.seek = 0;
+	responseFifo.push(statusCode.byte);
 
 	return true;
 
@@ -808,15 +751,13 @@ bool Cdrom::cmd_test()
 
 	LOG_F(1, "CDR - Command Parameters [sub: 0x%02x]", sub);
 	
-	cdrom::InterruptEvent ie;
 	switch(sub)
 	{
 		case 0x20:  //CDROM Controller Version
 			//Acknowledge with INT3(stat)
-			ie.delay = 68000; //about 4ms
-			ie.interruptNumber = cdrom::INT3;
-			interruptFifo.push(ie);
+			interruptFifo.push(cdrom::INT3, int3_delay_time);
 			responseFifo.push( {0x94, 0x09, 0x19, 0xc0} );
+
 			break;
 		default:
 			//Unknown Sub Command
@@ -828,25 +769,13 @@ bool Cdrom::cmd_test()
 
 bool Cdrom::cmd_getid()
 { 
-	cdrom::StatusCode sc;
-
 	//Acknowledge with INT3(stat)
-	cdrom::InterruptEvent ie;
-	ie.delay = 102; //about 6 us
-	ie.interruptNumber = cdrom::INT3;
-	interruptFifo.push(ie);
+	interruptFifo.push(cdrom::INT3, int3_delay_time); //Push INT3 with 6us delay
+	responseFifo.push(statusCode.byte);
 
-	//Prepare Status Code and push to Response Fifo
-	sc.byte = 0;
-	sc.shellopen = cdShellOpen;
-	sc.spindlemotor = cdMotorOn;
-	responseFifo.push(sc.byte);
-
-	//Complete Command with INT2(stat)
-	ie.delay = 1500; //about 80 us
-	ie.interruptNumber = cdrom::INT2;
-	interruptFifo.push(ie);
-	responseFifo.push( {0x02, 0x00, 0x20, 0x00, 0x53, 0x43, 0x45, 0x41} ); //SCEA 0x41, SCEE 0x45
+	//Complete Command with INT2(stat,flags,type,atip,"SCEx")
+	interruptFifo.push(cdrom::INT2, int2_delay_time); //Push INT2 with 80us delay
+	responseFifo.push( { statusCode.byte, 0x00, 0x20, 0x00, 0x53, 0x43, 0x45, 0x41 } ); //SCEA 0x41, SCEE 0x45
 	
 	return true;
 };
@@ -856,8 +785,14 @@ bool Cdrom::cmd_reset() { return false; };
 bool Cdrom::cmd_getq() { return false; };
 bool Cdrom::cmd_readtoc() { return false; };
 bool Cdrom::cmd_videocd() { return false; };
-bool Cdrom::cmd_secret() { return false; };
-bool Cdrom::cmd_secretlock() { return false; };
+bool Cdrom::cmd_unlock0() { return false; };
+bool Cdrom::cmd_unlock1() { return false; };
+bool Cdrom::cmd_unlock2() { return false; };
+bool Cdrom::cmd_unlock3() { return false; };
+bool Cdrom::cmd_unlock4() { return false; };
+bool Cdrom::cmd_unlock5() { return false; };
+bool Cdrom::cmd_unlock6() { return false; }; 
+bool Cdrom::cmd_lock() { return false; };
 bool Cdrom::cmd_crash() { return false; };
 
 //-----------------------------------------------------------------------------------------------

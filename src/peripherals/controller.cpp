@@ -75,12 +75,12 @@ bool Controller::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
         case 0x1f801040:    //Write JOY_TX_DATA Register
             txLatch = data & 0x000000ff;
             stateMachine->pushEvent(ControllerEvent::TX_COMMAND_RECEIVED_EVENT, txLatch);
-            LOG_F(INFO, "CTR - Write JOY_TX_DATA Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            LOG_F(3, "CTR - Write JOY_TX_DATA Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
 
         case 0x1f801048:    //Write JOY_MODE Register
             modeRegister.word = static_cast<uint16_t>(data) & 0x013f;
-            LOG_F(INFO, "CTR - Write JOY_MODE Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            LOG_F(3, "CTR - Write JOY_MODE Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
 
         case 0x1f80104a:    //Write JOY_CTRL Register
@@ -100,7 +100,7 @@ bool Controller::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
                 statRegister.rxparityerror = 0;
                 statRegister.interruptreq = 0;
             }
-            LOG_F(INFO, "CTR - Write JOY_CTRL Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            LOG_F(3, "CTR - Write JOY_CTRL Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
 
         case 0x1f80104e:    //Write JOY_BAUD Register
@@ -119,7 +119,7 @@ bool Controller::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
                     break;
             }
             statRegister.baudratetimer = baudCounter;
-            LOG_F(INFO, "CTR - Write JOY_BAUD Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            LOG_F(3, "CTR - Write JOY_BAUD Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
 
         default:
@@ -147,25 +147,25 @@ uint32_t Controller::readAddr(uint32_t addr, uint8_t bytes)
             else
                 data = 0xff; //No Data Available
 			stateMachine->pushEvent(ControllerEvent::RX_RESPONSE_SENT_EVENT);
-            LOG_F(INFO, "CTR - Read JOY_RX_DATA Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            LOG_F(3, "CTR - Read JOY_RX_DATA Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
 
         case 0x1f801044:    //Read JOY_STAT Register
             data = statRegister.word;
-            LOG_F(INFO, "CTR - Read JOY_STAT Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            LOG_F(3, "CTR - Read JOY_STAT Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
 
         case 0x1f801048:    //Read JOY_MODE Register
             data = modeRegister.word;
-            LOG_F(INFO, "CTR - Read JOY_MODE Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            LOG_F(3, "CTR - Read JOY_MODE Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
         case 0x1f80104a:    //Read JOY_CTRL Register
             data = ctrlRegister.word;
-            LOG_F(INFO, "CTR - Read JOY_CTRL Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            LOG_F(3, "CTR - Read JOY_CTRL Register:\t\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
         case 0x1f80104e:    //Read JOY_BAUD Register
             data = baudRegister;
-            LOG_F(INFO, "CTR - Read JOY_BAUD Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+            LOG_F(3, "CTR - Read JOY_BAUD Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
             break;
 
         default:
@@ -294,7 +294,7 @@ void ControllerStateMachine::pushEvent(ControllerEvent event, uint8_t eventData)
             ackPulseCounter--;
             if (ackPulseCounter == 0)
             {
-                LOG_F(INFO, "CTR - ACK Pulse Ended");
+                LOG_F(3, "CTR - ACK Pulse Ended");
                 controller->statRegister.ackinputlevel = 1; //ACK Inactive High
                 controller->statRegister.rxready = 1;
             }
@@ -310,7 +310,7 @@ void ControllerStateMachine::pushEvent(ControllerEvent event, uint8_t eventData)
         {
             case ControllerEvent::START_TX_SESSION_EVENT:
                 controller->statRegister.txready1 = 1; //Enable TX Ready
-                LOG_F(INFO, "CTR - START_TX_SESSION_EVENT received, moving to SESSION_STARTED state");
+                LOG_F(3, "CTR - START_TX_SESSION_EVENT received, moving to SESSION_STARTED state");
                 currentState = ControllerState::SESSION_STARTED;
                 break;
 
@@ -332,19 +332,19 @@ void ControllerStateMachine::pushEvent(ControllerEvent event, uint8_t eventData)
                 {
                     controller->statRegister.interruptreq = 1;
                     controller->psx->interrupt->request(static_cast<uint32_t>(interrupt::Cause::sio));
-                    LOG_F(INFO, "CTR - IRQ7 Requested due to TX Interrupt Enable");
+                    LOG_F(3, "CTR - IRQ7 Requested due to TX Interrupt Enable");
                 }
                 currentCommand = eventData;
                 if (currentCommand == 0x01) //Digital Controller Command
                     loadCommandResponse();
-                LOG_F(INFO, "CTR - TX_COMMAND_RECEIVED_EVENT received [0x%02x], moving to START_SEND_CMD_TO_PAD state", currentCommand);
+                LOG_F(3, "CTR - TX_COMMAND_RECEIVED_EVENT received [0x%02x], moving to START_SEND_CMD_TO_PAD state", currentCommand);
                 currentState = ControllerState::START_SEND_CMD_TO_PAD;
                 break;
 
             case ControllerEvent::END_TX_SESSION_EVENT:
                 controller->statRegister.txready1 = 0;
                 currentState = ControllerState::IDLE;
-                LOG_F(INFO, "CTR - END_TX_SESSION_EVENT received, moving to IDLE state");
+                LOG_F(3, "CTR - END_TX_SESSION_EVENT received, moving to IDLE state");
                 break;
 
             default:
@@ -360,14 +360,14 @@ void ControllerStateMachine::pushEvent(ControllerEvent event, uint8_t eventData)
             case ControllerEvent::CONTROLLER_CLOCK_TICK_EVENT:
                 baudTickCounter--;
                 controller->statRegister.txready2 = 0;
-                LOG_F(INFO, "CTR - Transmitting Command to Pad [0x%02x], moving to SENDING_CMD_TO_PAD state", currentCommand);
+                LOG_F(3, "CTR - Transmitting Command to Pad [0x%02x], moving to SENDING_CMD_TO_PAD state", currentCommand);
                 currentState = ControllerState::SENDING_CMD_TO_PAD;
                 break;
 
             case ControllerEvent::END_TX_SESSION_EVENT:
                 baudTickCounter = 0;
                 currentState = ControllerState::IDLE;
-                LOG_F(INFO, "CTR - END_TX_SESSION_EVENT received, moving to IDLE state");
+                LOG_F(3, "CTR - END_TX_SESSION_EVENT received, moving to IDLE state");
                 break;
 
             default:
@@ -386,7 +386,7 @@ void ControllerStateMachine::pushEvent(ControllerEvent event, uint8_t eventData)
                 {
                     baudTickCounter = CMD_TRANSMISSION_DURATION;
                     controller->statRegister.txready2 = 1; 
-                    LOG_F(INFO, "CTR - Command Sent to Pad: 0x%02x, moving to START_RECV_RX_FROM_PAD state", currentCommand);
+                    LOG_F(3, "CTR - Command Sent to Pad: 0x%02x, moving to START_RECV_RX_FROM_PAD state", currentCommand);
                     currentState = ControllerState::START_RECV_RX_FROM_PAD;
                 }
                 break;
@@ -395,7 +395,7 @@ void ControllerStateMachine::pushEvent(ControllerEvent event, uint8_t eventData)
                 baudTickCounter = 0;
                 controller->statRegister.txready2 = 1; 
                 currentState = ControllerState::IDLE;
-                LOG_F(INFO, "CTR - END_TX_SESSION_EVENT received, moving to IDLE state");
+                LOG_F(3, "CTR - END_TX_SESSION_EVENT received, moving to IDLE state");
                 break;
 
             default:
@@ -417,7 +417,7 @@ void ControllerStateMachine::pushEvent(ControllerEvent event, uint8_t eventData)
                     {
                         controller->statRegister.ackinputlevel = 0; //ACK Active Low
                         ackPulseCounter = ACK_SIGNAL_DURATION;
-                        LOG_F(INFO, "CTR - ACK Pulse Started");
+                        LOG_F(3, "CTR - ACK Pulse Started");
                     }
                     else
                     {
@@ -430,9 +430,9 @@ void ControllerStateMachine::pushEvent(ControllerEvent event, uint8_t eventData)
                     {
                         controller->statRegister.interruptreq = 1;
                         controller->psx->interrupt->request(static_cast<uint32_t>(interrupt::Cause::sio));
-                        LOG_F(INFO, "CTR - IRQ7 Requested due to RX or ACK Interrupt Enable");
+                        LOG_F(3, "CTR - IRQ7 Requested due to RX or ACK Interrupt Enable");
                     }
-                    LOG_F(INFO, "CTR - Response Received from Pad for Command: 0x%02x, moving to END_RECV_RX_FROM_PAD state", currentCommand);
+                    LOG_F(3, "CTR - Response Received from Pad for Command: 0x%02x, moving to END_RECV_RX_FROM_PAD state", currentCommand);
                     currentState = ControllerState::END_RECV_RX_FROM_PAD;
                 }
                 break;
@@ -440,7 +440,7 @@ void ControllerStateMachine::pushEvent(ControllerEvent event, uint8_t eventData)
             case ControllerEvent::END_TX_SESSION_EVENT:
                 baudTickCounter = 0;
                 currentState = ControllerState::IDLE;
-                LOG_F(INFO, "CTR - END_TX_SESSION_EVENT received, moving to IDLE state");
+                LOG_F(3, "CTR - END_TX_SESSION_EVENT received, moving to IDLE state");
                 break;
 
             default:
@@ -457,14 +457,14 @@ void ControllerStateMachine::pushEvent(ControllerEvent event, uint8_t eventData)
                 controller->statRegister.txready1 = 1;
                 controller->statRegister.rxready = 0;
                 currentState = ControllerState::SESSION_STARTED;
-                LOG_F(INFO, "CTR - RX_RESPONSE_SENT_EVENT received, moving to SESSION_STARTED state");
+                LOG_F(3, "CTR - RX_RESPONSE_SENT_EVENT received, moving to SESSION_STARTED state");
                 break;
 
                 case ControllerEvent::END_TX_SESSION_EVENT:
                 controller->statRegister.rxready = 0;
                 controller->rxFifo.flush(); 
                 currentState = ControllerState::IDLE;
-                LOG_F(INFO, "CTR - END_TX_SESSION_EVENT received, moving to IDLE state");
+                LOG_F(3, "CTR - END_TX_SESSION_EVENT received, moving to IDLE state");
                 break;
 
             default:

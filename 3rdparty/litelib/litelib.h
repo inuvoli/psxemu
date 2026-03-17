@@ -11,6 +11,7 @@
 #include "range.h"
 #include "bitfield.h"
 #include "fifo.h"
+#include "delayedfifo.h"
 #include "vectors.h"
 #include "matrix.h"
 #include "circularbuffer.h"

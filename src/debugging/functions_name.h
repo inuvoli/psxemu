@@ -2,7 +2,7 @@
 
 #include <string>
 
-std::string function_A[256] =
+inline const std::string function_A[256] =
 {
     "FileOpen(filename,accessmode)",
     "FileSeek(fd,offset,seektype)",
@@ -261,7 +261,7 @@ std::string function_A[256] =
     "unused"
 };
 
-std::string function_B[256] =
+inline const std::string function_B[256] =
 {
     "alloc_kernel_memory(size)",
     "free_kernel_memory(buf)",
@@ -521,7 +521,7 @@ std::string function_B[256] =
     "unused"
 };
 
-std::string function_C[256] =
+inline const std::string function_C[256] =
 {
     "EnqueueTimerAndVblankIrqs(priority)",
     "EnqueueSyscallHandler(priority)",
@@ -555,7 +555,7 @@ std::string function_C[256] =
     "get_card_find_mode()"
 };
 
-std::string function_SYS[8] =
+inline const std::string function_SYS[8] =
 {
     "NoFunction()",
     "EnterCriticalSection()",

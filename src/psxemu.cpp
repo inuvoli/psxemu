@@ -240,11 +240,15 @@ bool psxemu::handleEvents()
             break;
 
         case SDL_EVENT_WINDOW_RESIZED:
-            windowWidth = sdlEvent.window.data1;
-            windowHeight = sdlEvent.window.data2;
-            windowWidth = windowHeight * 4 / 3;  //Force 4/3 Ratio
-            SDL_SetWindowSize(pWindow, windowWidth, windowHeight);
-            Renderer::SetWindowsSize(windowWidth, windowHeight);
+            // Only process resize events for the main windows
+            if (SDL_GetWindowID(pWindow) == sdlEvent.window.windowID)
+            {
+                windowWidth = sdlEvent.window.data1;
+                windowHeight = sdlEvent.window.data2;
+                windowWidth = windowHeight * 4 / 3;  //Force 4/3 Ratio
+                SDL_SetWindowSize(pWindow, windowWidth, windowHeight);
+                Renderer::SetWindowsSize(windowWidth, windowHeight);
+            }
             break;
 
         case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
@@ -289,57 +293,61 @@ bool psxemu::handleEvents()
 
     
         case SDL_EVENT_KEY_DOWN:          
-            switch (sdlEvent.key.key)
+            // Skip application key handling if ImGui is capturing keyboard input
+            if (!ImGui::IsAnyItemActive())
             {
-            case SDLK_X:
-                isRunning = false;
-                break;
-            case SDLK_R:
-                psx->reset();
-                break;
-            case SDLK_SPACE:
-                Debugger::setStepMode(StepMode::Manual);
-                break;
-            case SDLK_P:
-                Debugger::setStepMode(StepMode::Halt);
-                break;
-            case SDLK_I:
-                Debugger::setStepMode(StepMode::Instruction);
-                break;
-            case SDLK_Y:
-                Debugger::setStepMode(StepMode::Frame);
-                break;
-            case SDLK_1:
-                Debugger::toggleDebugModuleStatus(DebugModule::Bios);
-                break;
-            case SDLK_2:
-                Debugger::toggleDebugModuleStatus(DebugModule::Ram);
-                break;
-            case SDLK_3:
-                Debugger::toggleDebugModuleStatus(DebugModule::Cpu);
-                break;
-            case SDLK_4:
-                Debugger::toggleDebugModuleStatus(DebugModule::Code);
-                break;
-            case SDLK_5:
-                Debugger::toggleDebugModuleStatus(DebugModule::Dma);
-                break;
-            case SDLK_6:
-                Debugger::toggleDebugModuleStatus(DebugModule::Timers);
-                break;
-            case SDLK_7:
-                Debugger::toggleDebugModuleStatus(DebugModule::Gpu);
-                break;
-            case SDLK_8:
-                Debugger::toggleDebugModuleStatus(DebugModule::Spu);
-                break;
-            case SDLK_9:
-                Debugger::toggleDebugModuleStatus(DebugModule::Cdrom);
-                break;
-            case SDLK_0:
-                Debugger::toggleDebugModuleStatus(DebugModule::Tty);
-                break;
-            }    
+                switch (sdlEvent.key.key)
+                {
+                case SDLK_ESCAPE:
+                    isRunning = false;
+                    break;
+                case SDLK_R:
+                    psx->reset();
+                    break;
+                case SDLK_SPACE:
+                    Debugger::setStepMode(StepMode::Manual);
+                    break;
+                case SDLK_P:
+                    Debugger::setStepMode(StepMode::Halt);
+                    break;
+                case SDLK_I:
+                    Debugger::setStepMode(StepMode::Instruction);
+                    break;
+                case SDLK_Y:
+                    Debugger::setStepMode(StepMode::Frame);
+                    break;
+                case SDLK_1:
+                    Debugger::toggleDebugModuleStatus(DebugModule::Bios);
+                    break;
+                case SDLK_2:
+                    Debugger::toggleDebugModuleStatus(DebugModule::Ram);
+                    break;
+                case SDLK_3:
+                    Debugger::toggleDebugModuleStatus(DebugModule::Cpu);
+                    break;
+                case SDLK_4:
+                    Debugger::toggleDebugModuleStatus(DebugModule::Code);
+                    break;
+                case SDLK_5:
+                    Debugger::toggleDebugModuleStatus(DebugModule::Dma);
+                    break;
+                case SDLK_6:
+                    Debugger::toggleDebugModuleStatus(DebugModule::Timers);
+                    break;
+                case SDLK_7:
+                    Debugger::toggleDebugModuleStatus(DebugModule::Gpu);
+                    break;
+                case SDLK_8:
+                    Debugger::toggleDebugModuleStatus(DebugModule::Spu);
+                    break;
+                case SDLK_9:
+                    Debugger::toggleDebugModuleStatus(DebugModule::Cdrom);
+                    break;
+                case SDLK_0:
+                    Debugger::toggleDebugModuleStatus(DebugModule::Tty);
+                    break;
+                }
+            }
             break;
         }
     }

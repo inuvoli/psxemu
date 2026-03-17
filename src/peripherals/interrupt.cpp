@@ -36,7 +36,7 @@ bool Interrupt::request(uint32_t cause)
     //Set I_STAT Interrupt Flag according to the Interrupt Cause
 	i_stat |= 1UL << cause;
         
-    LOG_F(2, "INT - Request Hardware Interrupt (%s) [I_STAT: 0x%08x, I_MASK: 0x%08x, CAUSE: 0x%08x, STATUS: 0x%08x]", interruptDescription[cause].c_str(), i_stat, i_mask, psx->cpu->cop0->reg[13], psx->cpu->cop0->reg[12]);
+    LOG_F(2, "INT - Hardware Interrupt Request (%s) [I_STAT: 0x%08x, I_MASK: 0x%08x, CAUSE: 0x%08x, STATUS: 0x%08x]", interruptDescription[cause].c_str(), i_stat, i_mask, psx->cpu->cop0->reg[13], psx->cpu->cop0->reg[12]);
     
     return true;
 }
@@ -49,11 +49,11 @@ bool Interrupt::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
     {
     case 0x1f801070:
         i_stat &= data;
-        LOG_F(3, "INT - Write I_STAT Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+        LOG_F(3, "INT - Write I_STAT Register:\t0x%08x (%d), data: 0x%08x, i_stat new value: 0x%08x", addr, bytes, data, i_stat);
         break;
     case 0x1f801074:
         i_mask = data &0x7ff;
-        LOG_F(3, "INT - Write I_MASK Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);
+        LOG_F(3, "INT - Write I_MASK Register:\t0x%08x (%d), data: 0x%08x, i_mask new value: 0x%08x", addr, bytes, data, i_mask);
         break;
     default:
         LOG_F(ERROR, "INT - Write Unknown Register:\t0x%08x (%d), data: 0x%08x", addr, bytes, data);

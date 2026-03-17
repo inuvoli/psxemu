@@ -12,14 +12,15 @@ KEYWORDS_INCLUDE = [
     #"INT - Read I_STAT Register",
     #"INT - Write I_MASK Register",
     #"INT - Read I_MASK Register"
-    #"RND - ",
-    #"INT - Request Hardware Interrupt (vBlank)"
-    #"GPU -"
-    "CTR -" 
+    #"CDR - Read RESULT Fifo",
+    #"CPU - Exception",
+    #"INT - ",
+    #"CTR - ",
+    "
 ]
 
 KEYWORDS_EXCLUDE = [
-    "CTR - Read JOY_STAT Register",
+    "CDR - Interrupt pending",
 ]
 
 def filter_file(input_path, output_path):

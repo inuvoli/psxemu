@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "litelib.h"
+#include "cpu_short_pipe.h"
 #include "fpm/fixed.hpp"
 #include "glm/glm.hpp"
 
@@ -143,12 +144,12 @@ namespace gte
     };
 }
 
-class CPU;
+class CpuShort;
 
 class Cop2
 {
 public:
-    Cop2(CPU* instance);
+    Cop2(CpuShort* instance);
     ~Cop2();
 
     //Cop2 Interface
@@ -190,7 +191,7 @@ private:
     bool cmd_ncct();
 
 private:
-	CPU* cpu;
+	CpuShort* cpu;
 
     //Running COP2 Operation and GTE Function
     gte::operation currentOperation;

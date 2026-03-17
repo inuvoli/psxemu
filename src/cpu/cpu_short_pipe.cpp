@@ -19,7 +19,6 @@ CpuShort::CpuShort()
 	std::memset(&currentOpcode, 0x00, sizeof(decodedOpcode));
 	isInDelaySlot = false;
 	branchAddress = 0x00000000;
-	branchFunctionAddress = 0x00000000;
 
 	//Init Call Stack Callback
 	kernelCallCb = nullptr;
@@ -194,7 +193,6 @@ bool CpuShort::reset()
 	std::memset(&currentOpcode, 0x00, sizeof(decodedOpcode));
 	isInDelaySlot = false;
 	branchAddress = 0x00000000;
-	branchFunctionAddress = 0x00000000;
 
 	//Init Memory Delay Load Status
 	currentDelayedRegisterLoad.id = 0;
@@ -330,11 +328,10 @@ bool CpuShort::wrInstrCache(uint32_t vAddr, uint32_t& data, uint8_t bytes)
 // Parameters:
 // - id:	index of the GPR to write (0-31). Writes to register 0 should be ignored.
 // - value: value to store into the register.
-// Returns true on success, false on failure.
-bool CpuShort::writeRegister(uint8_t id, uint32_t value)
+void CpuShort::writeRegister(uint8_t id, uint32_t value)
 {	
 	if (id == 0)
-		return true;
+		return;
 
 	//Write value on the register
 	gpr[id] = value;
@@ -346,7 +343,7 @@ bool CpuShort::writeRegister(uint8_t id, uint32_t value)
 		currentDelayedRegisterLoad.value = 0;
 	}
 
-	return true;
+	return;
 }
 
 // Schedule a register write to occur after the next instruction (delayed load).
@@ -355,11 +352,12 @@ bool CpuShort::writeRegister(uint8_t id, uint32_t value)
 // Parameters:
 // - id:	index of the GPR to write (0-31). Writes to register 0 should be ignored.
 // - value: value to store into the register.
-//Return true if the delayed write was scheduled.
-bool CpuShort::writeRegisterDelayed(uint8_t id, uint32_t value)
+void CpuShort::writeRegisterDelayed(uint8_t id, uint32_t value)
 {
 	if (id == 0)
-		return true;
+		return;
+
+	previousPipelineState.isLoadDelayPending = true;
 	
 	nextDelayedRegisterLoad.id = id;
 	nextDelayedRegisterLoad.value = value;
@@ -371,7 +369,7 @@ bool CpuShort::writeRegisterDelayed(uint8_t id, uint32_t value)
 		currentDelayedRegisterLoad.value = 0;
 	}
 
-	return true;
+	return;
 }
 
 // Used by LWL and LWR, read rt in flight if is pending it's update for Memory Delay
@@ -395,13 +393,16 @@ uint32_t CpuShort::readRegisterInFlight(uint8_t id)
 // nothing to do.
 bool CpuShort::performDelayedLoad()
 {
+	if (currentDelayedRegisterLoad.id == 0 && nextDelayedRegisterLoad.id == 0)
+		return false;
+
 	gpr[currentDelayedRegisterLoad.id] = currentDelayedRegisterLoad.value;
 
 	currentDelayedRegisterLoad.id = nextDelayedRegisterLoad.id;
 	currentDelayedRegisterLoad.value = nextDelayedRegisterLoad.value;
 	nextDelayedRegisterLoad.id = 0;
 	nextDelayedRegisterLoad.value = 0;
-
+		
 	return true;
 }
 
@@ -417,7 +418,7 @@ bool CpuShort::execute()
 	auto runInstruction = [&]()
 	{
 		bool bResult;
-
+			
 		//Decode Current Instruction Fields
 		currentOpcode.op = opcode.op;
 		currentOpcode.funct = opcode.funct;
@@ -455,6 +456,12 @@ bool CpuShort::execute()
 	//Stall CPU if databus is busy
 	if (psx->dataBusBusy)
 		return true;
+
+	//Save current Pipeline State for interrupt and exception handling
+	previousPipelineState.pc = pc;
+	previousPipelineState.isInDelaySlot = isInDelaySlot;
+	previousPipelineState.isLoadDelayPending = false;
+	previousPipelineState.isRFEInstruction = false;
 		
 	//Check for Shell Execution
 	if (pc == 0x80030000)
@@ -469,7 +476,7 @@ bool CpuShort::execute()
 		}
 		else
 		{
-			LOG_F(ERROR, "CPU - No EXE specified, continuing BIOS execution...");
+			LOG_F(WARNING, "CPU - No EXE specified, continuing BIOS execution...");
 		}
 	}
 
@@ -517,12 +524,13 @@ bool CpuShort::exception(uint32_t cause)
 	statusReg.word = cop0->reg[12];
 	causeReg.word = cop0->reg[13];
 
-	
+	LOG_F(2, "CPU - Exception Request [PC: 0x%08x, Delay Slot: %s, Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", previousPipelineState.pc, previousPipelineState.isInDelaySlot ? "Yes" : "No", cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
+
 	//Disable Interrupt (shift 2 position left Status Register bit [0, 5])
 	//Set Kernel Mode and Disable Interrupts
 	statusReg.stk = (statusReg.stk << 2) & 0x3f;
 	statusReg.iec = false;	//Disable Interrupts
-	statusReg.kuc = true;	//Set to Kernel Mode
+	statusReg.kuc = true;	//Set to kernel mode
 
 	//Set Exception Code in CAUSE Register
 	causeReg.excode = static_cast<uint8_t>(cause & 0x1f);
@@ -532,38 +540,34 @@ bool CpuShort::exception(uint32_t cause)
 	//and TAR is set to the branch destination address.
 	//In case of exception not in a delay slot, EPC is set to the failing instruction address
 	//Update TAR [Cop0r6] Cop0 Register 6 is always set to the address after the failing instruction
-	if (isInDelaySlot)
+	if (previousPipelineState.isInDelaySlot)
 	{
-		cop0->reg[14] = branchFunctionAddress;
+		cop0->reg[14] = previousPipelineState.pc - 4; //Set EPC to the branch instruction address before the failing instruction
 		cop0->reg[6] = branchAddress;
 		causeReg.bd = true;
 	}
 	else
 	{
-		//An original R3000A CPU never sets EPC to the address of a memory delay load instruction (ie. LW)
-		//EPC is always set to the next istruction address in this cases.
-		if (currentDelayedRegisterLoad.id != 0)
-			cop0->reg[14] = pc; //Next instruction address
-		else
-			cop0->reg[14] = pc - 4;	 //Failing instruction address
+		cop0->reg[14] = previousPipelineState.pc;	 //Set EPC to the failing instruction address
 		causeReg.bd = false;
 	}
-
-	//PSX always jumps to 0x80000080 on exception, don't care about BEV bit
-	pc = 0x80000080;
-	//if (statusReg.bev)
-	//	pc = 0xbfc00180;
+	
+	//PSX always jumps to 0x80000080 on exception, don't care about BEV bit but it is emulated in any way
+	if (statusReg.bev)
+		pc = 0xbfc00180;
+	else
+		pc = 0x80000080;
 
 	//Update Cause Register and Status Register
 	cop0->reg[13] = causeReg.word;
 	cop0->reg[12] = statusReg.word;
 
-	LOG_F(2, "CPU - Throw Exception [PC: 0x%08x, Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", pc, cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
+	LOG_F(2, "CPU - Exception Triggered [PC: 0x%08x, Delay Slot: %s, Cause: %d, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", pc, previousPipelineState.isInDelaySlot ? "Yes" : "No", cause, cop0->reg[14], cop0->reg[13], cop0->reg[12]);
 
 	return true;
 }
 
-bool CpuShort::interrupt(uint8_t number, bool status)
+bool CpuShort::interrupt(uint8_t flag, bool status)
 {
 	cop0::StatusRegister	statusReg;
 	cop0::CauseRegister		causeReg;
@@ -575,13 +579,21 @@ bool CpuShort::interrupt(uint8_t number, bool status)
 	//Update IP Field for Cause Register, it mirrors the value of i_stat & i_mask for HW Interrupt 0
 	causeReg.iphw = 0;
 	if (status)
-		causeReg.iphw = 1;
-
+		causeReg.iphw = flag;
+	
 	//If the hw interrupt is enabled and the global interrupt are enabled throw an exception
 	//PSX only use HW Interrupt INT0
-	if ((causeReg.iphw && statusReg.imhw) && statusReg.iec)
+	if ((causeReg.iphw && statusReg.imhw) && statusReg.iec && !previousPipelineState.isRFEInstruction)
 	{
-		LOG_F(2, "CPU - Hardware Interrupt 0 Triggered");
+		//If the previous instruction is a Load with delay
+		//The interrupt is delayed after the load, and the Load Delay is canceled
+		if (previousPipelineState.isLoadDelayPending)
+			return true;	
+					
+		//Update Cause Register
+		cop0->reg[13] = causeReg.word;
+
+		LOG_F(2, "CPU - Hardware Interrupt %d Triggered", flag);
 		exception(static_cast<uint32_t>(cpu::exceptionCause::interrupt));		
 	}
 		
@@ -656,7 +668,6 @@ bool CpuShort::op_bxx()
 	if (branch)
 	{
 		branchAddress = pc + (currentOpcode.imm << 2);
-		branchFunctionAddress = pc - 4;
 		isInDelaySlot = true;
 	}
 
@@ -668,7 +679,6 @@ bool CpuShort::op_j()
 	//Set branchAddress
 	//New PC is evaluated starting from PC of the instruction in the delay slot
 	branchAddress = (pc & 0xf0000000) + (currentOpcode.tgt << 2);
-	branchFunctionAddress = pc - 4;
 	isInDelaySlot = true;
 
 	return true;
@@ -679,7 +689,6 @@ bool CpuShort::op_jal()
 	//Set branchAddress
 	//New PC is evaluated starting from PC of the instruction in the delay slot
 	branchAddress = (pc & 0xf0000000) + (currentOpcode.tgt << 2);
-	branchFunctionAddress = pc - 4;
 	isInDelaySlot = true;
 
 	//Set Return Address
@@ -696,7 +705,6 @@ bool CpuShort::op_beq()
 	if (currentOpcode.regA == currentOpcode.regB)
 	{
 		branchAddress = pc + (currentOpcode.imm << 2);
-		branchFunctionAddress = pc - 4;
 		isInDelaySlot = true;
 	}
 
@@ -710,7 +718,6 @@ bool CpuShort::op_bne()
 	if (currentOpcode.regA != currentOpcode.regB)
 	{
 		branchAddress = pc + (currentOpcode.imm << 2);
-		branchFunctionAddress = pc - 4;
 		isInDelaySlot = true;
 	}
 
@@ -724,7 +731,6 @@ bool CpuShort::op_blez()
 	if ((int32_t)currentOpcode.regA <= 0)
 	{
 		branchAddress = pc + (currentOpcode.imm << 2);
-		branchFunctionAddress = pc - 4;
 		isInDelaySlot = true;
 	}
 
@@ -738,7 +744,6 @@ bool CpuShort::op_bgtz()
 	if ((int32_t)currentOpcode.regA > 0)
 	{
 		branchAddress = pc + (currentOpcode.imm << 2);
-		branchFunctionAddress = pc - 4;
 		isInDelaySlot = true;
 	}
 
@@ -1305,7 +1310,6 @@ bool CpuShort::op_jr()
 
 	//Set branchAddress
 	branchAddress = targetAddress;
-	branchFunctionAddress = pc - 4;
 	isInDelaySlot = true;
 
 	return true;
@@ -1333,7 +1337,6 @@ bool CpuShort::op_jalr()
 
 	//Set branchAddress
     branchAddress = targetAddress;
-	branchFunctionAddress = pc - 4;
 	isInDelaySlot = true;
 
 	//Set Return Address

@@ -1,8 +1,8 @@
 #include <loguru.hpp>
 #include "cop2.h"
-#include "cpu.h"
+#include "cpu_short_pipe.h"
 
-Cop2::Cop2(CPU* instance)
+Cop2::Cop2(CpuShort* instance)
 {
 	//Link cop2 to cpu
 	cpu = instance;

@@ -7,6 +7,7 @@
 #include "functions_name.h"
 #include "registers_name.h"
 
+
 bool Debugger::isBreakpoint()
 {
     return (instance().psx->cpu->pc == instance().breakPoint);
@@ -133,76 +134,116 @@ bool Debugger::renderCpuWidget()
         ImGui::BeginTabBar("#tabs");
             if (ImGui::BeginTabItem("CPU"))
             {
-                for (int i = 0; i < 32; i++)
+                if (ImGui::BeginTable("CPU Registers Table", 9, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
                 {
-                    ImGui::Text("%2d", i);
-                    ImGui::SameLine();
-                    ImGui::Text("%s = 0x%08x", cpuRegisterName[i].c_str() , psx->cpu->gpr[i]);
-                    
-                    ImGui::SameLine();
-                    if (cop0RegisterName[i] == "")
-                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop0RegisterName[i].c_str(), psx->cpu->cop0->reg[i]);
-                    else
-                        ImGui::Text("%8s = 0x%08x", cop0RegisterName[i].c_str(), psx->cpu->cop0->reg[i]);
-                    
-                    ImGui::SameLine();
-                    if (cop2RegisterName[i] == "")
-                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i].c_str(), psx->cpu->cop2->reg.data[i]);
-                    else
-                        ImGui::Text("%8s = 0x%08x", cop2RegisterName[i].c_str(), psx->cpu->cop2->reg.data[i]);
-                    
-                    ImGui::SameLine();
-                    if (cop2RegisterName[i+32] == "")
-                        ImGui::TextColored(darkgrey_color, "%8s = 0x%08x", cop2RegisterName[i+32].c_str(), psx->cpu->cop2->reg.ctrl[i]);
-                    else
-                        ImGui::Text("%8s = 0x%08x", cop2RegisterName[i+32].c_str(), psx->cpu->cop2->reg.ctrl[i]);
-                    
-                    switch (i)
-                    {
-                    case 0:
-                        ImGui::SameLine();
-                        ImGui::TextColored(green_color, "pc = 0x%08x", psx->cpu->pc);
-                        break;
-                    case 1:
-                        ImGui::SameLine();
-                        ImGui::Text("hi = 0x%08x", psx->cpu->hi);
-                        break;
-                    case 2:
-                        ImGui::SameLine();
-                        ImGui::Text("lo = 0x%08x", psx->cpu->lo);
-                        break;
-                    case 3:
-                        ImGui::SameLine();
-                        ImGui::Text("Clk Count = %d", psx->masterClock);
-                        break;
-                    case 4:
-                        ImGui::SameLine();
-                        ImGui::Text("Cache Reg   = 0x%08x", psx->cpu->cacheReg);
-                        break;
-                    case 5:
-                        ImGui::SameLine();
-                        ImGui::Text("Int. Status = 0x%08x", interruptInfo.i_stat);
-                        break;
-                    case 6:
-                        ImGui::SameLine();
-                        ImGui::Text("Int. Mask   = 0x%08x", interruptInfo.i_mask);
-                        break;
-                    case 7:
-                        ImGui::SameLine();
-                        ImGui::Text("%s", (psx->cpu->cop0->reg[12] & 0x1) ? "Interrupt Enabled" : "Interrupt Disabled");
-                        break;
-                    case 8:
-                        ImGui::SameLine();
-                        ImGui::Text("%s", (psx->cpu->cop0->reg[12] & 0x2) ? "User Mode" : "Kernel Mode");
-                        break;
+                    ImGui::TableSetupColumn("CPU", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+                    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+                    ImGui::TableSetupColumn("COP0", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+                    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+                    ImGui::TableSetupColumn("COP2 Data", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+                    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+                    ImGui::TableSetupColumn("COP2 Ctrl", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+                    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+                    ImGui::TableSetupColumn("Additional Info");
 
-                    case 10:
-                        ImGui::SameLine();
-                        ImGui::Text("POST = %d", psx->postStatus);
-                        break;
+                    ImGui::PushStyleColor(ImGuiCol_Text, green_color);
+                    ImGui::TableHeadersRow();
+                    ImGui::PopStyleColor();
+
+                    for (int i = 0; i < 32; i++)
+                    {
+                        ImGui::TableNextRow();
+
+                        // Column 1: CPU Register Name
+                        ImGui::TableNextColumn();
+                        ImGui::Text("%s", cpuRegisterName[i].c_str());
+
+                        // Column 2: CPU Register Value
+                        ImGui::TableNextColumn();
+                        ImGui::Text("0x%08x", psx->cpu->gpr[i]);
+
+                        // Column 3: COP0 Register Name
+                        ImGui::TableNextColumn();
+                        if (cop0RegisterName[i] == "")
+                            ImGui::TextColored(darkgrey_color, "%s", cop0RegisterName[i].c_str());
+                        else
+                            ImGui::Text("%s", cop0RegisterName[i].c_str());
+
+                        // Column 4: COP0 Register Value
+                        ImGui::TableNextColumn();
+                        if (cop0RegisterName[i] == "")
+                            ImGui::TextColored(darkgrey_color, "0x%08x", psx->cpu->cop0->reg[i]);
+                        else
+                            ImGui::Text("0x%08x", psx->cpu->cop0->reg[i]);
+
+                        // Column 5: COP2 Data Name
+                        ImGui::TableNextColumn();
+                        if (cop2RegisterName[i] == "")
+                            ImGui::TextColored(darkgrey_color, "%s", cop2RegisterName[i].c_str());
+                        else
+                            ImGui::Text("%s", cop2RegisterName[i].c_str());
+
+                        // Column 6: COP2 Data Value
+                        ImGui::TableNextColumn();
+                        if (cop2RegisterName[i] == "")
+                            ImGui::TextColored(darkgrey_color, "0x%08x", psx->cpu->cop2->reg.data[i]);
+                        else
+                            ImGui::Text("0x%08x", psx->cpu->cop2->reg.data[i]);
+
+                        // Column 7: COP2 Control Name
+                        ImGui::TableNextColumn();
+                        if (cop2RegisterName[i + 32] == "")
+                            ImGui::TextColored(darkgrey_color, "%s", cop2RegisterName[i + 32].c_str());
+                        else
+                            ImGui::Text("%s", cop2RegisterName[i + 32].c_str());
+
+                        // Column 8: COP2 Control Value
+                        ImGui::TableNextColumn();
+                        if (cop2RegisterName[i + 32] == "")
+                            ImGui::TextColored(darkgrey_color, "0x%08x", psx->cpu->cop2->reg.ctrl[i]);
+                        else
+                            ImGui::Text("0x%08x", psx->cpu->cop2->reg.ctrl[i]);
+
+                        // Column 9: Additional Info
+                        ImGui::TableNextColumn();
+                        switch (i)
+                        {
+                        case 0:
+                            ImGui::TextColored(green_color, "pc = 0x%08x", psx->cpu->pc);
+                            break;
+                        case 1:
+                            ImGui::Text("hi = 0x%08x", psx->cpu->hi);
+                            break;
+                        case 2:
+                            ImGui::Text("lo = 0x%08x", psx->cpu->lo);
+                            break;
+                        case 3:
+                            ImGui::Text("Clk Count = %d", psx->masterClock);
+                            break;
+                        case 4:
+                            ImGui::Text("Cache Reg = 0x%08x", psx->cpu->cacheReg);
+                            break;
+                        case 5:
+                            ImGui::Text("Int. Status = 0x%08x", interruptInfo.i_stat);
+                            break;
+                        case 6:
+                            ImGui::Text("Int. Mask = 0x%08x", interruptInfo.i_mask);
+                            break;
+                        case 7:
+                            ImGui::Text("%s", (psx->cpu->cop0->reg[12] & 0x1) ? "Interrupt Enabled" : "Interrupt Disabled");
+                            break;
+                        case 8:
+                            ImGui::Text("%s", (psx->cpu->cop0->reg[12] & 0x2) ? "User Mode" : "Kernel Mode");
+                            break;
+                        case 10:
+                            ImGui::Text("POST = %d", psx->postStatus);
+                            break;
+                        }
                     }
+
+                    ImGui::EndTable();
                 }
-            ImGui::EndTabItem();
+                ImGui::EndTabItem();
             }
             if(ImGui::BeginTabItem("Call Stack"))
             {
@@ -257,7 +298,7 @@ bool Debugger::renderCpuWidget()
 
 bool Debugger::renderCodeWidget()
 {
-    ImGui::Begin("Assembler");
+    ImGui::Begin("Code");
 
     uint32_t addr = psx->cpu->pc;
 
@@ -996,7 +1037,7 @@ void Debugger::getCallStackInfo(KernelCallEvent &e)
         
         functionName.str("");
         functionName << function_A[e.t1];
-        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), e.a0, e.a1, e.a2, e.a3);
+        LOG_F(3, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), e.a0, e.a1, e.a2, e.a3);
         callInfo.func = functionName.str();
         
         callStack.write(callInfo);
@@ -1012,7 +1053,7 @@ void Debugger::getCallStackInfo(KernelCallEvent &e)
 
         functionName.str("");
         functionName << function_B[e.t1];
-        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), e.a0, e.a1, e.a2, e.a3);
+        LOG_F(3, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), e.a0, e.a1, e.a2, e.a3);
         callInfo.func = functionName.str();
 
         callStack.write(callInfo);
@@ -1024,7 +1065,7 @@ void Debugger::getCallStackInfo(KernelCallEvent &e)
     {
         functionName.str("");
         functionName << function_C[e.t1];
-        LOG_F(2, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), e.a0, e.a1, e.a2, e.a3);
+        LOG_F(3, "KRN - Calling: %s [a0: 0x%08x, a1: 0x%08x, a2: 0x%08x, a3: 0x%08x]", functionName.str().c_str(), e.a0, e.a1, e.a2, e.a3);
         callInfo.func = functionName.str();
 
         callStack.write(callInfo);

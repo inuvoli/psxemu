@@ -5,6 +5,7 @@
 #include <utility>
 #include <tuple>
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "litelib.h"
@@ -39,7 +40,7 @@ private:
 	std::pair<uint32_t, bool> decodeAddress(uint32_t vAddr);
 
 	//Decode single 32bit Opcode
-	std::string decodeOpcode(uint32_t opcode, bool& isJump);
+	std::string decodeOpcode(uint32_t opcode, bool& isJump, uint32_t vAddr);
 
 	//Memory Conversion Helper
 	uint32_t	regionMask[8] = { 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0x7fffffff, 0x1fffffff, 0xffffffff, 0xffffffff };
@@ -70,8 +71,4 @@ private:
 
 	std::vector<INSTR> instrSet;		//Full Instruction Set
 	std::vector<INSTR> functSet;		//Full Function Set
-
-	//Register full names
-	std::string cpuRegisterName[32] = { "zr", "at", "v0", "v1", "a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
-									"s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "t8", "t9", "k0", "k1", "gp", "sp", "fp", "ra" };
 };

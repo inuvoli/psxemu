@@ -6,14 +6,31 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <functional>
 
 #include "litelib.h" 
-#include "cpu.h"
+#include "cpu_registers.h"
+#include "cop0.h"
+#include "cop2.h"
+#include "debugger.h"
 
+//Kernel Call Callback for Debugger
+using KernelCallCallback = std::function<void(KernelCallEvent& e)>;
+
+
+//Support Structures
 struct DelayedLoadRegister
 {
 	uint8_t		id;		//Register Identifier
 	uint32_t	value;	//Register Value	
+};
+
+struct PipelineState
+{
+	uint32_t	pc;						//Program Counter
+	bool		isInDelaySlot;			//Indicates if the current instruction is in a delay slot
+	bool		isLoadDelayPending;		//Indicates if the current instruction is a load instruction and the loaded value is not yet available
+	bool		isRFEInstruction;		//Indicates if the current instruction is an RFE, used for correct Status Register update on exception during delay slot
 };
 
 struct decodedOpcode
@@ -31,37 +48,41 @@ struct decodedOpcode
 	uint32_t	cofun;	//26-bit coprocessor function
 };
 
-class CpuShort : public CPU
+
+//Class Declaration
+class Psx;
+
+class CpuShort
 {
 public:
 	CpuShort();
-	~CpuShort() override;
+	~CpuShort();
 
-	bool reset() override;
-	bool execute() override;
+	bool reset();
+	bool execute();
 
 	//Cache & Memory Access
-	uint32_t rdInst(uint32_t vAddr, uint8_t bytes = 4) override;
-	uint32_t rdMem(uint32_t vAddr, uint8_t bytes = 4) override;
-	bool	 wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes = 4, bool checkalign = true) override;
-	uint32_t rdDataCache(uint32_t vAddr, uint8_t bytes) override;
-	bool	 wrDataCache(uint32_t vAddr, uint32_t& data, uint8_t bytes) override;
-	uint32_t rdInstrCache(uint32_t vAddr, uint8_t bytes) override;
-	bool	 wrInstrCache(uint32_t vAddr, uint32_t& data, uint8_t bytes) override;
+	uint32_t rdInst(uint32_t vAddr, uint8_t bytes = 4);
+	uint32_t rdMem(uint32_t vAddr, uint8_t bytes = 4);
+	bool	 wrMem(uint32_t vAddr, uint32_t& data, uint8_t bytes = 4, bool checkalign = true);
+	uint32_t rdDataCache(uint32_t vAddr, uint8_t bytes);
+	bool	 wrDataCache(uint32_t vAddr, uint32_t& data, uint8_t bytes);
+	uint32_t rdInstrCache(uint32_t vAddr, uint8_t bytes);
+	bool	 wrInstrCache(uint32_t vAddr, uint32_t& data, uint8_t bytes);
 
 	//Pipeline Fase Functions
-	bool exception(uint32_t cause) override;
-	bool interrupt(uint8_t number, bool status) override;
+	bool exception(uint32_t cause);
+	bool interrupt(uint8_t flag, bool status);
 
 	// Basic register accessors
-	uint32_t get_pc() const override;
-	void     set_pc(uint32_t value) override;
-	uint32_t get_hi() const override;
-	void     set_hi(uint32_t value) override;
-	uint32_t get_lo() const override;
-	void     set_lo(uint32_t value) override;
-	uint32_t get_gpr(uint8_t regNumber) const override;
-	void	 set_gpr(uint8_t regNumber, uint32_t value) override;
+	uint32_t get_pc() const;
+	void     set_pc(uint32_t value);
+	uint32_t get_hi() const;
+	void     set_hi(uint32_t value);
+	uint32_t get_lo() const;
+	void     set_lo(uint32_t value);
+	uint32_t get_gpr(uint8_t regNumber) const;
+	void	 set_gpr(uint8_t regNumber, uint32_t value);
 	
 	//Pipeline Registers and Status
 	decodedOpcode	currentOpcode;
@@ -78,7 +99,28 @@ public:
 	void link(Psx* instance);
 
 	//Debug Call Stack Callback
-	void     setKernelCallCallback(KernelCallCallback cb) override { kernelCallCb = std::move(cb); };
+	void     setKernelCallCallback(KernelCallCallback cb) { kernelCallCb = std::move(cb); };
+
+public:
+	//CPU Internal Registers
+	uint32_t	pc;					//Program Counter
+	uint32_t	hi;					//HI Register, used for Mult and Div
+	uint32_t	lo;					//LO Register, used for Mult and Div
+	uint32_t	gpr[32];			//CPU General Purpose Registers
+	uint32_t	cacheReg;			//Cache Control Register (mapped to 0xfffe0130)
+
+	//Internal Status Flags
+	bool        isInDelaySlot;     	//Indicates if the current instruction is in a delay slot
+
+	//Additional Info
+	uint32_t    branchAddress;      	//branch target address for jump/branch instructions
+
+	//Coprocessors
+	friend class Cop0;
+	friend class Cop2;
+
+	std::shared_ptr<Cop0>	cop0;	//Coprocessor 0
+	std::shared_ptr<Cop2>	cop2;	//Coprocessor 2 (GTE)
 
 private:
 	//CPU Instructions
@@ -156,12 +198,15 @@ private:
 	bool op_unknown();
 
 	//Memory Delay Load Helper Functions
-	bool writeRegister(uint8_t id, uint32_t value);
-	bool writeRegisterDelayed(uint8_t id, uint32_t value);
+	void writeRegister(uint8_t id, uint32_t value);
+	void writeRegisterDelayed(uint8_t id, uint32_t value);
 	uint32_t readRegisterInFlight(uint8_t id);
 	bool performDelayedLoad();
 
 private:
+	//Link to Bus Object
+	Psx* psx;
+
 	//Full set of CPU Instruction Dictionaries
 	struct INSTR
 	{
@@ -173,6 +218,7 @@ private:
 	
 	DelayedLoadRegister		currentDelayedRegisterLoad;		//Contains the register that is going to be updated after Memory Delay
 	DelayedLoadRegister		nextDelayedRegisterLoad;		//Contains the next register that is going to be updated after Memory Delay
+	PipelineState			previousPipelineState;			//Contains the previous Pipeline State, used to correctly manage interrupts and update the PC on exceptions during delay slots
 
 	std::vector<INSTR> instrSet;		//Full Instruction Set
 	std::vector<INSTR> functSet;		//Full Function Set

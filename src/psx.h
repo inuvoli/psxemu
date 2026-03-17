@@ -10,8 +10,6 @@
 #include "renderer.h"
 
 #include "cpu_short_pipe.h"
-#include "cpu_full_pipe.h"
-#include "cpu.h"
 #include "gpu.h"
 #include "spu.h"
 #include "memory.h"
@@ -46,7 +44,7 @@ public:
 	std::shared_ptr<Memory>		mem;
 
 	//PSP Devices and Peripherals
-	std::shared_ptr<CPU>		cpu;
+	std::shared_ptr<CpuShort>	cpu;
 	std::shared_ptr<GPU>		gpu;
 	std::shared_ptr<SPU>		spu;
 	std::shared_ptr<Dma>		dma;

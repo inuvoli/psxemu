@@ -5,6 +5,7 @@
 #include <cstdio>
 
 #include "litelib.h"
+#include "cpu_short_pipe.h"
 
 namespace cop0
 {
@@ -59,12 +60,12 @@ namespace cop0
 
 }
 
-class CPU;
+class CpuShort;
 
 class Cop0
 {
 public:
-    Cop0(CPU* instance);
+    Cop0(CpuShort* instance);
     ~Cop0();
 
     //Cop0 Interface
@@ -76,5 +77,5 @@ public:
     uint32_t    reg[32];
 
 private:
-	CPU* cpu;
+	CpuShort* cpu;
 };

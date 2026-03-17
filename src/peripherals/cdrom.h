@@ -6,21 +6,17 @@
 #include <vector>
 #include <string>
 
-#include "fifo.h"
+#include "litelib.h"
 #include "libcdimage.h"
 
 constexpr auto total_sector_size = 2352;
 constexpr auto payload_size_mode2 = 2048;
 constexpr auto payload_size_raw = 2340;
+constexpr auto int2_delay_time = 20000; //Delay for INT2(stat) after command execution, used for commands that require some time to complete
+constexpr auto int3_delay_time = 2000; //Delay for INT3(stat) after command execution, used for acknowledge commands and commands that complete immediately
 
 namespace cdrom
 {
-	struct InterruptEvent
-	{
-		uint32_t delay; 				//Delay in number of CDROM Clock Cycles
-		uint8_t	interruptNumber; 		//Interrupt Number to trigger
-	};
-
 	union StatusCode
 	{
 		uint8_t byte;
@@ -149,9 +145,10 @@ private:
 	bool cdShellOpen;
 	bool cdMotorOn;
 	bool isStreamingData;
-	uint32_t streamingINT1Delay;
+	uint32_t int1DelayTime;
 
 	//Internal Registers
+	cdrom::StatusCode				statusCode;
 	cdrom::StatusRegister			statusRegister;
 	cdrom::RequestRegister			requestRegister;
 	cdrom::ModeRegister				modeRegister;
@@ -162,19 +159,19 @@ private:
 	lite::fifo<uint8_t, 16> 				commandFifo;   //Not really needed, used to check if multiple commands are sent before execution
 	lite::fifo<uint8_t, 16> 				parameterFifo;
 	lite::fifo<uint8_t, 2048 * 2> 			dataFifo;
-	lite::fifo<uint8_t, 16> 				responseFifo;
-	lite::fifo<cdrom::InterruptEvent, 16> 	interruptFifo;
+	lite::fifo<uint8_t, 16> 				responseFifo;	
 	lite::fifo<uint8_t, 2048 * 2> 			adpcmFifo;
-
+	lite::delayedfifo<uint8_t, 16> 			interruptFifo;
+	
 	//Command Functions
 	bool cmd_unused();
-	bool cmd_getstat();
+	bool cmd_nop();
 	bool cmd_setloc();
 	bool cmd_play();
 	bool cmd_forward();
 	bool cmd_backward();
 	bool cmd_readn();
-	bool cmd_motoron();
+	bool cmd_standby();
 	bool cmd_stop();
 	bool cmd_pause();
 	bool cmd_init();
@@ -197,8 +194,14 @@ private:
 	bool cmd_getq();
 	bool cmd_readtoc();
 	bool cmd_videocd();
-	bool cmd_secret();
-	bool cmd_secretlock();
+	bool cmd_unlock0();
+	bool cmd_unlock1();
+	bool cmd_unlock2();
+	bool cmd_unlock3();
+	bool cmd_unlock4();
+	bool cmd_unlock5();
+	bool cmd_unlock6();
+	bool cmd_lock();
 	bool cmd_crash();
 
 

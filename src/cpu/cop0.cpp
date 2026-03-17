@@ -1,8 +1,8 @@
 #include <loguru.hpp>
 #include "cop0.h"
-#include "cpu.h"
+#include "cpu_short_pipe.h"
 
-Cop0::Cop0(CPU* instance)
+Cop0::Cop0(CpuShort* instance)
 {
 	//Link cop0 to cpu
 	cpu = instance;
@@ -60,8 +60,8 @@ bool Cop0::execute(uint32_t cofun)
 			case 15:    //PRid id Read only ignore write
 				break;
 			
-			case 13:	//CauseRegister: Only BD, ExcCode and IP7-IP2 bits are writable
-				reg[currentOperation.rd] = cpu->gpr[currentOperation.rt] & 0x8000fc7c;
+			case 13:	//CauseRegister: Only IP[8:9] are writable
+				reg[currentOperation.rd] = cpu->gpr[currentOperation.rt] & 0x00000300;
 				break;
 
 			default:
@@ -95,6 +95,8 @@ bool Cop0::execute(uint32_t cofun)
 			statusReg.word = reg[12];
 			statusReg.stk = ((statusReg.stk >> 2) & 0x0f) | (statusReg.stk & 0x30);
 			reg[12] = statusReg.word;
+			cpu->previousPipelineState.isRFEInstruction = true; //Set RFE Instruction Flag, used for correct Status Register update on exception during delay slot
+			
 			LOG_F(2, "COP0 - Executed RFE [PC: 0x%08x, EPC: 0x%08x, CauseRegister: 0x%08x, StatusRegister: 0x%08x]", cpu->pc, reg[14], reg[13], reg[12]);
 
 			break;
