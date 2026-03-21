@@ -12,17 +12,17 @@
 
 class Psx;
 
-//PAL Magic Numbers
-constexpr auto PAL_GPU_CLOCK_PER_SCANLINE = 3406;
-constexpr auto PAL_GPU_CLOCK_PER_HBLANK = 641;
-constexpr auto PAL_SCANLINES_PER_FRAME = 263;
-constexpr auto PAL_SCANLINES_PER_VBLANK = 25;
-
 //NTSC Magic Numbers
 constexpr auto NTSC_GPU_CLOCK_PER_SCANLINE = 3413;
-constexpr auto NTSC_GPU_CLOCK_PER_HBLANK = 575;
-constexpr auto NTSC_SCANLINES_PER_FRAME = 314;
+constexpr auto NTSC_GPU_CLOCK_PER_HBLANK = 580;
+constexpr auto NTSC_SCANLINES_PER_FRAME = 263;
 constexpr auto NTSC_SCANLINES_PER_VBLANK = 23;
+
+//PAL Magic Numbers
+constexpr auto PAL_GPU_CLOCK_PER_SCANLINE = 3406;
+constexpr auto PAL_GPU_CLOCK_PER_HBLANK = 638;
+constexpr auto PAL_SCANLINES_PER_FRAME = 314;
+constexpr auto PAL_SCANLINES_PER_VBLANK = 25;
 
 //GPU Constants
 constexpr auto VRAM_SIZE = 1024 * 512;
@@ -72,6 +72,20 @@ namespace gpu
 		};
 	};
 
+	struct VideoMemoryAccessState
+	{
+		bool				  write;						//Whether GPU is currently writing to VRAM
+		bool				  read;							//Whether GPU is currently reading from VRAM	
+		lite::vec2t<uint16_t> src;							//VRAM Coordinates where start reading
+		lite::vec2t<uint16_t> dst;							//VRAM Coordinates where start writing
+		lite::vec2t<uint16_t> size;							//Rectangle in VRAM to read/write
+		lite::vec2t<uint16_t> writePos;						//Current VRAM Coordinates to write to, auto-incremented by GPU when writing to VRAM.
+		lite::vec2t<uint16_t> readPos;						//Current VRAM Coordinates to read from, auto-incremented by GPU when reading from VRAM.
+		uint32_t			  dataWrite;					//Number of halfords written to VRAM, auto-incremented by GPU when writing to VRAM.
+		uint32_t			  dataRead;						//Number of halfords read from VRAM, auto-incremented by GPU when reading from VRAM.
+		uint32_t			  dataLenght;					//Total number of halfords to read/write in current VRAM transfer operation, set by GP0 command parameters.
+	};
+
 }
 
 //GPU Class
@@ -91,37 +105,59 @@ public:
 	//Connect to PSX Instance
 	void link(Psx* instance) { psx = instance; }
 
-    //Getter & Setters
+	//Getter for GPU Internal Registers
 	uint32_t getGPUStat() const { return gpuStat; }
-	lite::vec2t<uint16_t> getVideoResolution() const { return displayResolution; }
+	
+	//Getter for Display Area Status & Configurations
 	lite::vec2t<uint16_t> getDisplayStart() const { return displayStart; }
 	lite::vec4t<uint16_t> getDisplayRange() const { return displayRange; }
+	lite::vec2t<uint16_t> getDisplayResolution() const { return displayResolution; }
+	std::string getDisplayMode() const { return (displayMode == VideoMode::NTSC) ? "NTSC" : "PAL"; }
+	std::string getDisplayColorMode() const { return (displayColorMode == 0) ? "15bit" : "24bit"; }
+	std::string getDisplayDisabled() const { return displayDisabled ? "True" : "False"; }
+	std::string getVerticalInterlace() const { return verticalInterlace ? "Interlaced" : "Progressive"; }
+		
+	//Getter for Drawing Area Status & Configurations
 	lite::vec4t<uint16_t> getDrawingArea() const { return drawingArea; }
 	lite::vec2t<uint16_t> getDrawingOffset() const { return drawingOffset; }
-	std::string getVideoStandard() const { return (displayMode == VideoMode::NTSC) ? "NTSC" : "PAL"; }
-	std::string getTextureDisabled() const { return textureDisabled ? "True" : "False"; }
+	lite::vec2t<uint8_t> getTextureMask() const { return textureMask; }
+	lite::vec2t<uint8_t> getTextureOffset() const { return textureOffset; }
 	lite::vec2t<uint16_t> getTexturePage() const { return texturePage; }
-	std::string getTextureColorDepth() const 
+	std::string getSemiTransparencyMode() const 
 	{ 
-		switch (colorMode)
+		switch (semiTransparencyMode)
 		{
-			case 0: return "4bit CLUT";
-			case 1: return "8bit CLUT";
-			case 2: return "15bit ABGR (1.5.5.5)";
+			case 0: return "B/2+F/2";
+			case 1: return "B+F";
+			case 2: return "B-F";
+			case 3: return "B+F/4";
 			default: return "Reserved";
 		}
 	}
-	lite::vec2t<uint8_t> getTextureMask() const { return textureMask; }
-	lite::vec2t<uint8_t> getTextureOffset() const { return textureOffset; }
-	bool getDisplayDisabled() const { return displayDisabled; }
-	bool getVerticalInterlace() const { return verticalInterlace; }
+	std::string getTextureColorDepth() const
+	{
+		switch (colorMode)
+		{
+		case 0: return "4bit CLUT";
+		case 1: return "8bit CLUT";
+		case 2: return "15bit ABGR (1.5.5.5)";
+		default: return "Reserved";
+		}
+	}
+	std::string getDitherEnabled() const { return ditherEnabled ? "True" : "False"; }
+	std::string getDrawingOnDisplayEnabled() const { return drawingOnDisplayEnabled ? "True" : "False"; }
+	std::string getRectangleTexFlipX() const { return rectangleTexFlipX ? "True" : "False"; }
+	std::string getRectangleTexFlipY() const { return rectangleTexFlipY ? "True" : "False"; }
+	std::string getTextureDisabled() const { return textureDisabled ? "True" : "False"; }
+	std::string getForceMask() const { return forceMask ? "True" : "False"; }
+	std::string getCheckMask() const { return checkMask ? "True" : "False"; }
 
 public:
 	bool hBlank;
 	bool vBlank;
 
 private:
-	void writeVRAM(uint32_t& data);
+	bool writeVRAM(uint32_t data);
 	uint32_t readVRAM();
 	bool updateVHBlank();
 
@@ -139,16 +175,15 @@ private:
 	lite::fifo<uint32_t, 16>	fifo;						//Command Parameter FIFO	
 
 	//GPU Video Display Status & Configurations
-	bool						displayDisabled;			//Set by GP1(03h), (0 = Display On, 1 = Display Off)
-	lite::vec4t<uint16_t>		displayArea;				//TO BE DEFINED
-	VideoMode					displayMode;				//Set by GP1(08h), Display Standard. (0=NTSC/60Hz, 1=PAL/50Hz)    ;GPUSTAT.20
-	bool						verticalInterlace;			//Set by GP1(08h), Vertical Interlace. (0=Off, 1=On)              ;GPUSTAT.22
+	lite::vec2t<uint16_t>		displayStart;				//Set by GP1(05h), Display Start Coordinates. (X,Y) in pixels				
+	lite::vec4t<uint16_t>		displayRange;				//Set by GP1(06h) and GP1(07h), Display Range. (X1,Y1,X2,Y2) in pixels. Only pixels within this region will be displayed.
 	lite::vec2t<uint16_t>		displayResolution;			//Set by GP1(08h), Display Resolution.							  ;GPUSTAT.17-18, .19, .16
+	VideoMode					displayMode;				//Set by GP1(08h), Display Standard. (0=NTSC/60Hz, 1=PAL/50Hz)    ;GPUSTAT.20
 	uint8_t						displayColorMode;			//Set by GP1(08h), Display Color Depth. (0=15bit, 1=24bit)        ;GPUSTAT.21			
-	lite::vec2t<uint16_t>		displayStart;								
-	lite::vec4t<uint16_t>		displayRange;
 	uint8_t						dotClockRatio;				//Set by GP1(08h), Dot Clock Ratio for Dot Timers. Set according to Horizontal Resolution
-
+	bool						displayDisabled;			//Set by GP1(03h), (0 = Display On, 1 = Display Off)
+	bool						verticalInterlace;			//Set by GP1(08h), Vertical Interlace. (0=Off, 1=On)              ;GPUSTAT.22
+	
 	//GPU Rendering Status & Configurations
 	lite::vec4t<uint16_t>		drawingArea;				//Set by GP0(E3h) and GP0(E4h), Drawing Area. Rendering command clip any pixel outside this region.
 	lite::vec2t<uint16_t>		drawingOffset;				//Set by GP0(E5h), Drawing Offset. offset in pixels steps applied to the Drawing Area.
@@ -158,10 +193,12 @@ private:
 	uint8_t						semiTransparencyMode;		//Set by GP0(E1h), Transparency Mode (0=B/2+F/2, 1=B+F, 2=B-F, 3=B+F/4)
 	uint8_t						colorMode;					//Set by GP0(E1h), Texture Page colors (0=4bit, 1=8bit, 2=15bit, 3=Reserved)
 	bool						ditherEnabled;				//Set by GP0(E1h), Dither 24bit to 15bit (0=Off/strip LSBs, 1=Dither Enabled) 
-	bool						drawingEnabled;				//Set by GP0(E1h), Drawing to display area (0=Prohibited, 1=Allowed)
+	bool						drawingOnDisplayEnabled;	//Set by GP0(E1h), Drawing to display area (0=Prohibited, 1=Allowed)
 	bool						rectangleTexFlipX;			//Set by GP0(E1h), Flip Texture Drawing in Textured Rectangles (0=normal, 1=flipped on X Axis)
 	bool						rectangleTexFlipY;			//Set by GP0(E1h), Flip Texture Drawing in Textured Rectangles (0=normal, 1=flipped on Y Axis)
-	bool						textureDisabled;			//Set by GP1(09h), Texture Disable (0=Normal, 1=Disabled)
+	bool						textureDisabled;			//Set by GP0(E1h), Texture Disable (0=Normal, 1=Disabled)
+	bool						forceMask;					//Set by GP0(E6h), Force Mask Bit (0=Off, 1=On)
+	bool						checkMask;					//Set by GP0(E6h), Check Mask Bit (0=Off, 1=On)
 	
 	//GPU Command Intepreter Status & Configuration
 	bool						recvCommand;				//True if a GP0/GP1 command has been received
@@ -192,13 +229,8 @@ private:
 	float						schedulerClockRatio;
 		
 	//GPU Memory Operation Status & Configurations
-	lite::vec2t<uint16_t>		dataDestination;			//Framebuffer destination start point: x is offset in halfwords, y is offset in rows
-	lite::vec2t<uint16_t>		dataSource;					//Framebuffer source start point: x is offset in halfwords, y is offset in rows
-	lite::vec2t<uint16_t>		dataSize;					//Data Rectangle size: x is in halfwords, y is in rows
-	lite::vec2t<uint16_t>		dataPointer;				//Pointer to current read or write address in VRAM
-	bool						dataReadActive;				//Set by GP0(C0h), enable data tranfer from VRAM to RAM 
-	bool						dataWriteActive;			//Set by GP0(A0h), enable data transfer from RAM to VRAM	
-		
+	gpu::VideoMemoryAccessState	vramAccessState;			//Current VRAM Access Status & Configuration
+			
 	//GPU Instruction Dictionaries and Functions
 	struct INSTRGP0
 	{

@@ -42,7 +42,7 @@ struct RendererState
 {
     glm::ivec4  drawingArea;
     glm::ivec2  drawingOffset;
-    bool        drawingEnabled;
+    bool        drawingOnDisplayEnabled;
     glm::ivec2  texPageCoords;
     glm::ivec2  texMask;
     glm::ivec2  texOffset;
@@ -50,6 +50,7 @@ struct RendererState
     int         texColorMode;
     bool        textured;
     bool        texBlending;
+	bool		texDisable;
     bool        semiTranparent;
     int         semiTransparentMode;
     bool        checkMask;
@@ -91,13 +92,14 @@ class Renderer
         //Set Renderer Status
         static void SetDrawingArea(lite::vec4t<uint16_t> drawingArea);
         static void SetDrawingOffset(lite::vec2t<uint16_t> drawingOffset);
-        static void SetDrawingEnabled(bool drawingEnable);
+        static void SetDrawingOnDisplayEnabled(bool drawingOnDisplayEnable);
         static void SetTexturePage(lite::vec2t<uint16_t> texPageCoords);
         static void SetClutTable(lite::vec2t<uint16_t> clutCoords);
         static void SetTextureColorMode(uint8_t colorMode);
         static void SetTextureMode(bool textured, bool texBlending);
         static void SetTextureMask(lite::vec2t<uint8_t> textureMask);
         static void SetTextureOffset(lite::vec2t<uint8_t> textureOffset);
+        static void SetTextureDisable(bool textureDisable);
         static void SetTransparency(bool semiTransparent);
         static void SetTransparencyMode(int semiTransparentMode);
         static void SetMaskBit(bool checkMask, bool forceMask);
@@ -110,12 +112,13 @@ class Renderer
         static void DrawLine(GpuVertex *vertex);
 
         //VRAM Access Functions
-        static bool CommitVRAMWrite();
+		static bool CommitAccessBuffer(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   //Copy Access Buffer to VRAM Texture
+		static bool SyncAccessBuffer(uint16_t x, uint16_t y, uint16_t w, uint16_t h);     //Copy VRAM Texture to Access Buffer, to sync them before reading
         static bool WriteVRAM(uint16_t x, uint16_t y, uint16_t data);
         static uint16_t ReadVRAM(uint16_t x, uint16_t y);
         static GLuint GetVRAMTextureObject();
-
-
+        
+ 
     private:
         Renderer() {}
 
@@ -146,16 +149,16 @@ class Renderer
         GLuint                  vaoFrameBuffer;             //VAO for Framebuffer Quad
         GLuint                  vboFrameBuffer;             //Vertex Buffer Object for Framebuffer Quad
         GLuint                  vramTexture;                //Texture Object representing PSX VRAM
-        GLuint                  vramBuffer;                 //VRAM Persistent Buffer Object
+        GLuint                  vramAccessBufferID;         //VRAM Persistent Buffer Object
         GLuint                  vramFrameBuffer;            //Frame Buffer Object for Primitive Rendering
-        GLuint                  vramDebugTexture;
+		GLuint                  vramDebugTexture;           //Texture Used to render VRAM content for debugging purposes on ImGui Widget
 
         //Persistent Vertex Buffer for Rendering Primitives
         RendererVertex*         mappedVertex = nullptr;     //Mapped Vertex Container, cointains the actual data.
         int                     vertexCount = 0;            //Number of Vertex on the current Batch
         GLsync                  fence = nullptr;            //OpenGL Sync object
 
-        uint16_t*               mappedVRAM;                 //Mapped Object Container, contains the actual VRAM data
+        uint16_t*               vramAccessBuffer;           //Mapped PersiObject Container, contains the actual VRAM data
 
         std::unique_ptr<Shader> FramebufferShader;          //Framebuffer Rendering Shader Program   
         std::unique_ptr<Shader> RenderShader;               //Primitive Rendering Shader Program

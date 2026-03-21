@@ -21,7 +21,7 @@ bool Renderer::Init()
     //Init Rendering Status
     r.currentState.drawingArea = { 0, 0, 0, 0 };
     r.currentState.drawingOffset = { 0, 0 };
-    r.currentState.drawingEnabled = false;
+    r.currentState.drawingOnDisplayEnabled = false;
     r.currentState.texPageCoords = { 0,0 };
     r.currentState.texMask = { 0, 0 };
     r.currentState.texOffset = { 0, 0 };
@@ -75,12 +75,12 @@ bool Renderer::Init()
     glTextureParameteri(r.vramTexture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         
     // Create Persistent Mapped Array which rappresent PSX VRAM
-    glCreateBuffers(1, &r.vramBuffer);
-    glNamedBufferStorage(r.vramBuffer, 1024*512*sizeof(uint16_t), nullptr, GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-    r.mappedVRAM = (uint16_t*)glMapNamedBufferRange(r.vramBuffer, 0, 1024*512*sizeof(uint16_t), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-    if (r.mappedVRAM == nullptr)
+    glCreateBuffers(1, &r.vramAccessBufferID);
+    glNamedBufferStorage(r.vramAccessBufferID, 1024*512*sizeof(uint16_t), nullptr, GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    r.vramAccessBuffer = (uint16_t*)glMapNamedBufferRange(r.vramAccessBufferID, 0, 1024*512*sizeof(uint16_t), GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    if (r.vramAccessBuffer == nullptr)
     {
-        LOG_F(ERROR, "RND - glMapNamedBufferRange failed for vramBuffer");
+        LOG_F(ERROR, "RND - glMapNamedBufferRange failed for vramAccessBuffer");
         return false;
     }
 
@@ -162,7 +162,7 @@ bool Renderer::Reset()
     //Init Rendering Status
     r.currentState.drawingArea = { 0, 0, 0, 0 };
     r.currentState.drawingOffset = { 0, 0 };
-    r.currentState.drawingEnabled = false;
+    r.currentState.drawingOnDisplayEnabled = false;
     r.currentState.texPageCoords = { 0,0 };
     r.currentState.texMask = { 0, 0 };
     r.currentState.texOffset = { 0, 0 };
@@ -393,15 +393,42 @@ void Renderer::DrawLine(GpuVertex *vertex)
 // VRAM Management Functions
 //
 //--------------------------------------------------------------------------------------------------------------------
-bool Renderer::CommitVRAMWrite()
+bool Renderer::CommitAccessBuffer(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {   
     auto& r = instance();  // Alias al singleton
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, r.vramBuffer);
-    glTextureSubImage2D(r.vramTexture, 0, 0, 0, 1024, 512, GL_RED_INTEGER, GL_UNSIGNED_SHORT, nullptr);
+
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, r.vramAccessBufferID);
+	size_t offset = (y * 1024 + x) * sizeof(uint16_t);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 1024);
+    glTextureSubImage2D(r.vramTexture, 0, x, y, w, h, GL_RED_INTEGER, GL_UNSIGNED_SHORT, (void*)offset);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    //glTextureSubImage2D(r.vramTexture, 0, 0, 0, 1024, 512, GL_RED_INTEGER, GL_UNSIGNED_SHORT, nullptr);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
     glMemoryBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT);
 
-    LOG_F(2, "RND - VRAM Write Committed!");
+    LOG_F(2, "RND - VRAM Write Committed! [x: %d, y: %d, w: %d, h: %d]", x, y, w, h);
+
+    return true;
+}
+
+bool Renderer::SyncAccessBuffer(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+{
+    auto& r = instance();  // Alias al singleton
+     
+    // Flush any pending primitives BEFORE updating VRAM texture
+    r.FlushBatch();
+
+    // Wait for any pending rendering to complete
+    r.WaitForFence();
+
+	//Sync Persistent Buffer with VRAM Texture data before reading/writing to it, to ensure coherence between them
+	GLsizei size = w * h * sizeof(uint16_t);
+    glGetTextureSubImage(r.vramTexture, x, y, 0, 0, w, h, 1, GL_RED_INTEGER, GL_UNSIGNED_SHORT, size, r.vramAccessBuffer);
+
+    //GLsizei size = 1024 * 512 * sizeof(uint16_t);
+    //glGetTextureImage(r.vramTexture, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, size, r.vramAccessBuffer);
+
+    LOG_F(2, "RND - VRAM Persistent Buffer Synced! [x: %d, y: %d, w: %d, h: %d]", x, y, w, h);
     return true;
 }
 
@@ -409,12 +436,13 @@ bool Renderer::WriteVRAM(uint16_t x, uint16_t y, uint16_t data)
 {
     auto& r = instance();  // Alias al singleton
 
-    if (r.mappedVRAM == nullptr)
+    if (r.vramAccessBuffer == nullptr)
     {
-        LOG_F(ERROR, "RND mappedVRAM is null in WriteVRAM");
+        LOG_F(ERROR, "RND - VRAM Access Buffer is null in WriteVRAM");
         return false;
     }
-    r.mappedVRAM[y * 1024 + x] = data;
+    r.vramAccessBuffer[y * 1024 + x] = data;
+
     return true;
 }
 
@@ -422,13 +450,13 @@ uint16_t Renderer::ReadVRAM(uint16_t x, uint16_t y)
 {
     auto& r = instance();  // Alias al singleton
 
-    if (r.mappedVRAM == nullptr)
+    if (r.vramAccessBuffer == nullptr)
     {
-        LOG_F(ERROR, "RND - mappedVRAM is null in ReadVRAM");
+        LOG_F(ERROR, "RND - VRAM Access Buffer is null in ReadVRAM");
         return 0;
     }
 
-    return r.mappedVRAM[y * 1024 + x];
+    return r.vramAccessBuffer[y * 1024 + x];
 }
 
 GLuint Renderer::GetVRAMTextureObject()
@@ -499,7 +527,7 @@ void Renderer::ScreenUpdate()
         r.fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
         glFlush();
 
-        LOG_F(2, "RND - Video Display Rendered!");
+        LOG_F(3, "RND - Video Display Rendered!");
     }
 }
 
@@ -585,7 +613,7 @@ void Renderer::WaitForFence()
             break;
         }
 
-        LOG_F(2, "RND - Still waiting for OpenGL command end!");
+        LOG_F(3, "RND - Still waiting for OpenGL command end!");
     } while (status == GL_TIMEOUT_EXPIRED);
 
     glDeleteSync(r.fence);
@@ -607,7 +635,7 @@ void Renderer::SetupRenderShader()
     //Set Drawing Area and Drawing Offset for Vertex Shader
     r.RenderShader->setUniformi("uDrawArea", r.renderingState.drawingArea);
     r.RenderShader->setUniformi("uDrawOffset", r.renderingState.drawingOffset);
-    r.RenderShader->setUniformb("uDrawEnable", r.renderingState.drawingEnabled);
+    r.RenderShader->setUniformb("uDrawEnable", r.renderingState.drawingOnDisplayEnabled);
 
     //Bind VRAM Texture, Shader reads PSX CLUT and TEXPAGE value from this Texture
     glBindTextureUnit(0, r.vramTexture); 
@@ -623,6 +651,7 @@ void Renderer::SetupRenderShader()
     //Set Texture Flags
     r.RenderShader->setUniformb("uTextured", r.renderingState.textured);
     r.RenderShader->setUniformb("uTexBlending", r.renderingState.texBlending);
+    r.RenderShader->setUniformb("uTexDisable", r.renderingState.texDisable);
     
     //Set Semi Transparency Flags and Mode
     r.RenderShader->setUniformb("uSemiTrans", r.renderingState.semiTranparent);
@@ -744,12 +773,12 @@ void Renderer::SetDrawingOffset(lite::vec2t<uint16_t> drawingOffset)
     LOG_F(2, "RND - Set Drawing Offset to x: %d, y: %d", drawingOffset.x, drawingOffset.y);
 }
 
-void Renderer::SetDrawingEnabled(bool drawingEnable)
+void Renderer::SetDrawingOnDisplayEnabled(bool drawingEnable)
 {
     auto& r = instance();  // Alias al singleton
-    r.currentState.drawingEnabled = drawingEnable;
+    r.currentState.drawingOnDisplayEnabled = drawingEnable;
 
-    LOG_F(2, "RND - Set Drawing Enabled to: %s", drawingEnable ? "true" : "false");
+    LOG_F(2, "RND - Set Drawing on Display Enabled to: %s", drawingEnable ? "true" : "false");
 }
 
 void Renderer::SetTransparency(bool semiTransparent)
@@ -836,4 +865,12 @@ void Renderer::SetTextureColorMode(uint8_t colorMode)
     r.currentState.texColorMode = (int)colorMode;
 
     LOG_F(2, "RND - Set Texture Color Mode to: %d", colorMode);
+}
+
+void Renderer::SetTextureDisable(bool textureDisable)
+{
+    auto& r = instance();  // Alias al singleton
+    r.currentState.texDisable = textureDisable;
+
+    LOG_F(2, "RND - Set Texture Disable to: %s", textureDisable ? "true" : "false");
 }

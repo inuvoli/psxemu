@@ -29,12 +29,13 @@ uniform bool  uDrawEnable;          // Set by renderer but not used yet, enable/
 uniform ivec2 uTPage;               // texture page base (x, y)
 uniform ivec2 uClut;                // CLUT base (x, y)
 uniform int   uTexColorMode;        // 4, 8, or 16
-uniform ivec2 uTexMask;             // Set by renderer but not used yet
-uniform ivec2 uTexOffset;           // Set by renderer but not used yet
+uniform ivec2 uTexMask;             // UV = (UV AND (NOT (Mask*8))) OR ((Offset AND Mask)*8)
+uniform ivec2 uTexOffset;           // UV = (UV AND (NOT (Mask*8))) OR ((Offset AND Mask)*8)
 
 // Texture flags
 uniform bool uTextured;
 uniform bool uTexBlending;         
+uniform bool uTexDisable;
 
 // Semi-transparency
 uniform bool uSemiTrans;
@@ -142,9 +143,13 @@ void main()
     // --------------------------------------------------------
     uvec3 src = color;
 
-    if (uTextured)
+    if (uTextured && !uTexDisable)
     {
-        uint texel = fetchTexel(ivec2(vUV));
+        //Apply Texture Offset and Mask to Texture Coordinates UV
+        ivec2 maskedUV = (ivec2(vUV) & ~(uTexMask * 8)) | (uTexOffset * 8);
+        
+        //uint texel = fetchTexel(ivec2(vUV));
+        uint texel = fetchTexel(maskedUV);
 
         // Texture transparency (index 0)
         if ((texel & 0x7fffu) == 0u)
@@ -194,9 +199,9 @@ void main()
     }
 
     // --------------------------------------------------------
-    // Write mask bit
+    // Write mask bit + Draw Enabled GP0(E1h).bit10
     // --------------------------------------------------------
-    bool mask = uForceMask; 
-
+    bool mask = uForceMask;
+    
     outColor = uvec4(pack555(src, mask), 0u, 0u, 1u);
 }

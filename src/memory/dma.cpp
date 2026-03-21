@@ -117,7 +117,9 @@ bool Dma::execute()
 			default:
 				break;
 			}
-			LOG_F(2, "DMA - Start Request: Channel %d, SyncMode %d, BlockSize %d, BlockAmount %d, TotalSize %d, MemoryAddr %08x, Increment %d, FromMemory %d, Chopping %d", runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize, runningAddr, runningIncrement, runningFromRam, (bool)dmaChannel[runningChannel].chanChcr.chopEnable);
+			LOG_F(2, "DMA - Start Request [Channel: %d, SyncMode: %d, BlockSize: %d, BlockAmount: %d, TotalSize: %d, MemoryAddr: %08x, Increment: %d, FromMemory: %s, Chopping: %s]", 
+				      runningChannel, runningSyncMode, runningBlockSize, runningBlockAmount, runningSize, runningAddr, runningIncrement,
+				      runningFromRam ? "true" : "false", (bool)dmaChannel[runningChannel].chanChcr.chopEnable ? "true" : "false");
 			
 			//Stop CPU access to Address Bus
 			psx->dataBusBusy = true;

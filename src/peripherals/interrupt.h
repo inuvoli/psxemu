@@ -57,5 +57,5 @@ private:
 
     
 
-    std::string interruptDescription[11] = { "vBlank", "GPU", "CDROM", "DMA", "Timer0", "Timer1", "Timer2", "ByteRecv", "SIO", "SPU", "Controller" };
+    std::string interruptDescription[11] = { "vBlank", "GPU", "CDROM", "DMA", "Timer0", "Timer1", "Timer2", "SIO", "", "SPU", "Controller" };
 };

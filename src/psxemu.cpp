@@ -195,9 +195,12 @@ bool psxemu::init(int wndWidth, int wndHeight)
 
 bool psxemu::run()
 {
+    int frameCounter = 0;
+    uint64_t timerFrameCount = SDL_GetPerformanceCounter();
+
     while (isRunning)
     {
-        uint64_t timerStart = SDL_GetPerformanceCounter();
+		frameCounter++;
 
         //Handle SDL Events
         handleEvents();
@@ -212,9 +215,26 @@ bool psxemu::run()
         //Render Screen
         render();
 
-        uint64_t timerActual = SDL_GetPerformanceCounter();
-        uint16_t framePerSecond = static_cast<uint16_t>(SDL_GetPerformanceFrequency() / (timerActual - timerStart));
-        Debugger::setFrameRate(framePerSecond);
+        // Calculate FPS every 50 frames
+        if (frameCounter >= 50)
+        {
+            uint64_t timerActual = SDL_GetPerformanceCounter();
+            uint64_t elapsedTime = timerActual - timerFrameCount;
+            uint16_t framePerSecond = static_cast<uint16_t>((50 * SDL_GetPerformanceFrequency()) / elapsedTime);
+            
+            // Update window title with FPS
+#ifdef DEBUGGER_ENABLED
+			StepMode stepMode = Debugger::getStepMode();
+            if (stepMode != StepMode::Run)
+				framePerSecond = 0; // Show 0 FPS when not running
+#endif
+            std::string windowTitle = std::format("PSXemu [FPS: {}]", framePerSecond);
+            SDL_SetWindowTitle(pWindow, windowTitle.c_str());
+
+            // Reset counters
+            frameCounter = 0;
+            timerFrameCount = SDL_GetPerformanceCounter();
+        }
     }
 
     return true;
@@ -304,17 +324,20 @@ bool psxemu::handleEvents()
                 case SDLK_R:
                     psx->reset();
                     break;
-                case SDLK_SPACE:
-                    Debugger::setStepMode(StepMode::Manual);
-                    break;
                 case SDLK_P:
                     Debugger::setStepMode(StepMode::Halt);
+                    break;
+                case SDLK_O:
+                    Debugger::setStepMode(StepMode::Manual);
                     break;
                 case SDLK_I:
                     Debugger::setStepMode(StepMode::Instruction);
                     break;
-                case SDLK_Y:
+                case SDLK_U:
                     Debugger::setStepMode(StepMode::Frame);
+                    break;
+                case SDLK_Y:
+                    Debugger::setStepMode(StepMode::Run);
                     break;
                 case SDLK_1:
                     Debugger::toggleDebugModuleStatus(DebugModule::Bios);
@@ -384,6 +407,19 @@ bool psxemu::update(StepMode stepMode)
             break;
 
         case StepMode::Frame:
+            while (!Renderer::FrameReady())
+            {
+                psx->execute();
+                if (Debugger::isBreakpoint())
+                {
+                    Debugger::setStepMode(StepMode::Halt);
+                    break;
+                }
+            }
+            Debugger::setStepMode(StepMode::Halt);
+            break;
+
+        case StepMode::Run:
             while (!Renderer::FrameReady())
             {
                 psx->execute();

@@ -6,9 +6,6 @@ cmake_minimum_required(VERSION 3.31)
 # Set the project name
 project (psxemu VERSION 0.1)
 
-# Set Policies
-cmake_policy(SET CMP0072 NEW)
-
 # Set variables
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_BINARY_DIR ${PROJECT_SOURCE_DIR}/out)
@@ -21,6 +18,7 @@ find_package(GLEW REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
+find_package(loguru CONFIG REQUIRED)
 
 # Create a sources variable with a link to all cpp files to compile
 set(PSXEMU_SOURCES
@@ -33,7 +31,6 @@ set(PSXEMU_SOURCES
 	src/peripherals/controller.cpp
 	src/peripherals/interrupt.cpp
 	src/cpu/cpu_short_pipe.cpp
-	
 	src/cpu/cop0.cpp
 	src/cpu/cop2.cpp
 	src/gpu/gpu.cpp
@@ -60,18 +57,13 @@ set(IMGUI_SOURCES
 	3rdparty/imgui/backends/imgui_impl_sdl3.cpp
 )
 
-#  LOGURU cpp files
-set(LOGURU_SOURCES
-	3rdparty/loguru/loguru.cpp
-)
-
 #  LIBCDIMAGE cpp files
 set(LIBCDIMAGE_SOURCES
 	3rdparty/libcdimage/libcdimage.cpp
 )
 
 # Add an executable with the above sources
-add_executable(psxemu ${PSXEMU_SOURCES} ${IMGUI_SOURCES} ${LOGURU_SOURCES} ${LIBCDIMAGE_SOURCES})
+add_executable(psxemu ${PSXEMU_SOURCES} ${IMGUI_SOURCES} ${LIBCDIMAGE_SOURCES})
 
 # Set the directories that should be included in the build command for this target
 # when running g++ these will be included as -I/directory/path/
@@ -82,7 +74,6 @@ target_include_directories(psxemu
 		${PROJECT_SOURCE_DIR}/3rdparty/imgui/backends
 		${PROJECT_SOURCE_DIR}/3rdparty/imgui_club/imgui_memory_editor
 		${PROJECT_SOURCE_DIR}/3rdparty/litelib
-		${PROJECT_SOURCE_DIR}/3rdparty/loguru
 		${PROJECT_SOURCE_DIR}/3rdparty/libcdimage
 		${PROJECT_SOURCE_DIR}/3rdparty/fpm/include
 		${PROJECT_SOURCE_DIR}/src
@@ -99,6 +90,7 @@ target_include_directories(psxemu
 		${OPENGL_INCLUDE_DIRS}
 		${GLM_INCLUDE_DIRS}
 		${ZLIB_INCLUDE_DIRS}
+		${LOGURU_INCLUDE_DIRS}
 )
 
 # Set libraries to be included
@@ -109,4 +101,5 @@ target_link_libraries(psxemu
 							GLEW::GLEW
 							ZLIB::ZLIB
 							SDL3::SDL3
+							loguru::loguru
 )

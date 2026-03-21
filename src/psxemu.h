@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <string>
 #include <memory>
+#include <format>
 
 #include "videolib.h"
 #include "psx.h"

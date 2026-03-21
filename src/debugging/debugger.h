@@ -13,7 +13,7 @@
 
 
 constexpr auto ModulesNumber = 15;
-enum class StepMode { Halt = 0, Manual = 1, Instruction = 2, Frame = 3 };
+enum class StepMode { Halt = 0, Manual = 1, Instruction = 2, Frame = 3, Run = 4 };
 enum class DebugModule { Bios = 0, Ram = 1, Cpu = 2, Code = 3, Dma = 4, Timers = 5, Gpu = 6, Spu = 7, Cdrom = 8, Tty = 9};
 
 //DebugInfo
@@ -43,19 +43,29 @@ struct TimerDebugInfo
 struct GpuDebugInfo
 {
 	uint32_t					gpuStat;
+
 	lite::vec2t<uint16_t>		displayStart; 
-	lite::vec4t<uint16_t>		displayRange; 
+	lite::vec4t<uint16_t>		displayRange;
+	lite::vec2t<uint16_t>		displayResolution;
+	std::string					displayMode;
+	std::string					displayColorMode;
+	std::string					displayDisabled;
+	std::string					interlaced;
+
+	lite::vec4t<uint16_t>		drawingArea;
 	lite::vec2t<uint16_t>		drawingOffset; 
-	lite::vec4t<uint16_t>		drawingArea; 
-	lite::vec2t<uint16_t>		videoResolution; 
-	std::string					videoStandard; 
-	std::string					textureDisabled;
-	lite::vec2t<uint16_t>		texturePage;
-	std::string					colorMode;
 	lite::vec2t<uint8_t>		textureMask;
 	lite::vec2t<uint8_t>		textureOffset;
-	bool						displayDisabled;
-	bool						interlaced;
+	lite::vec2t<uint16_t>		texturePage;
+	std::string					semiTransparencyMode;
+	std::string					colorMode;
+	std::string					ditherEnabled;
+	std::string					drawingOnDisplayEnabled;
+	std::string					rectangleTexFlipX;
+	std::string					rectangleTexFlipY;
+	std::string					textureDisabled;
+	std::string					forceMask;
+	std::string					checkMask;
 };
 
 struct CdromDebugInfo
@@ -100,8 +110,6 @@ public:
     static uint32_t getBreakPoint() { return instance().breakPoint; };
     static void setStepMode(StepMode mode) { instance().stepMode = mode; };
     static StepMode getStepMode() { return instance().stepMode; };
-	static void setFrameRate(uint16_t framerate) { instance().framePerSecond = framerate; };
-	static uint16_t getFrameRate() { return instance().framePerSecond; };
     static void toggleDebugModuleStatus(DebugModule module);
     static bool getDebugModuleStatus(DebugModule module);
 	static void dumpRam();
@@ -119,7 +127,6 @@ private:
 	void getCdromDebugInfo();
 	
 	//Render Widgets Functions
-    bool renderFpsWidget();
 	bool renderBiosWidget();
 	bool renderRamWidget();
 	bool renderCpuWidget();
@@ -167,10 +174,7 @@ private:
 	ImVec4 red_color = ImVec4(0.90f, 0.00f, 0.00f, 1.00f);
 	ImVec4 black_color = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
 	ImVec4 white_color = ImVec4(1.0f, 1.00f, 1.00f, 1.00f);
-
-	//Debug State names
-	std::string debugStates[4] = { "Halt", "Manual", "Instruction", "Frame"};
-	
+		
 	// UI flags
 	bool openSetBreakpointPopup = false;
 };

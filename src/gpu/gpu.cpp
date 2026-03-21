@@ -9,77 +9,8 @@
 
 GPU::GPU()
 {
-	//Reset Scheduler Parameters
-	schedulerClockRatio = 11.0f / 7.0f; //GPU Clock is 11/7 of CPU Clock
-	schedulerClockTicks = 0.0f;
-	
-	//Init GPU Internal Registers
-	gp0DataLatch = 0x00000000;
-	gp1DataLatch = 0x00000000;
-	gpuReadLatch = 0x00000000;
-	gpuStat = 0x14802000;
-	fifo.flush();
-	
-	//Reset Internal Flags
-	hBlank = false;
-	vBlank = false;
-
-	hCount = 0x00;
-	vCount = 0x00;
-
-	displayMode = VideoMode::NTSC;
-	displayDisabled = true;
-	
-	dotClockRatio = 10;				//Assuming 256 pixel per line is standard configuration
-	tickCountPerScanline = NTSC_GPU_CLOCK_PER_SCANLINE;
-	tickCountPerDots = tickCountPerScanline / dotClockRatio;
-	tickCountPerHBlank = NTSC_GPU_CLOCK_PER_HBLANK;
-	scanlinePerFrame = NTSC_SCANLINES_PER_FRAME;
-	scanlinePerVBlank = NTSC_SCANLINES_PER_VBLANK;
-	verticalInterlace = false;
-	newScanline = false;
-	newFrame = false;
-	textureDisabled = false;
-	colorMode = 0;
-	semiTransparencyMode = 0;
-	rectangleTexFlipX = false;
-	rectangleTexFlipX = false;
-
-	//VRAM & Video Settings
-	memset(&displayResolution, 0, sizeof(lite::vec2t<uint16_t>));
-	memset(&displayRange, 0, sizeof(lite::vec4t<uint16_t>));
-	memset(&displayStart, 0, sizeof(lite::vec2t<uint16_t>));
-	memset(&drawingArea, 0, sizeof(lite::vec4t<uint16_t>));
-	memset(&drawingOffset, 0, sizeof(lite::vec2t<uint16_t>));
-	memset(&textureMask, 0, sizeof(lite::vec2t<uint8_t>));
-	memset(&textureOffset, 0, sizeof(lite::vec2t<uint8_t>));
-	memset(&texturePage, 0, sizeof(lite::vec2t<uint16_t>));
-
-	//Reset Internal Clock Counter
-	gpuClockTicks = 0;
-	
-	//GPU Internal Status & Configurations
-	gp0CommandAvailable = false;
-	gp0Opcode = 0x00;
-	gp0Command = 0x00000000;
-	gp0CommandParameters = 0;
-	gp0ReadParameters = 0;
-	gp0CommandFifo = false;
-	gp0RecvPolyLine = false;
-	gp1CommandAvailable = false;
-	gp1Command = 0x00000000;
-	
-	//ReceiveCommand Status
-	recvCommand = false;
-	recvParameters = false;
-
-	//Memory Transfer Status & Configuration
-	dataReadActive = false;
-	dataWriteActive = false;
-	memset(&dataDestination, 0, sizeof(lite::vec2t<uint16_t>));
-	memset(&dataSource, 0, sizeof(lite::vec2t<uint16_t>));
-	memset(&dataSize, 0, sizeof(lite::vec2t<uint16_t>));
-	memset(&dataPointer, 0, sizeof(lite::vec2t<uint16_t>));
+	//Reset Internal State
+	reset();
 
 	//Init Renderer
 	Renderer::Init();
@@ -438,32 +369,41 @@ bool GPU::reset()
 	hCount = 0x00;
 	vCount = 0x00;
 
-	displayMode = VideoMode::NTSC;
+	//Timer Parameters
 	dotClockRatio = 10;				//Assuming 256 pixel per line is standard configuration
 	tickCountPerScanline = NTSC_GPU_CLOCK_PER_SCANLINE;
 	tickCountPerDots = tickCountPerScanline / dotClockRatio;
 	tickCountPerHBlank = NTSC_GPU_CLOCK_PER_HBLANK;
 	scanlinePerFrame = NTSC_SCANLINES_PER_FRAME;
 	scanlinePerVBlank = NTSC_SCANLINES_PER_VBLANK;
-	verticalInterlace = false;
 	newScanline = false;
 	newFrame = false;
-	textureDisabled = false;
-	colorMode = 0;
-	semiTransparencyMode = 0;
-	rectangleTexFlipX = false;
-	rectangleTexFlipX = false;
 
-	//Video Settings
-	memset(&displayResolution, 0, sizeof(lite::vec2t<uint16_t>));
-	memset(&displayRange, 0, sizeof(lite::vec4t<uint16_t>));
+	//Display Area Parameters
 	memset(&displayStart, 0, sizeof(lite::vec2t<uint16_t>));
+	memset(&displayRange, 0, sizeof(lite::vec4t<uint16_t>));
+	memset(&displayResolution, 0, sizeof(lite::vec2t<uint16_t>));
+	displayDisabled = true;
+	verticalInterlace = false;
+	displayMode = VideoMode::NTSC;
+	displayColorMode = 0;
+
+	//Drawing Area Parameters
 	memset(&drawingArea, 0, sizeof(lite::vec4t<uint16_t>));
 	memset(&drawingOffset, 0, sizeof(lite::vec2t<uint16_t>));
 	memset(&textureMask, 0, sizeof(lite::vec2t<uint8_t>));
 	memset(&textureOffset, 0, sizeof(lite::vec2t<uint8_t>));
 	memset(&texturePage, 0, sizeof(lite::vec2t<uint16_t>));
-
+	semiTransparencyMode = 0;
+	colorMode = 0;
+	ditherEnabled = false;
+	drawingOnDisplayEnabled = false;
+	rectangleTexFlipX = false;
+	rectangleTexFlipX = false;
+	textureDisabled = false;
+	forceMask = false;
+	checkMask = false;
+	
 	//Reset Internal Clock Counter
 	gpuClockTicks = 0;
 	
@@ -483,13 +423,8 @@ bool GPU::reset()
 	recvParameters = false;
 
 	//Memory Transfer Status & Configuration
-	dataReadActive = false;
-	dataWriteActive = false;
-	memset(&dataDestination, 0, sizeof(lite::vec2t<uint16_t>));
-	memset(&dataSource, 0, sizeof(lite::vec2t<uint16_t>));
-	memset(&dataSize, 0, sizeof(lite::vec2t<uint16_t>));
-	memset(&dataPointer, 0, sizeof(lite::vec2t<uint16_t>));
-
+	memset(&vramAccessState, 0, sizeof(gpu::VideoMemoryAccessState));
+	
 	//Reset Renderer Status
 	Renderer::Reset();
 
@@ -501,65 +436,68 @@ bool GPU::reset()
 //                               HELPER FUNCTIONS
 // 
 //-----------------------------------------------------------------------------------------------------
-void GPU::writeVRAM(uint32_t& data)
+bool GPU::writeVRAM(uint32_t data)
 {
-	uint16_t h, l, x1, x2, y1, y2;
-
-	y1 = dataPointer.y % 512;
-	y2 = y1;
-	x1 = dataPointer.x % 1024;
-	x2 = (dataPointer.x + 1) % 1024;
-
-	l = static_cast<uint16_t>((data & 0x0000ffff));
-	h = static_cast<uint16_t>((data & 0xffff0000) >> 16);
-
-	Renderer::WriteVRAM(x1, y1, l);
-	Renderer::WriteVRAM(x2, y2, h);
-	
-	//Update Data Pointer in VRAM
-	dataPointer.x += 2;
-	if (dataPointer.x >= dataDestination.x + dataSize.x)
+	if (vramAccessState.dataWrite == 0)
 	{
-		dataPointer.x = dataDestination.x;
-		dataPointer.y++;
-	}
-
-	if (dataPointer.y >= dataDestination.y + dataSize.y)
-	{
-		dataWriteActive = false;
-		Renderer::CommitVRAMWrite();
+		vramAccessState.dataLenght = vramAccessState.size.x * vramAccessState.size.y;
+		vramAccessState.writePos = vramAccessState.dst;
 	}
 		
+	uint16_t l = static_cast<uint16_t>((data & 0x0000ffff));
+	uint16_t h = static_cast<uint16_t>((data & 0xffff0000) >> 16);
 
-	return;
+	Renderer::WriteVRAM(vramAccessState.writePos.x, vramAccessState.writePos.y, l);
+	Renderer::WriteVRAM(vramAccessState.writePos.x + 1, vramAccessState.writePos.y, h);
+
+	//Update Data Pointer in VRAM
+	vramAccessState.writePos.x += 2;
+	vramAccessState.dataWrite += 2;
+
+	if (vramAccessState.writePos.x >= vramAccessState.dst.x + vramAccessState.size.x)
+	{
+		vramAccessState.writePos.x = vramAccessState.dst.x;
+		vramAccessState.writePos.y++;
+	}
+
+	if (vramAccessState.dataWrite >= vramAccessState.dataLenght)
+	{
+		vramAccessState.write = false;
+		vramAccessState.dataWrite = 0;
+		Renderer::CommitAccessBuffer(vramAccessState.dst.x, vramAccessState.dst.y, vramAccessState.size.x, vramAccessState.size.y);
+		return false;
+	}
+			
+	return true;
 }
 
 uint32_t GPU::readVRAM()
 {
-	uint32_t data;
-	uint16_t h, l, x1, x2, y1, y2;
-
-	y1 = dataPointer.y % 512;
-	y2 = y1;
-	x1 = dataPointer.x % 1024;
-	x2 = (dataPointer.x + 1) % 1024;
-
-	l = Renderer::ReadVRAM(x1, y1);
-	h = Renderer::ReadVRAM(x2, y2);
-
-	data = (h << 16) | l;
-
-	//Update Data Pointer in VRAM
-	dataPointer.x += 2;
-	if (dataPointer.x >= dataSource.x + dataSize.x)
+	if (vramAccessState.dataRead == 0)
 	{
-		dataPointer.x = dataSource.x;
-		dataPointer.y++;
+		vramAccessState.dataLenght = vramAccessState.size.x * vramAccessState.size.y;
+		vramAccessState.readPos = vramAccessState.src;
+		Renderer::SyncAccessBuffer(vramAccessState.src.x, vramAccessState.src.y, vramAccessState.size.x, vramAccessState.size.y);
 	}
 
-	if (dataPointer.y >= dataSource.y + dataSize.y)
-		dataReadActive = false;
+	uint16_t l = Renderer::ReadVRAM(vramAccessState.readPos.x, vramAccessState.readPos.y);
+	uint16_t h = Renderer::ReadVRAM(vramAccessState.readPos.x + 1, vramAccessState.readPos.y);
+	uint32_t data = (h << 16) | l;
 
+	//Update Data Pointer in VRAM
+	vramAccessState.readPos.x += 2;
+	vramAccessState.dataRead += 2;
+	if (vramAccessState.readPos.x >= vramAccessState.src.x + vramAccessState.size.x)
+	{
+		vramAccessState.readPos.x = vramAccessState.src.x;
+		vramAccessState.readPos.y++;
+	}
+
+	if (vramAccessState.dataRead >= vramAccessState.dataLenght)
+	{
+		vramAccessState.read = false;
+		vramAccessState.dataRead = 0;
+	}
 	return data;
 }
 
@@ -567,7 +505,7 @@ bool GPU::updateVHBlank()
 {
 	bool currentVBlank = vBlank;
 	bool currentHBlank = hBlank;
-
+	
 	//Reset NewFrame and NewScanline Status
 	newScanline = false;
 	newFrame = false;
@@ -690,7 +628,7 @@ bool GPU::execute()
 	//Update GPUSTAT.27
 	//  - Set to 1 by GP0(C0h) - DMA transfer from VRAM to RAM
 	//  - Set to 0 when all data has been transferred to RAM
-	gpuStat = (gpuStat & ~(1UL << 27)) | (static_cast<uint32_t>(dataReadActive) << 27);
+	gpuStat = (gpuStat & ~(1UL << 27)) | (static_cast<uint32_t>(vramAccessState.read) << 27);
 	
 	//Update GPUSTAT.26
 	//  - Set to 0 after receiving a GP0 Command or when GPU is Busy
@@ -799,7 +737,7 @@ bool GPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		gp0DataLatch = data;						//Rendering and VRAM Access
 		
 		dmaDirection = (gpuStat >> 29) & 0x3;
-		if (dataWriteActive && (dmaDirection == 2 || dmaDirection == 0))
+		if (vramAccessState.write && (dmaDirection == 2 || dmaDirection == 0))
 		{
 			//dataWriteActive is set by GP0(A0h) - Copy Rectangle (CPU to VRAM)
 			//DmaDirection [GPUSTAT.21-30] is set by GP1(04h) - DMA Direction
@@ -838,7 +776,7 @@ uint32_t GPU::readAddr(uint32_t addr, uint8_t bytes)
 		data = gpuReadLatch;	//--------------------------------------Response from GP0 and GP1 commands
 		
 		dmaDirection = (gpuStat >> 29) & 0x3;
-		if (dataReadActive && (dmaDirection == 3 || dmaDirection == 0))
+		if (vramAccessState.read && (dmaDirection == 3 || dmaDirection == 0))
 			//dataReadActive is set by GP0(C0h) - Copy Rectangle (VRAM to CPU)
 			//DmaDirection [GPUSTAT.21-30] is set by GP1(04h) - DMA Direction
 			//Data Transfer could be either thru:
@@ -917,7 +855,7 @@ bool GPU::gp0_Lines()
 	else
 	{
 		//Second Vertex
-		verts[1] = verts[0]; //Settink v1 color equal to v0 color for Monocrome Lines.
+		verts[1] = verts[0]; //Setting v1 color equal to v0 color for Monocrome Lines.
 		if (shaded)
 		{
 			decodeColor(param, verts[1]);
@@ -1143,31 +1081,27 @@ bool GPU::gp0_CopyVRam2VRam()
 {
 	//GP0(80h)
 	//Copy Rectangle VRAM to VRAM
-	uint32_t	param;
+	uint32_t param;
 
 	fifo.pop(param);		//Source Coord     (YyyyXxxxh); Xpos counted in halfwords, Ypos counted in rows
-	dataSource.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
-	dataSource.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
+	vramAccessState.src.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
+	vramAccessState.src.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
 
 	fifo.pop(param);		//Destination Coord(YyyyXxxxh); Xpos counted in halfwords, Ypos counted in rows
-	dataDestination.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
-	dataDestination.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
+	vramAccessState.dst.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
+	vramAccessState.dst.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
 
 	fifo.pop(param);		//Width+Height     (YsizXsizh); Xsiz counted in halfwords, Ysiz counted in rows
-	dataSize.x = ((static_cast<uint16_t>((param & 0x0000ffff)) - 1) & 0x3ff) + 1;
-	dataSize.y = ((static_cast<uint16_t>((param & 0xffff0000) >> 16) - 1) & 0x1ff) + 1;
+	vramAccessState.size.x = ((static_cast<uint16_t>((param & 0x0000ffff)) - 1) & 0x3ff) + 1;
+	vramAccessState.size.y = ((static_cast<uint16_t>((param & 0xffff0000) >> 16) - 1) & 0x1ff) + 1;
 
-	//Copy from VRAM to VRAM
 	//This is done on a single clock cycle to ease the implementation
-	uint16_t data;
-	for (int y = 0; y < dataSize.y; y++)
-		for (int x = 0; x < dataSize.x; x++)
-		{
-			data = Renderer::ReadVRAM(dataSource.x + x, dataSource.y + y);
-			Renderer::WriteVRAM(dataDestination.x + x, dataDestination.y + y, data);
-		}
-	Renderer::CommitVRAMWrite();
-	
+	while (writeVRAM(readVRAM())) {};
+		
+	LOG_F(2, "GPU - Read from VRAM at [x: %d, y: %d]", vramAccessState.src.x, vramAccessState.src.y);
+	LOG_F(2, "GPU - Write to VRAM at  [x: %d, y: %d]", vramAccessState.dst.x, vramAccessState.dst.y);
+	LOG_F(2, "GPU - Copy Size         [x: %d, y: %d]", vramAccessState.size.x, vramAccessState.size.y);
+ 
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
@@ -1179,24 +1113,21 @@ bool GPU::gp0_CopyRam2VRam()
 	//GP0(A0h)
 	//Copy Rectangle RAM to VRAM
 	uint32_t	param;
-	
+
 	fifo.pop(param);		//Destination Coord(YyyyXxxxh); Xpos counted in halfwords, Ypos counted in rows
-	dataDestination.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
-	dataDestination.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
+	vramAccessState.dst.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
+	vramAccessState.dst.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
 
 	fifo.pop(param);		//Width+Height     (YsizXsizh); Xsiz counted in halfwords, Ysiz counted in rows
-	dataSize.x = ((static_cast<uint16_t>((param & 0x0000ffff)) - 1) & 0x3ff) + 1;
-	dataSize.y = ((static_cast<uint16_t>((param & 0xffff0000) >> 16) - 1) & 0x1ff) + 1;
+	vramAccessState.size.x = ((static_cast<uint16_t>((param & 0x0000ffff)) - 1) & 0x3ff) + 1;
+	vramAccessState.size.y = ((static_cast<uint16_t>((param & 0xffff0000) >> 16) - 1) & 0x1ff) + 1;
 
-	//Set Internal Transfer Status and Size
-	dataPointer.x = dataDestination.x;
-	dataPointer.y = dataDestination.y;
-	dataWriteActive = true;
+	//Write is performed a word at time as data is received from CPU
+	vramAccessState.write = true;
 
-	LOG_F(2, "GPU - Write to VRAM at [x: %d, y: %d]", dataDestination.x, dataDestination.y);
-	LOG_F(2, "GPU - Copy Size        [x: %d, y: %d]", dataSize.x, dataSize.y);
-	
-			 
+	LOG_F(2, "GPU - Write to VRAM at [x: %d, y: %d]", vramAccessState.dst.x, vramAccessState.dst.y);
+	LOG_F(2, "GPU - Copy Size        [x: %d, y: %d]", vramAccessState.size.x, vramAccessState.size.y);
+
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
@@ -1210,21 +1141,19 @@ bool GPU::gp0_CopyVRam2Ram()
 	uint32_t	param;
 
 	fifo.pop(param);		//Source Coord     (YyyyXxxxh); Xpos counted in halfwords, Ypos counted in rows
-	dataSource.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
-	dataSource.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
+	vramAccessState.src.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff;
+	vramAccessState.src.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
 
 	fifo.pop(param);		//Width+Height     (YsizXsizh); Xsiz counted in halfwords, Ysiz counted in rows	
-	dataSize.x = ((static_cast<uint16_t>((param & 0x0000ffff)) - 1) & 0x3ff) + 1;
-	dataSize.y = ((static_cast<uint16_t>((param & 0xffff0000) >> 16) - 1) & 0x1ff) + 1;
+	vramAccessState.size.x = ((static_cast<uint16_t>((param & 0x0000ffff)) - 1) & 0x3ff) + 1;
+	vramAccessState.size.y = ((static_cast<uint16_t>((param & 0xffff0000) >> 16) - 1) & 0x1ff) + 1;
+	
+	//Read is performed a word at time as data is received from CPU
+	vramAccessState.read = true;
 
-	//Set Internal Transfer Status and Size
-	dataPointer.x = dataSource.x;
-	dataPointer.y = dataSource.y;
-	dataReadActive = true;
+	LOG_F(2, "GPU - Read from VRAM at [x: %d, y: %d]", vramAccessState.src.x, vramAccessState.src.y);
+	LOG_F(2, "GPU - Copy Size         [x: %d, y: %d]", vramAccessState.size.x, vramAccessState.size.y);
 
-	LOG_F(2, "GPU - Read from VRAM at [x: %d, y: %d]", dataSource.x, dataSource.y);
-	LOG_F(2, "GPU - Copy Size         [x: %d, y: %d]", dataSize.x, dataSize.y);
-	 
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
@@ -1237,29 +1166,28 @@ bool GPU::gp0_FillVRam()
 	//Fill Rectangle in VRAM
 	uint32_t	param;
 	uint16_t	color;
-	lite::vec2t<uint16_t> position, size;	
-	
+		
 	color = rgb24torgb15(gp0Command & 0x00ffffff);	//Color + Command(CcBbGgRrh); 24bit RGB value
 
 	fifo.pop(param);		//Top Left Corner(YyyyXxxxh); Xpos counted in halfwords, steps of 10h
-	position.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3f0;
-	position.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
+	vramAccessState.dst.x = static_cast<uint16_t>((param & 0x0000ffff)) & 0x3f0;
+	vramAccessState.dst.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
 
 	fifo.pop(param);		//Width + Height(YsizXsizh); Xsiz counted in halfwords, steps of 10h
-	size.x = ((static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff) + 0x0f) & ~(0x0f);
-	size.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
+	vramAccessState.size.x = ((static_cast<uint16_t>((param & 0x0000ffff)) & 0x3ff) + 0x0f) & ~(0x0f);
+	vramAccessState.size.y = static_cast<uint16_t>((param & 0xffff0000) >> 16) & 0x1ff;
 
 	//Fill is not executed if either Xsiz or Ysiz are zero.
-	if (size.x == 0 || size.y == 0)
+	if (vramAccessState.size.x == 0 || vramAccessState.size.y == 0)
 		return true;
 
 	//Fill VRAM with RGB value in color
 	//This is done on a single clock cycle to ease the implementation
-	for (int y = 0; y < size.y; y++)
-		for (int x = 0; x < size.x; x++)
-			Renderer::WriteVRAM(position.x + x, position.y + y, color);
-	Renderer::CommitVRAMWrite();
-		
+	while(writeVRAM(color << 16 | color)) {}
+	
+	LOG_F(2, "GPU - Fill VRAM at [x: %d, y: %d] with 0x%04x", vramAccessState.dst.x, vramAccessState.dst.y, color);
+	LOG_F(2, "GPU - Copy Size    [x: %d, y: %d]", vramAccessState.size.x, vramAccessState.size.y);
+
 	//Reset GPUSTAT Flag to receive next GP0 command
 	gp0_ResetStatus();
 
@@ -1329,11 +1257,12 @@ bool GPU::gp0_DrawMode()
 	//GPUSTAT.10 << GP0DATA.10									Drawing to display area (0 = prohibited, 1 = allowed)
 	data = (gp0DataLatch & 0x00000400) >> 10;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 10)) | (data << 10);	//Set GPUSTAT.10 to data value
-	drawingEnabled = (bool)data;
+	drawingOnDisplayEnabled = (bool)data;
 
 	//GPUSTAT.15 << GP0DATA.11									Texture Disable (0=Normal, 1=Texture Disabled)
 	data = (gp0DataLatch & 0x00000800) >> 11;					//Extract bit value from GP0 Command
 	gpuStat = (gpuStat & ~(0x00000001 << 15)) | (data << 15);	//Set GPUSTAT.15 to data value
+	textureDisabled = (bool)data;
 
 	//Extract Texture Rectangle X-Flip
 	data = (gp0DataLatch & 0x00001000) >> 12;					//Extract bit value from GP0 Command
@@ -1351,7 +1280,8 @@ bool GPU::gp0_DrawMode()
 	Renderer::SetTransparencyMode(semiTransparencyMode);
 	Renderer::SetTextureColorMode(colorMode);
 	Renderer::SetDither(ditherEnabled);
-	Renderer::SetDrawingEnabled(drawingEnabled);
+	Renderer::SetDrawingOnDisplayEnabled(drawingOnDisplayEnabled);
+	Renderer::SetTextureDisable(textureDisabled);
 
 	return true;
 }
@@ -1375,7 +1305,7 @@ bool GPU::gp0_TextureSetting()
 	data = (gp0DataLatch & 0x00007c00) >> 10;					//Extract bit value from GP0 Command
 	textureOffset.x = static_cast<uint8_t>(data);
 
-	//GP0DATA.15-19												Texture windows Offset- Y (in 8 pixel steps)
+	//GP0DATA.15-19												Texture windows Offset Y (in 8 pixel steps)
 	data = (gp0DataLatch & 0x000f8000) >> 15;					//Extract bit value from GP0 Command
 	textureOffset.y = static_cast<uint8_t>(data);
 
@@ -1467,7 +1397,6 @@ bool GPU::gp0_SetMaskBit()
 	//Mask Bit Setting
 
 	uint32_t data;
-	bool forceMask, checkMask;
 
 	//GPUSTAT.11 << GP0DATA.0									Force Mask while drawing (0 = disable, 1 = enable)
 	data = gp0DataLatch & 0x00000001;							//Extract bit value from GP0 Command
@@ -1721,9 +1650,8 @@ bool GPU::gp1_NewTextureDisable()
 
 	//GPUSTAT.15 << GP1DATA.0
 	data = (gp1Command & 0x00000001);							//Extract bit value from GP1 Command
-	textureDisabled = (bool)data;
 
-	//TODO: if New Texture are disabled, ignore texture information from Primitive Rendering Commands
+	//TODO: It is not clear what this command does, as GPUSTAT.15 is also set by GP0(E1h) and reset by GP1(00h)
 
 	//Reset GPUSTAT Flag to receive next GP1 command
 	gp1_ResetStatus();

@@ -53,8 +53,7 @@ bool Debugger::render()
     ImGui::NewFrame();
 
     r.renderMenuBar();
-    r.renderFpsWidget();
-
+    
     if (r.getDebugModuleStatus(DebugModule::Bios))     r.renderBiosWidget();
     if (r.getDebugModuleStatus(DebugModule::Ram))      r.renderRamWidget();
     if (r.getDebugModuleStatus(DebugModule::Cpu))      r.renderCpuWidget();
@@ -85,30 +84,6 @@ bool Debugger::render()
         SDL_GL_MakeCurrent(backup_current_window, backup_current_context);
     }
 
-    return true;
-}
-
-bool Debugger::renderFpsWidget()
-{
-    ImGui::SetNextWindowSize(ImVec2(100, 30));
-    ImVec2 widgetPosition = ImGui::GetMainViewport()->WorkPos;
-    widgetPosition.x += ImGui::GetMainViewport()->WorkSize.x;
-    widgetPosition.y += ImGui::GetMainViewport()->WorkSize.y;
-    ImGui::SetNextWindowPos(widgetPosition, 0, ImVec2(1.0f, 1.0f));
-    
-    if (stepMode == StepMode::Frame)
-    {
-        ImGui::Begin("FPS", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground);
-        ImGui::Text("FPS: %.4d\t", framePerSecond);
-        ImGui::End();
-    }
-    else
-    {
-        ImGui::Begin("FPS", 0, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground);
-        ImGui::Text("FPS: Stop\t");
-        ImGui::End();
-    }
-    
     return true;
 }
 
@@ -528,72 +503,113 @@ bool Debugger::renderGpuWidget()
     r.getGpuDebugInfo();
 
     ImGui::Begin("GPU");
-
-    // Create a table with 2 columns: Label / Value
-    if (ImGui::BeginTable("GPU Info Table", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
+ 
+    // Create a table with 5 columns
+    if (ImGui::BeginTable("GPU Info Table", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
     {
-        ImGui::TableSetupColumn("Register", ImGuiTableColumnFlags_WidthFixed, 190.0f);
-        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 200.0f);
+        ImGui::TableSetupColumn("Status Register", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupColumn("Draw Area Param", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupColumn("Draw Area Value", ImGuiTableColumnFlags_WidthFixed, 200.0f);
+        ImGui::TableSetupColumn("Display Area Param", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupColumn("Draw Area Value", ImGuiTableColumnFlags_WidthFixed, 200.0f);
 
-        // Row 1: GPUSTAT
+        // Row 1: Label
         ImGui::TableNextRow();
-        ImGui::TableNextColumn(); ImGui::PushStyleColor(ImGuiCol_Text, green_color); ImGui::Text("GPUSTAT"); ImGui::PopStyleColor();// Label
-        ImGui::TableNextColumn(); ImGui::Text("0x%08x", gpuInfo.gpuStat); // Value
+        ImGui::TableNextColumn(); ImGui::PushStyleColor(ImGuiCol_Text, green_color); ImGui::Text("GPUSTAT: 0x%08x", gpuInfo.gpuStat); ImGui::PopStyleColor();// Label
+        ImGui::TableNextColumn(); ImGui::PushStyleColor(ImGuiCol_Text, green_color); ImGui::Text("Draw Area"); ImGui::PopStyleColor();// Label
+        ImGui::TableNextColumn(); ImGui::PushStyleColor(ImGuiCol_Text, green_color); ImGui::Text(""); ImGui::PopStyleColor();// Label
+        ImGui::TableNextColumn(); ImGui::PushStyleColor(ImGuiCol_Text, green_color); ImGui::Text("Display Area"); ImGui::PopStyleColor();// Label
+        ImGui::TableNextColumn(); ImGui::PushStyleColor(ImGuiCol_Text, green_color); ImGui::Text(""); ImGui::PopStyleColor();// Label
 
-        // Row 2: Video Mode
+        // Row 2
         ImGui::TableNextRow();
-        ImGui::TableNextColumn(); ImGui::Text("Video Mode");
-        ImGui::TableNextColumn(); ImGui::Text("%dx%d (%s - %s)", gpuInfo.videoResolution.x, gpuInfo.videoResolution.y, gpuInfo.videoStandard.c_str(), gpuInfo.interlaced ? "Interlaced" : "Progressive");
+		ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Drawing Area");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d] - [%4d, %4d]", gpuInfo.drawingArea.x1, gpuInfo.drawingArea.y1, gpuInfo.drawingArea.x2, gpuInfo.drawingArea.y2);
+        ImGui::TableNextColumn(); ImGui::Text("Display Disabled");
+        ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.displayDisabled);
 
-        // Row 3: Display Enabled
+        //// Row 3
         ImGui::TableNextRow();
-        ImGui::TableNextColumn(); ImGui::Text("Display Enabled");
-        ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.displayDisabled ? "Disabled" : "Enabled");
-
-        // Row 3: Display Start
+        ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Drawing Offset");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", (int16_t)gpuInfo.drawingOffset.x, (int16_t)gpuInfo.drawingOffset.y);
+        ImGui::TableNextColumn(); ImGui::Text("Display Mode");
+        ImGui::TableNextColumn(); ImGui::Text("%dx%d (%s - %s)", gpuInfo.displayResolution.x, gpuInfo.displayResolution.y, gpuInfo.displayMode.c_str(), gpuInfo.interlaced);
+        
+        // Row 3
         ImGui::TableNextRow();
+        ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Texture Page");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.texturePage.x, gpuInfo.texturePage.y);
         ImGui::TableNextColumn(); ImGui::Text("Display Start");
         ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayStart.x, gpuInfo.displayStart.y);
 
-        // Row 4: Display Horizontal Range
+        // Row 4
         ImGui::TableNextRow();
-        ImGui::TableNextColumn(); ImGui::Text("Display Horizontal Range");
-        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayRange.x1, gpuInfo.displayRange.x2);
-
-        // Row 5: Display Vertical Range
-        ImGui::TableNextRow();
-        ImGui::TableNextColumn(); ImGui::Text("Display Vertical Range");
-        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayRange.y1, gpuInfo.displayRange.y2);
-
-        // Row 6: Drawing Area
-        ImGui::TableNextRow();
-        ImGui::TableNextColumn(); ImGui::Text("Drawing Area");
-        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d] - [%4d, %4d]", gpuInfo.drawingArea.x1, gpuInfo.drawingArea.y1, gpuInfo.drawingArea.x2, gpuInfo.drawingArea.y2);
-
-        // Row 7: Drawing Offset
-        ImGui::TableNextRow();
-        ImGui::TableNextColumn(); ImGui::Text("Drawing Offset");
-        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", (int16_t)gpuInfo.drawingOffset.x, (int16_t)gpuInfo.drawingOffset.y);
-
-        // Row 8: Texture Page
-        ImGui::TableNextRow();
-        ImGui::TableNextColumn(); ImGui::Text("Texture Page");
-        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.texturePage.x, gpuInfo.texturePage.y);
-        
-        // Row 9: Texture Color Mode
-        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); //GPUSTAT
         ImGui::TableNextColumn(); ImGui::Text("Texture Color Mode");
         ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.colorMode.c_str());      
+        ImGui::TableNextColumn(); ImGui::Text("Display H Range");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayRange.x1, gpuInfo.displayRange.x2);
 
-        // Row 10: Texture Windows Mask
+        // Row 5
         ImGui::TableNextRow();
-        ImGui::TableNextColumn(); ImGui::Text("Texture Windows Mask");
+        ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Texture Mask");
         ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.textureMask.x, gpuInfo.textureMask.y);
+        ImGui::TableNextColumn(); ImGui::Text("Display V Range");
+        ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.displayRange.y1, gpuInfo.displayRange.y2);
 
-        // Row 11: Texture Windows Offset
+        // Row 6
         ImGui::TableNextRow();
-        ImGui::TableNextColumn(); ImGui::Text("Texture Windows Offset");
+        ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Texture Offset");
         ImGui::TableNextColumn(); ImGui::Text("[%4d, %4d]", gpuInfo.textureOffset.x, gpuInfo.textureOffset.y);
+        ImGui::TableNextColumn(); ImGui::Text("Display Color Mode");
+        ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.displayColorMode.c_str());
+
+        // Row 7
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Texture Flip");
+        ImGui::TableNextColumn(); ImGui::Text("X: %s Y: %s", gpuInfo.rectangleTexFlipX.c_str(), gpuInfo.rectangleTexFlipY.c_str());
+
+        // Row 8
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Texture Disabled");
+        ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.textureDisabled.c_str());
+
+        // Row 9
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Transparency Mode");
+        ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.semiTransparencyMode.c_str());
+
+        // Row 10
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Dither Enabled");
+        ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.ditherEnabled.c_str());
+
+        // Row 11
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Draw on Display");
+        ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.drawingOnDisplayEnabled.c_str());
+
+        // Row 12
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Force Mask Bit");
+        ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.forceMask.c_str());
+
+        // Row 13
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn(); //GPUSTAT
+        ImGui::TableNextColumn(); ImGui::Text("Check Mask Bit");
+        ImGui::TableNextColumn(); ImGui::Text("%s", gpuInfo.checkMask.c_str());
 
         ImGui::EndTable(); // End of table
     }
@@ -992,19 +1008,30 @@ void Debugger::getTimerDebugInfo()
 void Debugger::getGpuDebugInfo()
 {
     gpuInfo.gpuStat =  psx->gpu->getGPUStat();
-    gpuInfo.videoResolution = psx->gpu->getVideoResolution();
-    gpuInfo.displayRange = psx->gpu->getDisplayRange();
+
     gpuInfo.displayStart = psx->gpu->getDisplayStart();
+    gpuInfo.displayRange = psx->gpu->getDisplayRange();
+    gpuInfo.displayResolution = psx->gpu->getDisplayResolution();
+    gpuInfo.displayMode = psx->gpu->getDisplayMode();
+    gpuInfo.displayColorMode = psx->gpu->getDisplayColorMode();
+    gpuInfo.displayDisabled = psx->gpu->getDisplayDisabled();
+    gpuInfo.interlaced = psx->gpu->getVerticalInterlace();
+        
     gpuInfo.drawingArea = psx->gpu->getDrawingArea();
     gpuInfo.drawingOffset = psx->gpu->getDrawingOffset();
-    gpuInfo.textureDisabled = psx->gpu->getTextureDisabled();
-    gpuInfo.texturePage = psx->gpu->getTexturePage();
     gpuInfo.textureMask = psx->gpu->getTextureMask();
     gpuInfo.textureOffset = psx->gpu->getTextureOffset();
+    gpuInfo.texturePage = psx->gpu->getTexturePage();
+	gpuInfo.semiTransparencyMode = psx->gpu->getSemiTransparencyMode();
     gpuInfo.colorMode = psx->gpu->getTextureColorDepth();
-    gpuInfo.videoStandard = psx->gpu->getVideoStandard();
-    gpuInfo.interlaced = psx->gpu->getVerticalInterlace();
-    gpuInfo.displayDisabled = psx->gpu->getDisplayDisabled();
+	gpuInfo.ditherEnabled = psx->gpu->getDitherEnabled();
+	gpuInfo.drawingOnDisplayEnabled = psx->gpu->getDrawingOnDisplayEnabled();
+	gpuInfo.rectangleTexFlipX = psx->gpu->getRectangleTexFlipX();
+	gpuInfo.rectangleTexFlipY = psx->gpu->getRectangleTexFlipY();
+    gpuInfo.textureDisabled = psx->gpu->getTextureDisabled();
+    gpuInfo.forceMask = psx->gpu->getForceMask();
+	gpuInfo.checkMask = psx->gpu->getCheckMask();
+	
 }
 
 void Debugger::getCdromDebugInfo()
