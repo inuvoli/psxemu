@@ -1,5 +1,5 @@
 #pragma once
-#define DEBUGGER_ENABLED
+//#define DEBUGGER_ENABLED
 
 #include <cstdint>
 #include <memory>

@@ -417,6 +417,7 @@ bool GPU::reset()
 	gp0RecvPolyLine = false;
 	gp1CommandAvailable = false;
 	gp1Command = 0x00000000;
+	memset(&cmdPipelineState, 0, sizeof(gpu::CommandPipelineState));
 	
 	//ReceiveCommand Status
 	recvCommand = false;
@@ -465,6 +466,7 @@ bool GPU::writeVRAM(uint32_t data)
 		vramAccessState.write = false;
 		vramAccessState.dataWrite = 0;
 		Renderer::CommitAccessBuffer(vramAccessState.dst.x, vramAccessState.dst.y, vramAccessState.size.x, vramAccessState.size.y);
+		gp0_ResetStatus();
 		return false;
 	}
 			
@@ -497,6 +499,7 @@ uint32_t GPU::readVRAM()
 	{
 		vramAccessState.read = false;
 		vramAccessState.dataRead = 0;
+		gp0_ResetStatus();
 	}
 	return data;
 }
@@ -739,7 +742,7 @@ bool GPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 		dmaDirection = (gpuStat >> 29) & 0x3;
 		if (vramAccessState.write && (dmaDirection == 2 || dmaDirection == 0))
 		{
-			//dataWriteActive is set by GP0(A0h) - Copy Rectangle (CPU to VRAM)
+			//vramAccessState.write is set by GP0(A0h) - Copy Rectangle (CPU to VRAM)
 			//DmaDirection [GPUSTAT.21-30] is set by GP1(04h) - DMA Direction
 			//Data Transfer could be either thru:
 			//	- CPU, GPUSTAT.29-30 (DMA Direction) = 0  "DMA Off"
@@ -819,6 +822,13 @@ bool GPU::gp0_Lines()
 		
 	param = gp0Command;
 
+	LOG_F(2, "GPU - Line Type, Shaded: %d, SemiTransparent: %d, Polyline: %d", shaded, semiTransparent, polyline);
+	LOG_F(2, "GPU - Line Parameter [0]: 0x%08x", param);
+	for (int i = 0; i < fifo.length(); ++i)
+	{
+		LOG_F(2, "GPU - Line Parameter [%d]: 0x%08x", i + 1, fifo[i]);
+	}
+
 	//Set Renderer Status Before Rendering Lines
 	Renderer::SetTransparency(semiTransparent);
 	
@@ -830,6 +840,9 @@ bool GPU::gp0_Lines()
 	fifo.pop(param);
 	decodePosition(param, verts[0]);
 	fifo.pop(param);
+	//Reset Texture Coordinates since Lines don't have texture
+	verts[0].u = 0;
+	verts[0].v = 0;
 
 	if (polyline)
 	{
@@ -894,11 +907,11 @@ bool GPU::gp0_Rectangles()
 	// Parse all Polygon Command Parameters from FIFO directly into Triangle vertex temporaries
 	param = gp0Command;
 
-	LOG_F(2, "GPU - Rectangle Type: %d, Textured: %d, SemiTransparent: %d, TextureBlending: %d", recType, textured, semiTransparent, texblending);
-	LOG_F(2, "GPU - Rectangle Parameter [0]: 0x%08x", param);
+	LOG_F(3, "GPU - Rectangle Type: %d, Textured: %d, SemiTransparent: %d, TextureBlending: %d", recType, textured, semiTransparent, texblending);
+	LOG_F(3, "GPU - Rectangle Parameter [0]: 0x%08x", param);
 	for(int i = 0; i<fifo.length(); ++i)
 	{
-		LOG_F(2, "GPU - Rectangle Parameter [%d]: 0x%08x", i+1, fifo[i]);
+		LOG_F(3, "GPU - Rectangle Parameter [%d]: 0x%08x", i+1, fifo[i]);
 	}
 
 	//Set Vertex Buffer
@@ -1009,6 +1022,13 @@ bool GPU::gp0_Polygons()
 	
 	// Parse all Polygon Command Parameters from FIFO directly into Triangle vertex temporaries
 	param = gp0Command;
+
+	LOG_F(2, "GPU - Polygon Type, Shaded: %d, Textured: %d, SemiTransparent: %d, TextureBlending: %d, Vertex: %d", shaded, textured, semiTransparent, texblending, vertexNum);
+	LOG_F(2, "GPU - Polygon Parameter [0]: 0x%08x", param);
+	for (int i = 0; i < fifo.length(); ++i)
+	{
+		LOG_F(2, "GPU - Polygon Parameter [%d]: 0x%08x", i + 1, fifo[i]);
+	}
 	
 	//Set Vertex Buffer
 	GpuVertex verts[MAX_VERTEX_NUMBER];
@@ -1461,9 +1481,11 @@ bool GPU::gp1_ResetFifo()
 	//GP1(01h)
 	//Flush Command FIFO Buffer 
 	fifo.flush();
+	gp0_ResetStatus();
 
 	//Reset status flags to receive next GP1 command
 	gp1_ResetStatus();
+
 
 	return true;
 }

@@ -16,11 +16,16 @@ KEYWORDS_INCLUDE = [
     #"CPU - Exception",
     #"INT - ",
     #"CTR - ",
-    "
+    ""
 ]
 
 KEYWORDS_EXCLUDE = [
-    "CDR - Interrupt pending",
+    "RND - Set Semi Transparency to: false",
+    "GPU - Monocrome Rectangle, 1x1, opaque (params: 1)",
+    "GPU - Reset Command Buffer (params: 0)",
+    "INT - Hardware Interrupt Request (vBlank)",
+    "RND - vBlank! vBlank! vBlank! vBlank! vBlank! vBlank! vBlank!"
+
 ]
 
 def filter_file(input_path, output_path):

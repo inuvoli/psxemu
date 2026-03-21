@@ -239,7 +239,7 @@ void Renderer::PushQuad(const RendererVertex& v0, const RendererVertex& v1, cons
     r.mappedVertex[r.vertexCount++] = v1;
     r.mappedVertex[r.vertexCount++] = v2;
 
-    r.mappedVertex[r.vertexCount++] = v1;
+    r.mappedVertex[r.vertexCount++] = v0;
     r.mappedVertex[r.vertexCount++] = v2;
     r.mappedVertex[r.vertexCount++] = v3;
 
@@ -335,10 +335,10 @@ void Renderer::DrawPoint(GpuVertex *vertex)
     //Create a small triangle to represent the point
     r.PushTriangle(v[0], v[1], v[2]);
 
-    LOG_F(1, "RND - Draw POINT");
-    LOG_F(1, "RND - Vertex 1 - Pos: [%f, %f], Color: [%f, %f, %f], UV: [%f, %f]", v[0].pos.x, v[0].pos.y, v[0].color.x, v[0].color.y, v[0].color.z, v[0].uv.x, v[0].uv.y);
-    LOG_F(1, "RND - Vertex 2 - Pos: [%f, %f], Color: [%f, %f, %f], UV: [%f, %f]", v[1].pos.x, v[1].pos.y, v[1].color.x, v[1].color.y, v[1].color.z, v[1].uv.x, v[1].uv.y);
-    LOG_F(1, "RND - Vertex 3 - Pos: [%f, %f], Color: [%f, %f, %f], UV: [%f, %f]", v[2].pos.x, v[2].pos.y, v[2].color.x, v[2].color.y, v[2].color.z, v[2].uv.x, v[2].uv.y);
+    LOG_F(3, "RND - Draw POINT");
+    LOG_F(3, "RND - Vertex 1 - Pos: [%f, %f], Color: [%f, %f, %f], UV: [%f, %f]", v[0].pos.x, v[0].pos.y, v[0].color.x, v[0].color.y, v[0].color.z, v[0].uv.x, v[0].uv.y);
+    LOG_F(3, "RND - Vertex 2 - Pos: [%f, %f], Color: [%f, %f, %f], UV: [%f, %f]", v[1].pos.x, v[1].pos.y, v[1].color.x, v[1].color.y, v[1].color.z, v[1].uv.x, v[1].uv.y);
+    LOG_F(3, "RND - Vertex 3 - Pos: [%f, %f], Color: [%f, %f, %f], UV: [%f, %f]", v[2].pos.x, v[2].pos.y, v[2].color.x, v[2].color.y, v[2].color.z, v[2].uv.x, v[2].uv.y);
 }
 
 void Renderer::DrawLine(GpuVertex *vertex)
@@ -349,30 +349,30 @@ void Renderer::DrawLine(GpuVertex *vertex)
     glm::vec2 p0, p1, d, n, dir;
     
     r.BeginBatch();
-
-    p0 = glm::floor(glm::vec2((float)vertex[0].x, (float)vertex[0].y));
-    p1 = glm::floor(glm::vec2((float)vertex[1].x, (float)vertex[1].y));
     
+    p0 = glm::vec2((float)vertex[0].x, (float)vertex[0].y);
+    p1 = glm::vec2((float)vertex[1].x, (float)vertex[1].y);
+
     d = p1 - p0;
     if (glm::length(d) == 0)
         return;
 
-    dir = glm::normalize(d);
-    n = glm::vec2(-dir.y, dir.x) * 0.5f; //Perpendicular Normal scaled to half pixel size
-
-    v[0].pos = p0 + n;
+    dir = glm::normalize(d) * 0.5f;
+    n = glm::vec2(-dir.y, dir.x);
+    
+    v[0].pos = glm::floor(p0 + n);
     v[0].uv = glm::vec2((float)vertex[0].u, (float)vertex[0].v);
     v[0].color = glm::vec3((float)vertex[0].r, (float)vertex[0].g, (float)vertex[0].b);
 
-    v[1].pos = p1 + n;
+    v[1].pos = glm::floor(p1 + n);
     v[1].uv = glm::vec2((float)vertex[1].u, (float)vertex[1].v);
     v[1].color = glm::vec3((float)vertex[1].r, (float)vertex[1].g, (float)vertex[1].b);
 
-    v[2].pos = p1 - n;
+    v[2].pos = glm::floor(p1 - n);
     v[2].uv = glm::vec2((float)vertex[1].u, (float)vertex[1].v);
     v[2].color = glm::vec3((float)vertex[1].r, (float)vertex[1].g, (float)vertex[1].b);
 
-    v[3].pos = p0 - n;
+    v[3].pos = glm::floor(p0 - n);
     v[3].uv = glm::vec2((float)vertex[0].u, (float)vertex[0].v);
     v[3].color = glm::vec3((float)vertex[0].r, (float)vertex[0].g, (float)vertex[0].b);
 

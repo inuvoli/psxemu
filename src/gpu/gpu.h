@@ -86,6 +86,13 @@ namespace gpu
 		uint32_t			  dataLenght;					//Total number of halfords to read/write in current VRAM transfer operation, set by GP0 command parameters.
 	};
 
+	struct CommandPipelineState
+	{
+		bool					commandReceived;			//Whether GPU is currently receiving a command and its parameters
+		bool					parametersReceived;			//Whether GPU has received all parameters for current command and is ready to execute it
+		bool					isPolyline;					//Whether current command is a Polyline command, which has special handling for vertex parameters
+	};
+
 }
 
 //GPU Class
@@ -213,6 +220,7 @@ private:
 	bool						gp1CommandAvailable;		//A full GP1 command is available
 	uint8_t						gp1Opcode;					//Current available GP1 Opcode
 	uint32_t					gp1Command;					//Current Available GP1 Command
+	gpu::CommandPipelineState	cmdPipelineState;			//GPU Command Pipeline State
 
 	//GPU Timing Status & Configurations
 	uint64_t					gpuClockTicks;				//GPU total Clock Tick counter
