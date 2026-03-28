@@ -1,6 +1,6 @@
 #version 460 core
 
-in vec2 vUV;                 // [0..1] fullscreen quad
+noperspective in vec2 vUV;                 // [0..1] fullscreen quad
 out vec4 FragColor;
 
 uniform usampler2D uVRAM;    // GL_R16UI 1024×512

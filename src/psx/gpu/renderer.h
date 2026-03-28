@@ -22,7 +22,7 @@ struct RendererVertex
     glm::vec2 uv;       // Vertex Texture Coordinates (PSX Format)
 };
 
-struct VideoState
+struct DisplayState
 {
     glm::ivec2  displayRes;
     glm::ivec4  displayArea;
@@ -31,9 +31,9 @@ struct VideoState
     bool        interlaced;
     bool        evenfield;
 
-    bool operator==(const VideoState& o) const
+    bool operator==(const DisplayState& o) const
     {
-        return memcmp(this, &o, sizeof(VideoState)) == 0;
+        return memcmp(this, &o, sizeof(DisplayState)) == 0;
     }
 
 };
@@ -51,6 +51,8 @@ struct RendererState
     bool        textured;
     bool        texBlending;
 	bool		texDisable;
+    bool		texRectangleXFlip;
+	bool		texRectangleYFlip;
     bool        semiTranparent;
     int         semiTransparentMode;
     bool        checkMask;
@@ -104,6 +106,7 @@ class Renderer
         static void SetTransparencyMode(int semiTransparentMode);
         static void SetMaskBit(bool checkMask, bool forceMask);
         static void SetDither(bool dither);
+		static void SetRectangleTextureFlip(bool flipX, bool flipY);
         
         //Draw Polygon Functions
         static void DrawPolygon(GpuVertex *vertex, uint16_t vertexNum);
@@ -115,6 +118,7 @@ class Renderer
 		static bool CommitAccessBuffer(uint16_t x, uint16_t y, uint16_t w, uint16_t h);   //Copy Access Buffer to VRAM Texture
 		static bool SyncAccessBuffer(uint16_t x, uint16_t y, uint16_t w, uint16_t h);     //Copy VRAM Texture to Access Buffer, to sync them before reading
         static bool WriteVRAM(uint16_t x, uint16_t y, uint16_t data);
+        static bool WriteVRAMMasked(uint16_t x, uint16_t y, uint16_t data);
         static uint16_t ReadVRAM(uint16_t x, uint16_t y);
         static GLuint GetVRAMTextureObject();
         
@@ -139,8 +143,8 @@ class Renderer
         int                     windowHeight;               //Main Window Height - Set and Updated by psxemu
 
         //Renderer State
-        VideoState              videoState;                 //Current Video Display configuration
-        RendererState           currentState;               //Current State being set
+        DisplayState            displayState;               //Current Display configuration
+        RendererState           currentState;               //Current Rendering State being set
         RendererState           renderingState;             //Actual State used for rendering
 
         //Internal Structures

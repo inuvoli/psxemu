@@ -13,93 +13,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${PROJECT_SOURCE_DIR}/bin)
 
-find_package(SDL3 CONFIG REQUIRED)
-find_package(GLEW REQUIRED)
-find_package(OpenGL REQUIRED)
-find_package(glm CONFIG REQUIRED)
-find_package(ZLIB REQUIRED)
-find_package(loguru CONFIG REQUIRED)
+# Platform detection
+if(WIN32)
+    add_compile_definitions(PLATFORM_WINDOWS)
+elseif(UNIX)
+    add_compile_definitions(PLATFORM_LINUX)
+endif()
 
-# Create a sources variable with a link to all cpp files to compile
-set(PSXEMU_SOURCES
-    src/memory/bios.cpp
-	src/memory/dma.cpp
-	src/memory/dmachannel.cpp
-	src/memory/memory.cpp
-	src/memory/exefile.cpp
-    src/peripherals/cdrom.cpp
-	src/peripherals/controller.cpp
-	src/peripherals/interrupt.cpp
-	src/cpu/cpu_short_pipe.cpp
-	src/cpu/cop0.cpp
-	src/cpu/cop2.cpp
-	src/gpu/gpu.cpp
-	src/gpu/renderer.cpp
-	src/gpu/shader.cpp
-	src/spu/spu.cpp
-	src/timers/timers.cpp
-	src/debugging/debugger.cpp
-	src/debugging/mipsdisassembler.cpp
-	src/debugging/tty.cpp
-	src/main.cpp
-	src/psx.cpp
-	src/psxemu.cpp
-	src/commandline.cpp
-)
+# Add Subdirectories
+add_subdirectory(src/psx)
+add_subdirectory(src/test)
 
-# IMGUI cpp files
-set(IMGUI_SOURCES
-	3rdparty/imgui/imgui.cpp
-	3rdparty/imgui/imgui_draw.cpp
-	3rdparty/imgui/imgui_tables.cpp
-	3rdparty/imgui/imgui_widgets.cpp
-	3rdparty/imgui/backends/imgui_impl_opengl3.cpp
-	3rdparty/imgui/backends/imgui_impl_sdl3.cpp
-)
-
-#  LIBCDIMAGE cpp files
-set(LIBCDIMAGE_SOURCES
-	3rdparty/libcdimage/libcdimage.cpp
-)
-
-# Add an executable with the above sources
-add_executable(psxemu ${PSXEMU_SOURCES} ${IMGUI_SOURCES} ${LIBCDIMAGE_SOURCES})
-
-# Set the directories that should be included in the build command for this target
-# when running g++ these will be included as -I/directory/path/
-target_include_directories(psxemu
-    PRIVATE 
-		${PROJECT_SOURCE_DIR}/3rdparty
-		${PROJECT_SOURCE_DIR}/3rdparty/imgui
-		${PROJECT_SOURCE_DIR}/3rdparty/imgui/backends
-		${PROJECT_SOURCE_DIR}/3rdparty/imgui_club/imgui_memory_editor
-		${PROJECT_SOURCE_DIR}/3rdparty/litelib
-		${PROJECT_SOURCE_DIR}/3rdparty/libcdimage
-		${PROJECT_SOURCE_DIR}/3rdparty/fpm/include
-		${PROJECT_SOURCE_DIR}/src
-		${PROJECT_SOURCE_DIR}/src/cpu
-		${PROJECT_SOURCE_DIR}/src/core
-		${PROJECT_SOURCE_DIR}/src/debugging
-		${PROJECT_SOURCE_DIR}/src/gpu
-		${PROJECT_SOURCE_DIR}/src/memory
-		${PROJECT_SOURCE_DIR}/src/peripherals
-		${PROJECT_SOURCE_DIR}/src/spu
-		${PROJECT_SOURCE_DIR}/src/timers
-		${SDL3_INCLUDE_DIRS}
-		${GLEW_INCLUDE_DIRS}
-		${OPENGL_INCLUDE_DIRS}
-		${GLM_INCLUDE_DIRS}
-		${ZLIB_INCLUDE_DIRS}
-		${LOGURU_INCLUDE_DIRS}
-)
-
-# Set libraries to be included
-target_link_libraries(psxemu 
-						PRIVATE 
-							OpenGL::GL
-							glm::glm
-							GLEW::GLEW
-							ZLIB::ZLIB
-							SDL3::SDL3
-							loguru::loguru
-)

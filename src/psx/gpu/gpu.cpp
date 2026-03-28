@@ -21,7 +21,7 @@ GPU::GPU()
 		{"NOP", &GPU::gp0_NoOperation, 0, false, false},
 		{"Clear Texture Cache", &GPU::gp0_ClearTextureCache, 0, false, false},
 		{"Fill Rectangle in VRAM", &GPU::gp0_FillVRam, 2, true, false},
-		{"Unknown (NOP?)", &GPU::gp0_NoOperation, 0, true, false},
+		{"Unknown", &GPU::gp0_NoOperation, 0, false, false},
 		{"NOP", &GPU::gp0_NoOperation, 0, false, false},
 		{"NOP", &GPU::gp0_NoOperation, 0, false, false},
 		{"NOP", &GPU::gp0_NoOperation, 0, false, false},
@@ -50,166 +50,166 @@ GPU::GPU()
 		{"NOP", &GPU::gp0_NoOperation, 0, false, false},
 		{"NOP", &GPU::gp0_NoOperation, 0, false, false},
 		{"Interrupt Request (IRQ1)", &GPU::gp0_InterruptRequest, 0, false, false},
-		{"Monocrome 3 Point Polygon, Opaque", &GPU::gp0_Polygons, 3, true, true},
-		{"Monocrome 3 Point Polygon, Opaque", &GPU::gp0_Polygons, 3, true, true},
-		{"Monocrome 3 Point Polygon, Semi-Transparent", &GPU::gp0_Polygons, 3, true, true},
-		{"Monocrome 3 Point Polygon, Semi-Transparent", &GPU::gp0_Polygons, 3, true, true},
-		{"Textured 3 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 6, true, true},
-		{"Textured 3 Point polygon, opaque, raw texture", &GPU::gp0_Polygons, 6, true, true},
-		{"Textured 3 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 6, true, true},
-		{"Textured 3 Point polygon, semi-transparent, raw texture", &GPU::gp0_Polygons, 6, true, true},
-		{"Monocrome 4 Point Polygon, Opaque", &GPU::gp0_Polygons, 4, true, true},
-		{"Monocrome 4 Point Polygon, Opaque", &GPU::gp0_Polygons, 4, true, true},
-		{"Monocrome 4 Point Polygon, Semi-Transparent", &GPU::gp0_Polygons, 4, true, true},
-		{"Monocrome 4 Point Polygon, Semi-Transparent", &GPU::gp0_Polygons, 4, true, true},
-		{"Textured 4 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 8, true, true},
-		{"Textured 4 Point polygon, opaque, raw texture", &GPU::gp0_Polygons, 8, true, true},
-		{"Textured 4 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 8, true, true},
-		{"Textured 4 Point polygon, semi-transparent, raw texture", &GPU::gp0_Polygons, 8, true, true},
-		{"Shaded 3 Point polygon, opaque", &GPU::gp0_Polygons, 5, true, true},
-		{"Shaded 3 Point polygon, opaque", &GPU::gp0_Polygons, 5, true, true},
-		{"Shaded 3 Point polygon, semi-transparent", &GPU::gp0_Polygons, 5, true, true},
-		{"Shaded 3 Point polygon, semi-transparent", &GPU::gp0_Polygons, 5, true, true},
-		{"Shaded Textured 3 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 8, true, true},
-		{"Shaded Textured 3 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 8, true, true},
-		{"Shaded Textured 3 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 8, true, true},
-		{"Shaded Textured 3 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 8, true, true},
-		{"Shaded 4 Point polygon, opaque", &GPU::gp0_Polygons, 7, true, true},
-		{"Shaded 4 Point polygon, opaque", &GPU::gp0_Polygons, 7, true, true},
-		{"Shaded 4 Point polygon, semi-transparent", &GPU::gp0_Polygons, 7, true, true},
-		{"Shaded 4 Point polygon, semi-transparent", &GPU::gp0_Polygons, 7, true, true},
-		{"Shaded Textured 4 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 11, true, true},
-		{"Shaded Textured 4 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 11, true, true},
-		{"Shaded Textured 4 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 11, true, true},
-		{"Shaded Textured 4 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 11, true, true},
-		{"Monocrome line, opaque", &GPU::gp0_Lines, 2, true, true},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"Monocrome line, semi-transparent", &GPU::gp0_Lines, 2, true, true},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Monocrome 3 Point Polygon, Opaque", &GPU::gp0_Polygons, 3, true, false},
+		{"Monocrome 3 Point Polygon, Opaque", &GPU::gp0_Polygons, 3, true, false},
+		{"Monocrome 3 Point Polygon, Semi-Transparent", &GPU::gp0_Polygons, 3, true, false},
+		{"Monocrome 3 Point Polygon, Semi-Transparent", &GPU::gp0_Polygons, 3, true, false},
+		{"Textured 3 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 6, true, false},
+		{"Textured 3 Point polygon, opaque, raw texture", &GPU::gp0_Polygons, 6, true, false},
+		{"Textured 3 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 6, true, false},
+		{"Textured 3 Point polygon, semi-transparent, raw texture", &GPU::gp0_Polygons, 6, true, false},
+		{"Monocrome 4 Point Polygon, Opaque", &GPU::gp0_Polygons, 4, true, false},
+		{"Monocrome 4 Point Polygon, Opaque", &GPU::gp0_Polygons, 4, true, false},
+		{"Monocrome 4 Point Polygon, Semi-Transparent", &GPU::gp0_Polygons, 4, true, false},
+		{"Monocrome 4 Point Polygon, Semi-Transparent", &GPU::gp0_Polygons, 4, true, false},
+		{"Textured 4 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 8, true, false},
+		{"Textured 4 Point polygon, opaque, raw texture", &GPU::gp0_Polygons, 8, true, false},
+		{"Textured 4 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 8, true, false},
+		{"Textured 4 Point polygon, semi-transparent, raw texture", &GPU::gp0_Polygons, 8, true, false},
+		{"Shaded 3 Point polygon, opaque", &GPU::gp0_Polygons, 5, true, false},
+		{"Shaded 3 Point polygon, opaque", &GPU::gp0_Polygons, 5, true, false},
+		{"Shaded 3 Point polygon, semi-transparent", &GPU::gp0_Polygons, 5, true, false},
+		{"Shaded 3 Point polygon, semi-transparent", &GPU::gp0_Polygons, 5, true, false},
+		{"Shaded Textured 3 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 8, true, false},
+		{"Shaded Textured 3 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 8, true, false},
+		{"Shaded Textured 3 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 8, true, false},
+		{"Shaded Textured 3 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 8, true, false},
+		{"Shaded 4 Point polygon, opaque", &GPU::gp0_Polygons, 7, true, false},
+		{"Shaded 4 Point polygon, opaque", &GPU::gp0_Polygons, 7, true, false},
+		{"Shaded 4 Point polygon, semi-transparent", &GPU::gp0_Polygons, 7, true, false},
+		{"Shaded 4 Point polygon, semi-transparent", &GPU::gp0_Polygons, 7, true, false},
+		{"Shaded Textured 4 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 11, true, false},
+		{"Shaded Textured 4 Point polygon, opaque, texture blending", &GPU::gp0_Polygons, 11, true, false},
+		{"Shaded Textured 4 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 11, true, false},
+		{"Shaded Textured 4 Point polygon, semi-transparent, texture blending", &GPU::gp0_Polygons, 11, true, false},
+		{"Monocrome line, opaque", &GPU::gp0_Lines, 2, true, false},
+		{"Monocrome line, opaque", &GPU::gp0_Lines, 2, true, false},
+		{"Monocrome line, semi-transparent", &GPU::gp0_Lines, 2, true, false},
+		{"Monocrome line, semi-transparent", &GPU::gp0_Lines, 2, true, false},
+		{"Monocrome line, opaque", &GPU::gp0_Lines, 2, true, false},
+		{"Monocrome line, opaque", &GPU::gp0_Lines, 2, true, false},
+		{"Monocrome line, opaque", &GPU::gp0_Lines, 2, true, false},
+		{"Monocrome line, semi-transparent", &GPU::gp0_Lines, 2, true, false},
 		{"Monocrome Polyline, opaque", &GPU::gp0_Lines, 255, true, true},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Monocrome Polyline, opaque", &GPU::gp0_Lines, 255, true, true},
 		{"Monocrome Polyline, semi-transparent", &GPU::gp0_Lines, 255, true, true},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"Shaded line, opaque", &GPU::gp0_Lines, 3, true, true},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"Shaded line, semi-transparent", &GPU::gp0_Lines, 3, true, true},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Monocrome Polyline, semi-transparent", &GPU::gp0_Lines, 255, true, true},
+		{"Monocrome Polyline, opaque", &GPU::gp0_Lines, 255, true, true},
+		{"Monocrome Polyline, opaque", &GPU::gp0_Lines, 255, true, true},
+		{"Monocrome Polyline, semi-transparent", &GPU::gp0_Lines, 255, true, true},
+		{"Monocrome Polyline, semi-transparent", &GPU::gp0_Lines, 255, true, true},
+		{"Shaded line, opaque", &GPU::gp0_Lines, 3, true, false},
+		{"Shaded line, opaque", &GPU::gp0_Lines, 3, true, false},
+		{"Shaded line, semi-transparent", &GPU::gp0_Lines, 3, true, false},
+		{"Shaded line, semi-transparent", &GPU::gp0_Lines, 3, true, false},
+		{"Shaded line, opaque", &GPU::gp0_Lines, 3, true, false},
+		{"Shaded line, opaque", &GPU::gp0_Lines, 3, true, false},
+		{"Shaded line, semi-transparent", &GPU::gp0_Lines, 3, true, false},
+		{"Shaded line, semi-transparent", &GPU::gp0_Lines, 3, true, false},
 		{"Shaded Polyline, opaque", &GPU::gp0_Lines, 255, true, true},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"Shaded Polyline. semi-transparent", &GPU::gp0_Lines, 255, true, true},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Shaded Polyline, opaque", &GPU::gp0_Lines, 255, true, true},
+		{"Shaded Polyline, semi-transparent", &GPU::gp0_Lines, 255, true, true},
+		{"Shaded Polyline, semi-transparent", &GPU::gp0_Lines, 255, true, true},
+		{"Shaded Polyline, opaque", &GPU::gp0_Lines, 255, true, true},
+		{"Shaded Polyline, opaque", &GPU::gp0_Lines, 255, true, true},
+		{"Shaded Polyline, semi-transparent", &GPU::gp0_Lines, 255, true, true},
+		{"Shaded Polyline, semi-transparent", &GPU::gp0_Lines, 255, true, true},
 		{"Monocrome Rectangle, variable size, opaque", &GPU::gp0_Rectangles, 2, true, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Monocrome Rectangle, variable size, opaque", &GPU::gp0_Rectangles, 2, true, false},
 		{"Monocrome Rectangle, variable size, semi-transparent", &GPU::gp0_Rectangles, 2, true, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Monocrome Rectangle, variable size, semi-transparent", &GPU::gp0_Rectangles, 2, true, false},
 		{"Textured Rectangle, variable size, opaque, texture blending", &GPU::gp0_Rectangles, 3, true, false},
 		{"Textured Rectangle, variable size, opaque, raw texture", &GPU::gp0_Rectangles, 3, true, false},
 		{"Textured Rectangle, variable size, semi-transparent, texture blending", &GPU::gp0_Rectangles, 3, true, false},
 		{"Textured Rectangle, variable size, semi-transparent, raw texture", &GPU::gp0_Rectangles, 3, true, false},
 		{"Monocrome Rectangle, 1x1, opaque", &GPU::gp0_Rectangles, 1, true, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Monocrome Rectangle, 1x1, opaque", &GPU::gp0_Rectangles, 1, true, false },
 		{"Monocrome Rectangle, 1x1, semi-transparent", &GPU::gp0_Rectangles, 1, true, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Monocrome Rectangle, 1x1, semi-transparent", &GPU::gp0_Rectangles, 1, true, false },
 		{"Textured Rectangle, 1x1, opaque, texture blending", &GPU::gp0_Rectangles, 2, true, false},
 		{"Textured Rectangle, 1x1, opaque, raw texture", &GPU::gp0_Rectangles, 2, true, false},
 		{"Textured Rectangle, 1x1, semi-transparent, texture blending", &GPU::gp0_Rectangles, 2, true, false},
 		{"Textured Rectangle, 1x1, semi-transparent, raw texture", &GPU::gp0_Rectangles, 2, true, false},
 		{"Monocrome Rectangle, 8x8, opaque", &GPU::gp0_Rectangles, 1, true, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Monocrome Rectangle, 8x8, opaque", &GPU::gp0_Rectangles, 1, true, false },
 		{"Monocrome Rectangle, 8x8, semi-transparent", &GPU::gp0_Rectangles, 1, true, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Monocrome Rectangle, 8x8, semi-transparent", &GPU::gp0_Rectangles, 1, true, false },
 		{"Textured Rectangle, 8x8, opaque, texture blending", &GPU::gp0_Rectangles, 2, true, false},
 		{"Textured Rectangle, 8x8, opaque, raw texture", &GPU::gp0_Rectangles, 2, true, false},
 		{"Textured Rectangle, 8x8, semi-transparent, texture blending", &GPU::gp0_Rectangles, 2, true, false},
 		{"Textured Rectangle, 8x8, semi-transparent, raw texture", &GPU::gp0_Rectangles, 2, true, false},
 		{"Monocrome Rectangle, 16x16, opaque", &GPU::gp0_Rectangles, 1, true, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Monocrome Rectangle, 16x16, opaque", &GPU::gp0_Rectangles, 1, true, false },
 		{"Monocrome Rectangle, 16x16, semi-transparent", &GPU::gp0_Rectangles, 1, true, false},
-		{"", &GPU::gp0_NoOperation, 0, false, false},
+		{"Monocrome Rectangle, 16x16, semi-transparent", &GPU::gp0_Rectangles, 1, true, false },
 		{"Textured Rectangle, 16x16, opaque, texture blending", &GPU::gp0_Rectangles, 2, true, false},
 		{"Textured Rectangle, 16x16, opaque, raw texture", &GPU::gp0_Rectangles, 2, true, false},
 		{"Textured Rectangle, 16x16, semi-transparent, texture blending", &GPU::gp0_Rectangles, 2, true, false},
 		{"Textured Rectangle, 16x16, semi-transparent, raw texture", &GPU::gp0_Rectangles, 2, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (VRAM to VRAM)", &GPU::gp0_CopyVRam2VRam, 3, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
-		{"Copy Rectangle (RAM to VRAM)", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit VRAM -> VRAM", &GPU::gp0_CopyVRam2VRam, 3, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
+		{"Blit RAM  -> VRAM", &GPU::gp0_CopyRam2VRam, 2, true, false},
 		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true, false},
 		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true, false},
 		{"Copy Rectangle (VRAM to RAM)", &GPU::gp0_CopyVRam2Ram, 2, true, false},
@@ -437,7 +437,7 @@ bool GPU::reset()
 //                               HELPER FUNCTIONS
 // 
 //-----------------------------------------------------------------------------------------------------
-bool GPU::writeVRAM(uint32_t data)
+inline bool GPU::writeVRAM(uint32_t data, bool masked)
 {
 	if (vramAccessState.dataWrite == 0)
 	{
@@ -448,32 +448,35 @@ bool GPU::writeVRAM(uint32_t data)
 	uint16_t l = static_cast<uint16_t>((data & 0x0000ffff));
 	uint16_t h = static_cast<uint16_t>((data & 0xffff0000) >> 16);
 
-	Renderer::WriteVRAM(vramAccessState.writePos.x, vramAccessState.writePos.y, l);
-	Renderer::WriteVRAM(vramAccessState.writePos.x + 1, vramAccessState.writePos.y, h);
-
-	//Update Data Pointer in VRAM
-	vramAccessState.writePos.x += 2;
-	vramAccessState.dataWrite += 2;
-
-	if (vramAccessState.writePos.x >= vramAccessState.dst.x + vramAccessState.size.x)
+	if (masked)
 	{
-		vramAccessState.writePos.x = vramAccessState.dst.x;
-		vramAccessState.writePos.y++;
+		Renderer::WriteVRAMMasked(vramAccessState.writePos.x, vramAccessState.writePos.y, l);
+		Renderer::WriteVRAMMasked(vramAccessState.writePos.x + 1, vramAccessState.writePos.y, h);
+	}
+	else
+	{
+		Renderer::WriteVRAM(vramAccessState.writePos.x, vramAccessState.writePos.y, l);
+		Renderer::WriteVRAM(vramAccessState.writePos.x + 1, vramAccessState.writePos.y, h);
 	}
 
+	//Update Data Pointer in VRAM
+	vramAccessState.dataWrite += 2;
+	vramAccessState.writePos.x = ((vramAccessState.dataWrite % vramAccessState.size.x) + vramAccessState.dst.x) % 1024; //Horizontal Wrapping
+	vramAccessState.writePos.y = ((vramAccessState.dataWrite / vramAccessState.size.x) + vramAccessState.dst.y) % 512;	//Vertical Wrapping
+	
 	if (vramAccessState.dataWrite >= vramAccessState.dataLenght)
 	{
 		vramAccessState.write = false;
 		vramAccessState.dataWrite = 0;
 		Renderer::CommitAccessBuffer(vramAccessState.dst.x, vramAccessState.dst.y, vramAccessState.size.x, vramAccessState.size.y);
 		gp0_ResetStatus();
-		return false;
+		return true;
 	}
 			
-	return true;
+	return false;
 }
 
-uint32_t GPU::readVRAM()
+inline uint32_t GPU::readVRAM()
 {
 	if (vramAccessState.dataRead == 0)
 	{
@@ -487,14 +490,10 @@ uint32_t GPU::readVRAM()
 	uint32_t data = (h << 16) | l;
 
 	//Update Data Pointer in VRAM
-	vramAccessState.readPos.x += 2;
 	vramAccessState.dataRead += 2;
-	if (vramAccessState.readPos.x >= vramAccessState.src.x + vramAccessState.size.x)
-	{
-		vramAccessState.readPos.x = vramAccessState.src.x;
-		vramAccessState.readPos.y++;
-	}
-
+	vramAccessState.readPos.x = ((vramAccessState.dataRead % vramAccessState.size.x) + vramAccessState.src.x) % 1024;	//Horizontal Wrapping
+	vramAccessState.readPos.y = ((vramAccessState.dataRead / vramAccessState.size.x) + vramAccessState.src.y) % 512;	//Vertical Wrapping
+	
 	if (vramAccessState.dataRead >= vramAccessState.dataLenght)
 	{
 		vramAccessState.read = false;
@@ -580,7 +579,7 @@ bool GPU::execute()
 			uint32_t tmp;
 			fifo.pop(tmp);
 			
-			LOG_F(1, "GPU - %s (params: %d)", gp0InstrSet[gp0Opcode].mnemonic.c_str(), gp0InstrSet[gp0Opcode].parameters);
+			LOG_F(1, "GPU - %s (params: %d) [%xh]", gp0InstrSet[gp0Opcode].mnemonic.c_str(), gp0InstrSet[gp0Opcode].parameters, gp0Opcode);
 			bResult = (this->*gp0InstrSet[gp0Opcode].operate)();
 			if (!bResult)
 				LOG_F(ERROR, "GPU - Unimplemented GP0 Command %s!", gp0InstrSet[gp0Opcode].mnemonic.c_str());
@@ -590,7 +589,7 @@ bool GPU::execute()
 			//It isn't a command stored on the FIFO
 			//Actual GP0 Command its already on gp0Command
 
-			LOG_F(1, "GPU - %s (params: %d)", gp0InstrSet[gp0Opcode].mnemonic.c_str(), gp0InstrSet[gp0Opcode].parameters);
+			LOG_F(1, "GPU - %s (params: %d) [%xh]", gp0InstrSet[gp0Opcode].mnemonic.c_str(), gp0InstrSet[gp0Opcode].parameters, gp0Opcode);
 			bResult = (this->*gp0InstrSet[gp0Opcode].operate)();
 			if (!bResult)
 				LOG_F(ERROR, "GPU - Unimplemented GP0 Command %s!", gp0InstrSet[gp0Opcode].mnemonic.c_str()); 
@@ -747,7 +746,7 @@ bool GPU::writeAddr(uint32_t addr, uint32_t& data, uint8_t bytes)
 			//Data Transfer could be either thru:
 			//	- CPU, GPUSTAT.29-30 (DMA Direction) = 0  "DMA Off"
 			//	- DMA, GPUSTAT.29-30 (DMA Direction) = 2  "DMA RAM to VRAM"
-			writeVRAM(data);
+			writeVRAM(data, true);
 		}
 		else
 		{
@@ -893,7 +892,7 @@ bool GPU::gp0_Rectangles()
 	// 2            1/0     textured / untextured
 	// 1            1/0     semi-transparent / opaque
 	// 0            1/0     raw texture / texture blending
-	
+		
 	uint8_t		recType = (gp0Opcode & 0x18) >> 3;
 	bool		textured  = (gp0Opcode & 0x04) ? true : false;
 	bool		semiTransparent  = (gp0Opcode & 0x02) ? true : false;
@@ -907,11 +906,11 @@ bool GPU::gp0_Rectangles()
 	// Parse all Polygon Command Parameters from FIFO directly into Triangle vertex temporaries
 	param = gp0Command;
 
-	LOG_F(3, "GPU - Rectangle Type: %d, Textured: %d, SemiTransparent: %d, TextureBlending: %d", recType, textured, semiTransparent, texblending);
-	LOG_F(3, "GPU - Rectangle Parameter [0]: 0x%08x", param);
+	LOG_F(2, "GPU - Rectangle Type: %d, Textured: %d, SemiTransparent: %d, TextureBlending: %d", recType, textured, semiTransparent, texblending);
+	LOG_F(2, "GPU - Rectangle Parameter [0]: 0x%08x", param);
 	for(int i = 0; i<fifo.length(); ++i)
 	{
-		LOG_F(3, "GPU - Rectangle Parameter [%d]: 0x%08x", i+1, fifo[i]);
+		LOG_F(2, "GPU - Rectangle Parameter [%d]: 0x%08x", i+1, fifo[i]);
 	}
 
 	//Set Vertex Buffer
@@ -965,10 +964,12 @@ bool GPU::gp0_Rectangles()
 	//Generate All remaining vertex
 	verts[1] = verts[0];  //Start from first vertex values
 	verts[1].x += recDimension.x;
+
 	verts[2] = verts[0];  //Start from first vertex values
-	verts[2].x += recDimension.x;
 	verts[2].y += recDimension.y;
+	
 	verts[3] = verts[0];  //Start from first vertex values
+	verts[3].x += recDimension.x;
 	verts[3].y += recDimension.y;
 	
 	if (textured)
@@ -980,13 +981,16 @@ bool GPU::gp0_Rectangles()
 	}
 
 	//Set Renderer Status
+	Renderer::SetTextureMode(textured, texblending);
+	Renderer::SetTransparency(semiTransparent);
+
 	if (textured)
 	{
-		Renderer::SetTextureMode(textured, texblending);
-		Renderer::SetTextureColorMode(colorMode);
+		//Renderer::SetTextureMode(textured, texblending);
+		//Renderer::SetTextureColorMode(colorMode);
 		Renderer::SetClutTable(clutCoords);
 	}
-	Renderer::SetTransparency(semiTransparent);
+	
 	
 	//Draw Rectangle
 	if (recType == 1)
@@ -1116,7 +1120,7 @@ bool GPU::gp0_CopyVRam2VRam()
 	vramAccessState.size.y = ((static_cast<uint16_t>((param & 0xffff0000) >> 16) - 1) & 0x1ff) + 1;
 
 	//This is done on a single clock cycle to ease the implementation
-	while (writeVRAM(readVRAM())) {};
+	while (!writeVRAM(readVRAM(), true)) {};
 		
 	LOG_F(2, "GPU - Read from VRAM at [x: %d, y: %d]", vramAccessState.src.x, vramAccessState.src.y);
 	LOG_F(2, "GPU - Write to VRAM at  [x: %d, y: %d]", vramAccessState.dst.x, vramAccessState.dst.y);
@@ -1203,7 +1207,7 @@ bool GPU::gp0_FillVRam()
 
 	//Fill VRAM with RGB value in color
 	//This is done on a single clock cycle to ease the implementation
-	while(writeVRAM(color << 16 | color)) {}
+	while(!writeVRAM(color << 16 | color)) {}
 	
 	LOG_F(2, "GPU - Fill VRAM at [x: %d, y: %d] with 0x%04x", vramAccessState.dst.x, vramAccessState.dst.y, color);
 	LOG_F(2, "GPU - Copy Size    [x: %d, y: %d]", vramAccessState.size.x, vramAccessState.size.y);
@@ -1302,6 +1306,7 @@ bool GPU::gp0_DrawMode()
 	Renderer::SetDither(ditherEnabled);
 	Renderer::SetDrawingOnDisplayEnabled(drawingOnDisplayEnabled);
 	Renderer::SetTextureDisable(textureDisabled);
+	Renderer::SetRectangleTextureFlip(rectangleTexFlipX, rectangleTexFlipY);
 
 	return true;
 }

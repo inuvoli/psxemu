@@ -4,7 +4,7 @@
 // Inputs from vertex shader
 // ------------------------------------------------------------
 
-in vec2 vUV;          // texture coordinates in VRAM pixel space [0,0 - 1024, 512]
+noperspective in vec2 vUV;          // texture coordinates in VRAM pixel space [0,0 - 1024, 512]
 in vec3 vColor;       // vertex color in RGB5 format
 in vec2 vFragPos;     // pixel position in VRAM pixel space (after draw offset)
 
@@ -88,12 +88,12 @@ uint pack555(uvec3 c, bool mask)
 uint fetchTexel(ivec2 uv)
 {
     uvec2 p;
-    if (uTexColorMode == 16)            //Raw 1-5-5-5 format
+    if (uTexColorMode == 2 || uTexColorMode == 3)   //Raw 1-5-5-5 format
     {
         p = uTPage + uv;
         return texelFetch(uVRAM, ivec2(p.x, p.y), 0).r;
     }
-    else if (uTexColorMode == 8)        //CLUT 8bit
+    else if (uTexColorMode == 1)                   //CLUT 8bit
     {
         p = uTPage + uvec2(uv.x / 2, uv.y);
         uint w = texelFetch(uVRAM, ivec2(p.x, p.y), 0).r;
@@ -101,7 +101,7 @@ uint fetchTexel(ivec2 uv)
         p = uClut + uvec2(int(idx), 0);
         return texelFetch(uVRAM, ivec2(p.x, p.y), 0).r;
     }
-    else                                //CLUT 4bit
+    else                                           //CLUT 4bit
     {
         p = uTPage + ivec2(uv.x / 4, uv.y);
         uint w = texelFetch(uVRAM, ivec2(p.x, p.y), 0).r;
@@ -132,8 +132,8 @@ void main()
     // Background pixel (for blending & mask test)
     // --------------------------------------------------------
     uint dstRaw = texelFetch(uVRAM, ivec2(pos.x, pos.y), 0).r;
-
-    if (uCheckMask && ((dstRaw & 0x8000u) != 0u))
+    bool maskbit = (dstRaw & 0x8000u) != 0u;
+    if (uCheckMask && maskbit)
         discard;
 
     uvec3 dst = unpack555(dstRaw);
@@ -200,8 +200,6 @@ void main()
 
     // --------------------------------------------------------
     // Write mask bit + Draw Enabled GP0(E1h).bit10
-    // --------------------------------------------------------
-    bool mask = uForceMask;
-    
-    outColor = uvec4(pack555(src, mask), 0u, 0u, 1u);
+    // --------------------------------------------------------   
+    outColor = uvec4(pack555(src, uForceMask), 0u, 0u, 1u);
 }

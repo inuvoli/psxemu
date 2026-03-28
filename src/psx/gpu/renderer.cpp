@@ -11,12 +11,12 @@ bool Renderer::Init()
     r.vertexCount = 0;
 
     //Init Video Status
-    r.videoState.displayRes = { 256, 240 };
-    r.videoState.displayArea = { 0, 0, 0, 0 };
-    r.videoState.displayColorMode = 0;
-    r.videoState.displayDisabled = true;
-    r.videoState.interlaced = false;
-    r.videoState.evenfield = false;
+    r.displayState.displayRes = { 256, 240 };
+    r.displayState.displayArea = { 0, 0, 0, 0 };
+    r.displayState.displayColorMode = 0;
+    r.displayState.displayDisabled = true;
+    r.displayState.interlaced = false;
+    r.displayState.evenfield = false;
 
     //Init Rendering Status
     r.currentState.drawingArea = { 0, 0, 0, 0 };
@@ -152,12 +152,12 @@ bool Renderer::Reset()
     r.vertexCount = 0;
 
     //Init Video Status
-    r.videoState.displayRes = { 256, 240 };
-    r.videoState.displayArea = { 0, 0, 0, 0 };
-    r.videoState.displayColorMode = 0;
-    r.videoState.displayDisabled = true;
-    r.videoState.interlaced = false;
-    r.videoState.evenfield = false;
+    r.displayState.displayRes = { 256, 240 };
+    r.displayState.displayArea = { 0, 0, 0, 0 };
+    r.displayState.displayColorMode = 0;
+    r.displayState.displayDisabled = true;
+    r.displayState.interlaced = false;
+    r.displayState.evenfield = false;
 
     //Init Rendering Status
     r.currentState.drawingArea = { 0, 0, 0, 0 };
@@ -239,7 +239,7 @@ void Renderer::PushQuad(const RendererVertex& v0, const RendererVertex& v1, cons
     r.mappedVertex[r.vertexCount++] = v1;
     r.mappedVertex[r.vertexCount++] = v2;
 
-    r.mappedVertex[r.vertexCount++] = v0;
+    r.mappedVertex[r.vertexCount++] = v1;
     r.mappedVertex[r.vertexCount++] = v2;
     r.mappedVertex[r.vertexCount++] = v3;
 
@@ -315,7 +315,7 @@ void Renderer::DrawPoint(GpuVertex *vertex)
 {
     auto& r = instance();  // Alias al singleton
 
-    RendererVertex v[3];
+    RendererVertex v[4];
 
     r.BeginBatch();
     
@@ -332,8 +332,13 @@ void Renderer::DrawPoint(GpuVertex *vertex)
     v[2].uv = glm::vec2((float)vertex[2].u, (float)vertex[2].v);
     v[2].color = glm::vec3((float)vertex[2].r, (float)vertex[2].g, (float)vertex[2].b);
 
+    v[3].pos = glm::vec2((float)vertex[3].x, (float)vertex[3].y);
+    v[3].uv = glm::vec2((float)vertex[3].u, (float)vertex[3].v);
+    v[3].color = glm::vec3((float)vertex[3].r, (float)vertex[3].g, (float)vertex[3].b);
+
     //Create a small triangle to represent the point
-    r.PushTriangle(v[0], v[1], v[2]);
+    //r.PushTriangle(v[0], v[1], v[2]);
+    r.PushQuad(v[0], v[1], v[2], v[3]);
 
     LOG_F(3, "RND - Draw POINT");
     LOG_F(3, "RND - Vertex 1 - Pos: [%f, %f], Color: [%f, %f, %f], UV: [%f, %f]", v[0].pos.x, v[0].pos.y, v[0].color.x, v[0].color.y, v[0].color.z, v[0].uv.x, v[0].uv.y);
@@ -398,11 +403,12 @@ bool Renderer::CommitAccessBuffer(uint16_t x, uint16_t y, uint16_t w, uint16_t h
     auto& r = instance();  // Alias al singleton
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, r.vramAccessBufferID);
-	size_t offset = (y * 1024 + x) * sizeof(uint16_t);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 1024);
+
+    size_t offset = (y * 1024 + x) * sizeof(uint16_t);
     glTextureSubImage2D(r.vramTexture, 0, x, y, w, h, GL_RED_INTEGER, GL_UNSIGNED_SHORT, (void*)offset);
+    
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    //glTextureSubImage2D(r.vramTexture, 0, 0, 0, 1024, 512, GL_RED_INTEGER, GL_UNSIGNED_SHORT, nullptr);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
     glMemoryBarrier(GL_TEXTURE_UPDATE_BARRIER_BIT);
 
@@ -424,10 +430,7 @@ bool Renderer::SyncAccessBuffer(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 	//Sync Persistent Buffer with VRAM Texture data before reading/writing to it, to ensure coherence between them
 	GLsizei size = w * h * sizeof(uint16_t);
     glGetTextureSubImage(r.vramTexture, x, y, 0, 0, w, h, 1, GL_RED_INTEGER, GL_UNSIGNED_SHORT, size, r.vramAccessBuffer);
-
-    //GLsizei size = 1024 * 512 * sizeof(uint16_t);
-    //glGetTextureImage(r.vramTexture, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, size, r.vramAccessBuffer);
-
+       
     LOG_F(2, "RND - VRAM Persistent Buffer Synced! [x: %d, y: %d, w: %d, h: %d]", x, y, w, h);
     return true;
 }
@@ -443,6 +446,32 @@ bool Renderer::WriteVRAM(uint16_t x, uint16_t y, uint16_t data)
     }
     r.vramAccessBuffer[y * 1024 + x] = data;
 
+    return true;
+}
+
+bool Renderer::WriteVRAMMasked(uint16_t x, uint16_t y, uint16_t data)
+{
+    auto& r = instance();  // Alias al singleton
+
+    if (r.vramAccessBuffer == nullptr)
+    {
+        LOG_F(ERROR, "RND - VRAM Access Buffer is null in WriteVRAM");
+        return false;
+    }
+
+	//Get current value in VRAM Access Buffer
+	uint16_t currentValue = r.vramAccessBuffer[y * 1024 + x];
+	bool maskbit = (currentValue & 0x8000) != 0;
+
+	//f checkMask is enabled and the mask bit of the current value is set skip writing to VRAM
+    if (r.currentState.checkMask && maskbit)
+        return true;
+   
+    if (r.currentState.forceMask)
+        r.vramAccessBuffer[y * 1024 + x] = data | 0x8000; //Set mask bit to 1 if forceMask is enabled
+	else
+        r.vramAccessBuffer[y * 1024 + x] = data;
+    
     return true;
 }
 
@@ -516,7 +545,7 @@ void Renderer::ScreenUpdate()
     //Wait for rendering of the last batch to end before rendering to Video
     r.WaitForFence();
 
-    if (!r.videoState.displayDisabled)
+    if (!r.displayState.displayDisabled)
     {
         //Setup Framebuffer Shader
         r.SetupFramebufferShader();  
@@ -629,6 +658,8 @@ void Renderer::SetupRenderShader()
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     r.RenderShader->Use();
 
@@ -674,6 +705,8 @@ void Renderer::SetupFramebufferShader()
 
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     r.FramebufferShader->Use();
 
@@ -682,17 +715,17 @@ void Renderer::SetupFramebufferShader()
     r.FramebufferShader->setUniformui("uVRAM", 0);
 
     //Set Display Area parameters
-    r.FramebufferShader->setUniformi("uDisplayArea", r.videoState.displayArea);
+    r.FramebufferShader->setUniformi("uDisplayArea", r.displayState.displayArea);
 
     //Set Display Color Mode
-    r.FramebufferShader->setUniformi("uDisplayColorMode", r.videoState.displayColorMode);
+    r.FramebufferShader->setUniformi("uDisplayColorMode", r.displayState.displayColorMode);
 
     //Set Display Interlace mode parameters
-    r.FramebufferShader->setUniformb("uInterlaced", r.videoState.interlaced);
-    r.FramebufferShader->setUniformb("uEvenField", r.videoState.evenfield);
+    r.FramebufferShader->setUniformb("uInterlaced", r.displayState.interlaced);
+    r.FramebufferShader->setUniformb("uEvenField", r.displayState.evenfield);
 
     //Evenfield keep toogling every frame, it is used by the Shader onlu if interlaced in set
-    r.videoState.evenfield = !r.videoState.evenfield;
+    r.displayState.evenfield = !r.displayState.evenfield;
 }
 
 //--------------------------------------------------------------------------------------------------------------------
@@ -703,7 +736,7 @@ void Renderer::SetupFramebufferShader()
 void Renderer::SetDisplayDisable(bool disabled)
 {
     auto& r = instance();  // Alias al singleton
-    r.videoState.displayDisabled = disabled;
+    r.displayState.displayDisabled = disabled;
 
     LOG_F(2, "RND - Set Display Disabled to: %s", disabled ? "true" : "false");
 }
@@ -712,8 +745,8 @@ void Renderer::SetDisplayStart(lite::vec2t<uint16_t> displayStart)
 {
     auto& r = instance();  // Alias al singleton
 
-    r.videoState.displayArea.x = (GLint)displayStart.x;
-    r.videoState.displayArea.y = (GLint)displayStart.y;
+    r.displayState.displayArea.x = (GLint)displayStart.x;
+    r.displayState.displayArea.y = (GLint)displayStart.y;
 
     LOG_F(2, "RND - Set Display Start to x: %d, y: %d", displayStart.x, displayStart.y);
 }
@@ -721,21 +754,21 @@ void Renderer::SetDisplayStart(lite::vec2t<uint16_t> displayStart)
 void Renderer::SetDisplayResolution(lite::vec2t<uint16_t> resolution)
 {
     auto& r = instance();  // Alias al singleton
-    r.videoState.displayRes.x = (GLint)resolution.x;
-    r.videoState.displayRes.y = (GLint)resolution.y;
+    r.displayState.displayRes.x = (GLint)resolution.x;
+    r.displayState.displayRes.y = (GLint)resolution.y;
 
     //Set Width and Height of the display area according to resolution
-    r.videoState.displayArea.z = (GLint)resolution.x;
-    r.videoState.displayArea.w = (GLint)resolution.y;
+    r.displayState.displayArea.z = (GLint)resolution.x;
+    r.displayState.displayArea.w = (GLint)resolution.y;
 
-    LOG_F(2, "RND - Set Display Resolution to x: %d, y: %d", r.videoState.displayRes.x, r.videoState.displayRes.y);
-    LOG_F(2, "RND - Updated Display Area width and height to w: %d, h: %d", r.videoState.displayArea.z, r.videoState.displayArea.w);
+    LOG_F(2, "RND - Set Display Resolution to x: %d, y: %d", r.displayState.displayRes.x, r.displayState.displayRes.y);
+    LOG_F(2, "RND - Updated Display Area width and height to w: %d, h: %d", r.displayState.displayArea.z, r.displayState.displayArea.w);
 }
 
 void Renderer::SetDisplayColorMode(uint8_t colorMode)
 {
     auto& r = instance();  // Alias al singleton
-    r.videoState.displayColorMode = (GLint)colorMode;
+    r.displayState.displayColorMode = (GLint)colorMode;
 
     LOG_F(2, "RND - Set Display Color Mode to: %d", colorMode);
 }
@@ -743,7 +776,7 @@ void Renderer::SetDisplayColorMode(uint8_t colorMode)
 void Renderer::SetDisplayInterlaceMode(bool interlaced)
 {
     auto& r = instance();  // Alias al singleton
-    r.videoState.interlaced = interlaced;
+    r.displayState.interlaced = interlaced;
 
     LOG_F(2, "RND - Set Display Interlace Mode to: %s", interlaced ? "true" : "false");
 }
@@ -812,6 +845,15 @@ void Renderer::SetDither(bool dither)
     r.currentState.dither = dither;
 
     LOG_F(2, "RND - Set Dither to: %s", dither ? "true" : "false");
+}
+
+void Renderer::SetRectangleTextureFlip(bool flipX, bool flipY)
+{
+    auto& r = instance();  // Alias al singleton
+    r.currentState.texRectangleXFlip = flipX;
+    r.currentState.texRectangleYFlip = flipY;
+
+    LOG_F(2, "RND - Set Rectangle Texture Flip - FlipX: %s, FlipY: %s", flipX ? "true" : "false", flipY ? "true" : "false");
 }
 
 void Renderer::SetTextureMode(bool textured, bool texBlending)

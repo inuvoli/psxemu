@@ -71,7 +71,6 @@ inline void decodeTexPage(const uint16_t param, lite::vec2t<uint16_t> &texPageCo
 	texPageCoords.y = (uint16_t)(((param >> 4) & 0x1) * 256);
 	semiTransMode = (uint8_t)((param >> 5) & 0x3);  
 	texColorMode = (uint8_t)((param >> 7) & 0x3);
-	//texDisabled = (bool)((param >> 10) & 0x1);
 }
 
 inline lite::vec2t<uint16_t> decodeResolution(uint32_t gpuStat)

@@ -44,10 +44,11 @@ bld/
 *.img
 *.cue
 *.bin
-psxemu
 
 # Ignore Libraries in 3rdparty folder
 3rdparty/imgui_club/*
 3rdparty/fpm/*
 3rdparty/imgui/*
-3rdparty/loguru/*
+
+# Ignore other files in bin folder
+bin/psxemu

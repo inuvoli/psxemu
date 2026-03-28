@@ -22,9 +22,11 @@ KEYWORDS_INCLUDE = [
 KEYWORDS_EXCLUDE = [
     "RND - Set Semi Transparency to: false",
     "GPU - Monocrome Rectangle, 1x1, opaque (params: 1)",
+    "GPU - Rectangle",
     "GPU - Reset Command Buffer (params: 0)",
-    "INT - Hardware Interrupt Request (vBlank)",
-    "RND - vBlank! vBlank! vBlank! vBlank! vBlank! vBlank! vBlank!"
+    #"INT - Hardware Interrupt Request (vBlank)",
+    "RND - vBlank! vBlank! vBlank! vBlank! vBlank! vBlank! vBlank!",
+    "RND - Set Texture Mode"
 
 ]
 
