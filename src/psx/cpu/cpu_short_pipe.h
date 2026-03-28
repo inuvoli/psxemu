@@ -10,6 +10,11 @@
 
 #include "litelib.h" 
 #include "cpu_registers.h"
+
+//Forward declarations to break circular dependency with cop0.h and cop2.h
+class Cop0;
+class Cop2;
+
 #include "cop0.h"
 #include "cop2.h"
 #include "debugger.h"
@@ -121,7 +126,7 @@ public:
 
 	std::shared_ptr<Cop0>	cop0;	//Coprocessor 0
 	std::shared_ptr<Cop2>	cop2;	//Coprocessor 2 (GTE)
-
+	
 private:
 	//CPU Instructions
 	bool op_bxx();
